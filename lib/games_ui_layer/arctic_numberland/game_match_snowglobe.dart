@@ -11,6 +11,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -37,7 +39,8 @@ class _Number1to5MatchSnowglobesScreenState
         DomaReactionMixin,
         GameLoadingMixin,
         AiCameraMixin<Number1to5MatchSnowglobesScreen>,
-        AppAudioLifecycleMixin<Number1to5MatchSnowglobesScreen> {
+        AppAudioLifecycleMixin<Number1to5MatchSnowglobesScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -77,15 +80,16 @@ class _Number1to5MatchSnowglobesScreenState
   bool _introPlaying = true;
   int _currentRound = 0;
 
-  late int _targetNumber; // the number shown to the player
-  late List<int> _globeCounts; // how many objects in each globe
-  late List<String> _globeObjects; // which object type each globe uses
+  late int _targetNumber;
+  late List<int> _globeCounts;
+  late List<String> _globeObjects;
   int? _tappedIndex;
   bool _showWinDialog = false;
   late List<int> _roundPool;
 
-  // Shake state for wrong answer
   int? _shakingIndex;
+
+  final List<GlobalKey> _globeKeys = List.generate(_globeCount, (_) => GlobalKey());
 
   // ── Animations ─────────────────────────────────────────────────────────────
 
@@ -231,7 +235,6 @@ class _Number1to5MatchSnowglobesScreenState
 
     _globeCounts = [...otherCounts, _targetNumber]..shuffle(rng);
 
-    // Each globe gets a random object type (can repeat across globes)
     _globeObjects = List.generate(
       _globeCount,
       (_) => _insideObjects[rng.nextInt(_insideObjects.length)],
@@ -247,6 +250,7 @@ class _Number1to5MatchSnowglobesScreenState
     _globesEnterCtrl.forward(from: 0);
     _targetEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
+    startIdleTimer();
   }
 
   // ── Globe Tap ──────────────────────────────────────────────────────────────
@@ -283,6 +287,7 @@ class _Number1to5MatchSnowglobesScreenState
             .catchError((e) {
               debugPrint("Database Error marking level complete: $e");
             });
+        cancelIdleTimer();
         setState(() => _showWinDialog = true);
       } else {
         setState(() => _currentRound++);
@@ -305,6 +310,7 @@ class _Number1to5MatchSnowglobesScreenState
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _minLoadTimer?.cancel();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
@@ -346,6 +352,11 @@ class _Number1to5MatchSnowglobesScreenState
         Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
         _introPlaying ? _buildIntroLayer() : _buildGameContent(),
         if (!_introPlaying) buildDoma(context),
+        if (showHowToPlay &&
+            !_introPlaying &&
+            !_showWinDialog &&
+            _tappedIndex == null)
+          Positioned.fill(child: _buildHowToPlayOverlay()),
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
       ],
     );
@@ -364,8 +375,10 @@ class _Number1to5MatchSnowglobesScreenState
         : LoadingScreen.arctic();
 
     return Listener(
-      
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (!_introPlaying && !_showWinDialog) resetIdleTimer();
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: loadingSlot,
@@ -378,6 +391,32 @@ class _Number1to5MatchSnowglobesScreenState
                 )
               : contentWithOverlay,
         ),
+      ),
+    );
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
+  Widget _buildHowToPlayOverlay() {
+    return HowToPlayOverlay(
+      handAlignment: _alignmentOf(_globeKeys[0]),
+      handOffset: const Offset(0.16, 0.48),
+      onDismiss: resetIdleTimer,
+      previewChild: Stack(
+        children: [
+          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+          _buildGameContent(preview: true),
+        ],
       ),
     );
   }
@@ -501,7 +540,7 @@ class _Number1to5MatchSnowglobesScreenState
   }
 
   // ── Game ───────────────────────────────────────────────────────────────────
-  Widget _buildGameContent() {
+  Widget _buildGameContent({bool preview = false}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
@@ -535,11 +574,10 @@ class _Number1to5MatchSnowglobesScreenState
                   Expanded(
                     flex: 7,
                     child: Row(
-                      // ADD — target panel + globes grouped together on the right
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(flex: 1, child: _buildTargetPanel(h)),
-                        Expanded(flex: 4, child: _buildGlobesArea(h)),
+                        Expanded(flex: 1, child: _buildTargetPanel(h, preview)),
+                        Expanded(flex: 4, child: _buildGlobesArea(h, preview)),
                       ],
                     ),
                   ),
@@ -559,7 +597,7 @@ class _Number1to5MatchSnowglobesScreenState
   }
 
   // ── Target Panel ───────────────────────────────────────────────────────────
-  Widget _buildTargetPanel(double h) {
+  _buildTargetPanel(double h, bool preview) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -583,7 +621,9 @@ class _Number1to5MatchSnowglobesScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Image.asset(
+                preview
+                    ? SizedBox(width: h * 0.15, height: h * 0.25)
+                    : Image.asset(
                   'assets/fonts/game_numbers/$_targetNumber.png',
                   height: (h * 0.25),
                   fit: BoxFit.contain,
@@ -605,19 +645,21 @@ class _Number1to5MatchSnowglobesScreenState
     );
   }
 
-  // ── Globes Area ────────────────────────────────────────────────────────────
-  Widget _buildGlobesArea(double h) {
+  Widget _buildGlobesArea(double h, bool preview) {
     return ScaleTransition(
       scale: _globesEnter,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         crossAxisAlignment: CrossAxisAlignment.center,
-        children: List.generate(_globeCount, (i) => _buildSingleGlobe(i, h)),
+        children: List.generate(
+          _globeCount,
+              (i) => _buildSingleGlobe(i, h, preview),
+        ),
       ),
     );
   }
 
-  Widget _buildSingleGlobe(int index, double h) {
+  Widget _buildSingleGlobe(int index, double h, bool preview) {
     final isTapped = _tappedIndex == index;
     final isShaking = _shakingIndex == index;
     final globeSize = (h * 0.47);
@@ -635,9 +677,11 @@ class _Number1to5MatchSnowglobesScreenState
           scale: isTapped ? _correctPulse : const AlwaysStoppedAnimation(1.0),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 250),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
+            child: KeyedSubtree(
+              key: preview ? null : _globeKeys[index],
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
                 // Snowglobe base image
                 Image.asset(
                   _snowglobeAsset,
@@ -648,19 +692,20 @@ class _Number1to5MatchSnowglobesScreenState
                       SizedBox(width: globeSize, height: globeSize),
                 ),
 
-                // Objects arranged inside the globe dome area
-                Positioned(
-                  top: globeSize * 0.18,
-                  left: globeSize * 0.15,
-                  right: globeSize * 0.15,
-                  bottom: globeSize * 0.30,
-                  child: _buildObjectsInsideGlobe(
-                    _globeCounts[index],
-                    _globeObjects[index],
-                    objectSize,
-                  ),
-                ),
+                  if (!preview)
+                    Positioned(
+                      top: globeSize * 0.18,
+                      left: globeSize * 0.15,
+                      right: globeSize * 0.15,
+                      bottom: globeSize * 0.30,
+                      child: _buildObjectsInsideGlobe(
+                        _globeCounts[index],
+                        _globeObjects[index],
+                        objectSize,
+                      ),
+                    ),
               ],
+              ),
             ),
           ),
         ),

@@ -11,6 +11,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -36,7 +38,8 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
         DomaReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<Number345OddOneOutScreen> {
+        AppAudioLifecycleMixin<Number345OddOneOutScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -62,10 +65,12 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
     5: 'assets/audio/arctic_numberland/level16/odd_five.wav',
   };
 
-  // ── Tracking Variables ─────────────────────────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
+  final GlobalKey _choiceKey = GlobalKey();
+
   bool _hideLightingCard = false;
   bool _loadingScreenElapsed = false;
+
   Timer? _minLoadTimer;
 
   // ── Objects pool ───────────────────────────────────────────────────────────
@@ -102,8 +107,6 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   int _wrongTappedIndex = -1;
   int _correctTappedIndex = -1;
 
-  
-
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
 
@@ -115,7 +118,6 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   late AnimationController _correctCtrl;
   late Animation<double> _correctScale;
 
-  // 4 shake controllers, one per card
   late List<AnimationController> _wrongCtrlList;
   late List<Animation<double>> _wrongShakeList;
 
@@ -235,6 +237,8 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
     _roundComplete = false;
     _wrongTappedIndex = -1;
     _correctTappedIndex = -1;
+    cancelIdleTimer();
+    showHowToPlay = false;
 
     _cardsEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
@@ -256,6 +260,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
 
       if (!mounted || token != _roundToken) return;
       setState(() => _inputEnabled = true);
+      startIdleTimer();
     });
   }
 
@@ -266,6 +271,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
     final isOdd = cardIndex == _oddCardIndex;
 
     if (isOdd) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       setState(() {
         _correctTappedIndex = cardIndex;
@@ -316,6 +322,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   void dispose() {
     disposeAiCamera(); 
     _minLoadTimer?.cancel();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
@@ -358,6 +365,13 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
 
         _introPlaying ? _buildIntroLayer() : _buildGameContent(),
 
+        if (showHowToPlay &&
+            !_introPlaying &&
+            _inputEnabled &&
+            !_roundComplete &&
+            !_showWinDialog)
+          Positioned.fill(child: _buildHowToPlay()),
+
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
       ],
     );
@@ -376,8 +390,12 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
         : LoadingScreen.arctic();
 
     return Listener(
-      
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (_inputEnabled && !_roundComplete && !_showWinDialog) {
+          resetIdleTimer();
+        }
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: loadingSlot,
@@ -390,6 +408,32 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
                 )
               : contentWithOverlay,
         ),
+      ),
+    );
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
+  Widget _buildHowToPlay() {
+    return HowToPlayOverlay(
+      handAlignment: _alignmentOf(_choiceKey),
+      handOffset: const Offset(0.15, 0.46),
+      onDismiss: resetIdleTimer,
+      previewChild: Stack(
+        children: [
+          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+          _buildGameContent(preview: true),
+        ],
       ),
     );
   }
@@ -419,7 +463,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   }
 
   // ── Game ───────────────────────────────────────────────────────────────────
-  Widget _buildGameContent() {
+  Widget _buildGameContent({bool preview = false}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
@@ -447,7 +491,8 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
 
             // ── 4 CARDS ROW ────────────────────────
             Expanded(
-              child: Stack(children: [Center(child: _buildCardsRow(w, h))]),
+              child: Stack(
+                  children: [Center(child: _buildCardsRow(w, h, preview))]),
             ),
 
             // ── PROGRESS DOTS ──────────────────────
@@ -462,7 +507,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
   }
 
   // ── Cards ──────────────────────────────────────────────────────────────────
-  Widget _buildCardsRow(double w, double h) {
+  Widget _buildCardsRow(double w, double h, bool preview) {
     final cardW = (w * 0.19);
     final cardH = (h * 0.60);
 
@@ -472,16 +517,16 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children:
-            List.generate(
-                4,
-                (i) => _buildCard(i, cardW, cardH),
-              ).expand((card) => [card, const SizedBox(width: 10)]).toList()
-              ..removeLast(),
+        List.generate(
+          4,
+              (i) => _buildCard(i, cardW, cardH, preview),
+        ).expand((card) => [card, const SizedBox(width: 10)]).toList()
+          ..removeLast(),
       ),
     );
   }
 
-  Widget _buildCard(int index, double cardW, double cardH) {
+  Widget _buildCard(int index, double cardW, double cardH, bool preview) {
     final count = _cardCounts[index];
     final asset = _cardAssets[index];
 
@@ -502,6 +547,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
         child: ScaleTransition(
           scale: isCorrect ? _correctScale : const AlwaysStoppedAnimation(1.0),
           child: GestureDetector(
+            key: (!preview && index == 0) ? _choiceKey : null,
             onTap: () => _onCardTapped(index),
             child: AnimatedOpacity(
               duration: const Duration(milliseconds: 300),
@@ -519,11 +565,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
                       : ArcticColorTheme.cotton,
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: isCorrect
-                        ? Colors.green
-                        : isWrong
-                        ? Colors.red
-                        : ArcticColorTheme.pictonblue,
+                    color: ArcticColorTheme.pictonblue,
                     width: 4,
                   ),
                   boxShadow: [
@@ -540,7 +582,11 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
                 ),
                 child: Stack(
                   children: [
-                    Center(child: _buildCardObjects(count, asset, cardW)),
+                    Center(
+                      child: preview
+                          ? const SizedBox.shrink()
+                          : _buildCardObjects(count, asset, cardW),
+                    ),
                   ],
                 ),
               ),

@@ -11,6 +11,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'game_build_snowman.dart';
 import 'doma_reaction.dart';
@@ -47,7 +49,8 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
         DomaReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin {
+        AppAudioLifecycleMixin,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -221,6 +224,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
     } catch (_) {
     } finally {
       _announcing = false;
+      if (mounted) startIdleTimer();
     }
   }
 
@@ -280,6 +284,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
       );
 
       if (!mounted) return;
+      cancelIdleTimer();
       setState(() => _showWinDialog = true);
       return;
     }
@@ -299,6 +304,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
     _minLoadTimer?.cancel();
@@ -345,6 +351,15 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
           child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
         ),
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+        if (showHowToPlay && !_introPlaying && !_showWinDialog)
+          Positioned.fill(
+            child: HowToPlayOverlay(
+              previewChild: _buildHowToPreview(),
+              handAlignment: const Alignment(0, 0.3),
+              handOffset: const Offset(0.3, 0.3),
+              onDismiss: resetIdleTimer,
+            ),
+          ),
       ],
     );
 
@@ -362,8 +377,10 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
         : LoadingScreen.arctic();
 
     return Listener(
-      
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (!_announcing) resetIdleTimer();
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: loadingSlot,
@@ -377,6 +394,29 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
               : contentWithOverlay,
         ),
       ),
+    );
+  }
+
+  Widget _buildHowToPreview() {
+    final h = MediaQuery.of(context).size.height;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(_bgImage, fit: BoxFit.cover),
+        ),
+        Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(
+              3,
+                  (_) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 15),
+                child: Image.asset(_iglooAsset, height: h * 0.4),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -735,6 +775,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
         });
         _sceneEnterCtrl.forward(from: 0);
         _instructionCtrl.forward(from: 0);
+        startIdleTimer();
       },
       onBack: () {
         Navigator.pop(context);

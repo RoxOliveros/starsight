@@ -6,6 +6,8 @@ import '../../business_layer/app_audio_lifecycle_mixin.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../ai_camera_mixin.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart'; 
 
@@ -30,7 +32,7 @@ class PenguinSnowflakesMiniGame extends StatefulWidget {
 }
 
 class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
-    with TickerProviderStateMixin, AiCameraMixin, AppAudioLifecycleMixin {
+    with TickerProviderStateMixin, AiCameraMixin, AppAudioLifecycleMixin, IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
 
@@ -39,6 +41,8 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
 
   static const String _domaImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _snowflakeImage = 'assets/images/objects/arctic/snowflake.png';
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
+  static const double _penguinAspect = 0.8;
 
   String get _snowflakeRequestAudio => 'assets/audio/arctic_numberland/snowflake_${widget.number}.wav';
   static const String _audioMahusay = 'assets/audio/arctic_numberland/mahusay.wav';
@@ -84,8 +88,8 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
       await _playInstruction();
 
       if (!mounted) return;
-
       _startGameLoops();
+      startIdleTimer();
     });
   }
 
@@ -110,7 +114,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   }
 
   void _spawnFlake() {
-    if (!mounted || _roundWon) return;
+    if (!mounted || _roundWon || showHowToPlay) return;
     final active = _flakes.where((f) => !f.dragging).length;
     if (active >= _maxOnScreen) return;
 
@@ -129,7 +133,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   }
 
   void _updateFlakePositions() {
-    if (!mounted) return;
+    if (!mounted || showHowToPlay) return;
     setState(() {
       for (final f in _flakes) {
         if (f.dragging) continue;
@@ -170,6 +174,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   Future<void> _winRound() async {
     if (!mounted) return;
     setState(() => _roundWon = true);
+    cancelIdleTimer();
     _spawnTimer?.cancel();
     _gameTimer?.cancel();
     _penguinCelebrateCtrl.forward(from: 0);
@@ -185,6 +190,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
 
   @override
   void dispose() {
+    disposeIdleTimer();
     _spawnTimer?.cancel();
     _gameTimer?.cancel();
     _penguinCelebrateCtrl.dispose();
@@ -195,12 +201,16 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   @override
   Widget build(BuildContext context) {
     return Listener(
-      onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        widget.tapTracker.recordGenericTap();
+        resetIdleTimer();
+      },
       child: LayoutBuilder(
         builder: (context, constraints) {
           final w = constraints.maxWidth;
           final h = constraints.maxHeight;
           final flakeSize = (h * _flakeSizeFactor).clamp(48.0, 100.0);
+          final hintFlake = _pickHintFlake();
 
           return Stack(
             children: [
@@ -226,10 +236,58 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
                 left: 50,
                 child: Center(child: _buildPenguinTarget(h)),
               ),
+              if (showHowToPlay && !_roundWon && hintFlake != null)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHintPreview(w, h, flakeSize),
+                    handAlignment: _flakeAlignment(hintFlake, w, h, flakeSize),
+                    handEndAlignment: _penguinAlignment(w, h),
+                    handOffset: const Offset(0, 0.4),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
             ],
           );
         },
       ),
+    );
+  }
+
+  _FallingSnowflake? _pickHintFlake() {
+    if (_flakes.any((f) => f.dragging)) return null;
+    for (final f in _flakes) {
+      if (f.y > 0.1 && f.y < 0.7) return f;
+    }
+    return _flakes.isEmpty ? null : _flakes.first;
+  }
+
+  Alignment _flakeAlignment(_FallingSnowflake f, double w, double h, double size) {
+    final left = (f.x * w - size / 2).clamp(0.0, w - size);
+    final top = (f.y * h - size / 2).clamp(-size, h - size);
+    return Alignment(
+      (left + size / 2) / w * 2 - 1,
+      (top + size / 2) / h * 2 - 1,
+    );
+  }
+
+  Alignment _penguinAlignment(double w, double h) {
+    final penguinH = h * 0.70;
+    final cx = 50 + penguinH * _penguinAspect / 2;
+    final cy = h - h * 0.02 - penguinH / 2;
+    return Alignment(cx / w * 2 - 1, cy / h * 2 - 1);
+  }
+
+  Widget _buildHintPreview(double w, double h, double flakeSize) {
+    return Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        ..._flakes.map((f) => _buildDraggableFlake(f, w, h, flakeSize)),
+        Positioned(
+          bottom: h * 0.02,
+          left: 50,
+          child: _buildPenguinTarget(h),
+        ),
+      ],
     );
   }
 

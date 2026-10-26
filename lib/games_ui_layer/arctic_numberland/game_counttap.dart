@@ -11,6 +11,8 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -39,7 +41,8 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         DomaReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<Number012TapCountScreen> {
+        AppAudioLifecycleMixin<Number012TapCountScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -68,6 +71,15 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
   late Animation<double> _numberDance;
 
   final GameTapTracker _tapTracker = GameTapTracker();
+
+  final GlobalKey _tileKey = GlobalKey();
+  final GlobalKey _checkKey = GlobalKey();
+
+  int get _hintTileIndex {
+    final i = _selected.indexWhere((s) => !s);
+    return i == -1 ? 0 : i;
+  }
+
   bool _hideLightingCard = false;
   bool _loadingScreenElapsed = false;
   Timer? _minLoadTimer;
@@ -251,11 +263,13 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     _tapTracker.startSession();
 
     startAiCamera();
+    startIdleTimer();
   }
 
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _minLoadTimer?.cancel();
     _numberDanceCtrl.dispose();
     _audioPlayer.dispose();
@@ -286,6 +300,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
 
   Future<void> _onObjectTap(int index) async {
     if (_locked || _countAudioPlaying) return;
+    cancelIdleTimer();
 
     setState(() {
       _selected[index] = !_selected[index];
@@ -305,18 +320,23 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         _countAudioPlaying = false;
       }
     }
+    if (mounted) startIdleTimer();
   }
 
   Future<void> _startIntroFlow() async {
     await Future.delayed(const Duration(milliseconds: 400));
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
     await Future.delayed(const Duration(milliseconds: 400));
-    if (mounted) setState(() => _screenPhase = _ScreenPhase.miniGame);
+    if (mounted) {
+      setState(() => _screenPhase = _ScreenPhase.miniGame);
+      startIdleTimer();
+    }
   }
 
   Future<void> _onSubmit() async {
     if (_locked) return;
     _locked = true;
+    cancelIdleTimer();
 
     if (_selectedCount == _targetNumber) {
       _tapTracker.recordCorrectTap();
@@ -344,13 +364,16 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
             .catchError((e) {
               debugPrint("Database Error marking level complete: $e");
             });
+        cancelIdleTimer();
         setState(() => _showWinDialog = true);
       } else {
         await _enterCtrl.reverse();
+        if (!mounted) return;
         setState(() {
           _round++;
           _startRound();
         });
+        startIdleTimer();
       }
     } else {
       _tapTracker.recordMistake();
@@ -360,9 +383,11 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
       _wrongShakeCtrl.forward(from: 0);
       await Future.delayed(const Duration(milliseconds: 2000));
       _wrongShakeCtrl.reset();
+      if (!mounted) return;
       setState(() {
         _locked = false;
       });
+      startIdleTimer();
     }
   }
 
@@ -394,64 +419,7 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         if (_screenPhase == _ScreenPhase.intro)
           _buildIntrolayer()
         else
-          Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 25,
-                  vertical: 25,
-                ),
-                child: Stack(
-                  alignment: Alignment.topCenter,
-                  children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: ArcticXButton(),
-                    ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ArcticLevelBadge(level: widget.level),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Main game
-              Expanded(
-                child: FadeTransition(
-                  opacity: _enterAnim,
-                  child: Center(
-                    child: Transform.translate(
-                      offset: const Offset(0, -70),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            _buildNumberCard(),
-
-                            const SizedBox(width: 20),
-
-                            const Icon(
-                              Icons.arrow_forward_rounded,
-                              color: ArcticColorTheme.slateblue,
-                              size: 34,
-                            ),
-
-                            const SizedBox(width: 20),
-
-                            _buildObjectArea(),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          _buildMiniGameContent(),
 
         // Progress dots
         if (_screenPhase == _ScreenPhase.miniGame)
@@ -465,9 +433,24 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         // Doma
         if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
 
-        // Check button
         if (_screenPhase == _ScreenPhase.miniGame && !_showWinDialog)
           Positioned(right: 25, bottom: 25, child: _buildCheckButton()),
+
+        if (showHowToPlay &&
+            _screenPhase == _ScreenPhase.miniGame &&
+            !_locked &&
+            !_countAudioPlaying &&
+            !_showWinDialog)
+          Positioned.fill(
+            child: HowToPlayOverlay(
+              previewChild: _buildHintPreview(),
+              handAlignment: _alignmentOf(_tileKey),
+              handEndAlignment: _alignmentOf(_checkKey),
+              tapSequence: true,
+              handOffset: const Offset(0.15, 0.46),
+              onDismiss: resetIdleTimer,
+            ),
+          ),
 
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
       ],
@@ -487,7 +470,14 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         : LoadingScreen.arctic();
 
     return Listener(
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (_screenPhase == _ScreenPhase.miniGame &&
+            !_locked &&
+            !_countAudioPlaying) {
+          resetIdleTimer();
+        }
+      },
       child: Scaffold(
         backgroundColor: ArcticColorTheme.lightgrayishcyan,
         body: buildWithLoading(
@@ -505,9 +495,98 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     );
   }
 
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
+  Widget _buildHintPreview() {
+    return Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        _buildMiniGameContent(preview: true),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 15,
+          child: Center(child: _buildProgressDots()),
+        ),
+        Positioned(right: 25, bottom: 25, child: _buildCheckButton(preview: true)),
+      ],
+    );
+  }
+
+  Widget _buildMiniGameContent({bool preview = false}) {
+    return Column(
+      children: [
+        // Header
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 25,
+            vertical: 25,
+          ),
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: ArcticXButton(),
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ArcticLevelBadge(level: widget.level),
+              ),
+            ],
+          ),
+        ),
+
+        // Main game
+        Expanded(
+          child: FadeTransition(
+            opacity: _enterAnim,
+            child: Center(
+              child: Transform.translate(
+                offset: const Offset(0, -70),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _buildNumberCard(preview: preview),
+
+                      const SizedBox(width: 20),
+
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: ArcticColorTheme.slateblue,
+                        size: 34,
+                      ),
+
+                      const SizedBox(width: 20),
+
+                      _buildObjectArea(preview: preview),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   // ── Number card (left) ─────────────────────────────────────────────────────
 
-  Widget _buildNumberCard() {
+  Widget _buildNumberCard({bool preview = false}) {
     final s = MediaQuery.of(context).size;
     final cardSize = (s.height * 0.32).clamp(80.0, 130.0);
     return ScaleTransition(
@@ -529,7 +608,9 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
           ],
         ),
         child: Center(
-          child: Image.asset(
+          child: preview
+              ? const SizedBox.shrink()
+              : Image.asset(
             'assets/fonts/game_numbers/$_targetNumber.png',
             width: cardSize * 0.6,
             fit: BoxFit.contain,
@@ -548,18 +629,20 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     );
   }
 
-  // ── Object grid + submit (right) ───────────────────────────────────────────
-
-  Widget _buildObjectArea() {
+  Widget _buildObjectArea({bool preview = false}) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(_poolSize, _buildObjectTile),
+      children: List.generate(
+        _poolSize,
+            (i) => _buildObjectTile(i, preview: preview),
+      ),
     );
   }
 
-  Widget _buildCheckButton() {
+  Widget _buildCheckButton({bool preview = false}) {
     return GestureDetector(
+      key: preview ? null : _checkKey,
       onTap: _locked ? null : _onSubmit,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -587,14 +670,15 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
     );
   }
 
-  Widget _buildObjectTile(int index) {
+  Widget _buildObjectTile(int index, {bool preview = false}) {
     final tileSize = (MediaQuery.of(context).size.height * 0.18).clamp(
       52.0,
       80.0,
     );
-    final isSelected = _selected[index];
+    final isSelected = !preview && _selected[index];
 
     return Padding(
+      key: (!preview && index == _hintTileIndex) ? _tileKey : null,
       padding: EdgeInsets.symmetric(horizontal: tileSize * 0.08),
       child: GestureDetector(
         onTap: () => _onObjectTap(index),

@@ -10,6 +10,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_audio_path.dart';
 import 'arctic_game_ui.dart';
 import 'game_aurora_catcher.dart';
@@ -93,7 +95,8 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
         DomaReactionMixin<DecorateSnowyTreeGame>,
         GameLoadingMixin<DecorateSnowyTreeGame>,
         AiCameraMixin<DecorateSnowyTreeGame>,
-        AppAudioLifecycleMixin<DecorateSnowyTreeGame> {
+        AppAudioLifecycleMixin<DecorateSnowyTreeGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -361,6 +364,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
     if (!mounted) return;
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
     if (mounted) setState(() => _inputEnabled = true);
+    if (mounted) startIdleTimer();
   }
 
   void _setupRound({bool playInstruction = true}) {
@@ -389,6 +393,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
     if (!_inputEnabled || _filledSpotIds.contains(spot.id)) return;
 
     if (dropped == spot.correctColor) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       HapticFeedback.mediumImpact();
       setState(() {
@@ -406,6 +411,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
         await _onRoundComplete();
       } else {
         setState(() => _inputEnabled = true);
+        startIdleTimer();
       }
     } else {
       _tapTracker.recordMistake();
@@ -414,6 +420,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
       HapticFeedback.heavyImpact();
       await Future.delayed(const Duration(milliseconds: 350));
       if (!mounted) return;
+      startIdleTimer();
     }
   }
 
@@ -441,13 +448,16 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
         _currentRound++;
         _inputEnabled = true;
       });
+      showHowToPlay = false; 
       _setupRound(playInstruction: false);
+      startIdleTimer();      
     }
   }
 
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
@@ -465,7 +475,10 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
         hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
     return Listener(
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (!_introPlaying && !_showWinDialog && _inputEnabled) resetIdleTimer();
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: LoadingScreen.arctic(),
@@ -487,6 +500,12 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
                       : _buildGameContent(),
                 ),
                 if (!_introPlaying) buildDoma(context),
+                if (showHowToPlay &&
+                    !_introPlaying &&
+                    !_showWinDialog &&
+                    _inputEnabled &&
+                    _trayOptions.isNotEmpty)
+                  Positioned.fill(child: _buildHowToPlayOverlay()),
                 if (_showWinDialog)
                   Positioned.fill(child: _buildGoodJobOverlay()),
               ],
@@ -509,6 +528,74 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildHowToPlayOverlay() {
+    final sz = MediaQuery.of(context).size;
+    final w = sz.width, h = sz.height;
+
+    final boardH = h * 0.85;
+    final boardW = boardH * 0.62;
+    final spotSize = boardW * 0.15;
+    final spotCx = w / 2 + 0;
+    final spotCy = (h - boardH) / 2 + boardH * 0.18;
+    final spotAlign = Alignment(2 * spotCx / w - 1, 2 * spotCy / h - 1);
+
+    final tile = (h * 0.12).clamp(46.0, 66.0);
+    final panelW = tile + 24;
+    final panelH = tile * 1.15 + 28;
+    final trayCx = w - 25 - panelW / 2;
+    final trayCy = h - 15 - panelH / 2;
+    final trayAlign = Alignment(2 * trayCx / w - 1, 2 * trayCy / h - 1);
+
+    final sample = _OrnamentColor.blue;
+
+    final preview = Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        Center(
+          child: Image.asset(_treeAsset, height: boardH, fit: BoxFit.contain),
+        ),
+        Positioned(
+          left: spotCx - spotSize / 2,
+          top: spotCy - spotSize / 2,
+          width: spotSize,
+          height: spotSize,
+          child: Container(
+            decoration: BoxDecoration(
+              color: sample.swatch.withValues(alpha: 0.28),
+              shape: BoxShape.circle,
+              border: Border.all(color: sample.swatch, width: 2.5),
+            ),
+            alignment: Alignment.center,
+            child: Icon(Icons.help_outline, size: spotSize * 0.5, color: sample.swatch),
+          ),
+        ),
+        Positioned(
+          right: 25,
+          bottom: 15,
+          width: panelW,
+          height: panelH,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.95),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: ArcticColorTheme.pictonblue, width: 2),
+            ),
+            alignment: Alignment.center,
+            child: _ornamentVisual(sample, tile),
+          ),
+        ),
+      ],
+    );
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: trayAlign,
+      handEndAlignment: spotAlign,
+      handOffset: const Offset(0.05, 0.46),
+      onDismiss: resetIdleTimer,
     );
   }
 
@@ -758,6 +845,8 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
                 return Draggable<_OrnamentColor>(
                   data: color,
                   maxSimultaneousDrags: _inputEnabled ? 1 : 0,
+                  onDragStarted: cancelIdleTimer,                  
+                  onDraggableCanceled: (_, __) => startIdleTimer(),
                   feedback: Material(color: Colors.transparent, child: tile),
                   childWhenDragging: Opacity(opacity: 0.3, child: tile),
                   child: tile,

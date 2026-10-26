@@ -13,6 +13,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_audio_path.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
@@ -66,7 +68,8 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
         DomaReactionMixin<SnowmanShapeHuntGame>,
         GameLoadingMixin<SnowmanShapeHuntGame>,
         AiCameraMixin<SnowmanShapeHuntGame>,
-        AppAudioLifecycleMixin<SnowmanShapeHuntGame> {
+        AppAudioLifecycleMixin<SnowmanShapeHuntGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -351,6 +354,7 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
     if (!mounted) return;
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
     if (mounted) setState(() => _inputEnabled = true);
+    if (mounted) startIdleTimer();
   }
 
   void _setupRound({bool playInstruction = true}) {
@@ -383,6 +387,7 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
     if (!_inputEnabled || _filledSpotIds.contains(spot.id)) return;
 
     if (dropped == spot.correctShape) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       HapticFeedback.mediumImpact();
       setState(() {
@@ -396,6 +401,7 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
         await Future.delayed(const Duration(milliseconds: 1000));
         await _onSnowmanComplete();
       }
+      if (mounted) startIdleTimer();
     } else {
       _tapTracker.recordMistake();
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
@@ -405,6 +411,7 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
       await Future.delayed(const Duration(milliseconds: 350));
       if (!mounted) return;
       setState(() => _trayWrong = false);
+      startIdleTimer();
     }
   }
 
@@ -444,6 +451,7 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
@@ -461,7 +469,10 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
         hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
     return Listener(
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (!_introPlaying && !_showWinDialog && _inputEnabled) resetIdleTimer();
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: LoadingScreen.arctic(),
@@ -483,6 +494,12 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
                       : _buildGameContent(),
                 ),
                 if (!_introPlaying) buildDoma(context),
+                if (showHowToPlay &&
+                    !_introPlaying &&
+                    !_showWinDialog &&
+                    _inputEnabled &&
+                    _trayOptions.isNotEmpty)
+                  Positioned.fill(child: _buildHowToPlayOverlay()),
                 if (_showWinDialog)
                   Positioned.fill(child: _buildGoodJobOverlay()),
               ],
@@ -505,6 +522,75 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildHowToPlayOverlay() {
+    final sz = MediaQuery.of(context).size;
+    final w = sz.width, h = sz.height;
+
+    final boardH = h * 0.8;
+    final boardW = boardH * (_snowmanAspectRatio ?? 0.6);
+    final spotSize = boardW * 0.20;
+    final spotCy = h * 0.1 + boardH * 0.10;
+    final spotAlign = Alignment(0, 2 * spotCy / h - 1);
+
+    final tile = (h * 0.12).clamp(46.0, 66.0);
+    final panel = tile + 28;
+    final trayCx = w - 16 - panel / 2;
+    final trayCy = h - 16 - panel / 2;
+    final trayAlign = Alignment(2 * trayCx / w - 1, 2 * trayCy / h - 1);
+
+    final preview = Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        Center(
+          child: Image.asset(_snowmanAsset, height: boardH, fit: BoxFit.contain),
+        ),
+        Positioned(
+          left: w / 2 - spotSize / 2,
+          top: spotCy - spotSize / 2,
+          width: spotSize,
+          height: spotSize,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.55),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: ArcticColorTheme.slateblue.withValues(alpha: 0.6),
+                width: 2.5,
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Icon(Icons.help_outline,
+                size: spotSize * 0.5, color: ArcticColorTheme.slateblue),
+          ),
+        ),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          width: panel,
+          height: panel,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.95),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: ArcticColorTheme.pictonblue, width: 2),
+            ),
+            alignment: Alignment.center,
+            child: Icon(Icons.star_rounded,
+                size: tile * 0.8, color: ArcticColorTheme.slateblue),
+          ),
+        ),
+      ],
+    );
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: trayAlign,
+      handEndAlignment: spotAlign,
+      handOffset: const Offset(0.05, 0.46),
+      onDismiss: resetIdleTimer,
     );
   }
 
@@ -654,6 +740,8 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
                 return Draggable<_ShapeType>(
                   data: shape,
                   maxSimultaneousDrags: _inputEnabled ? 1 : 0,
+                  onDragStarted: cancelIdleTimer,
+                  onDraggableCanceled: (_, __) => startIdleTimer(),
                   feedback: Material(color: Colors.transparent, child: tile),
                   childWhenDragging: Opacity(opacity: 0.3, child: tile),
                   child: tile,

@@ -12,6 +12,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -38,7 +40,8 @@ class _AdditionPackageDeliveryGameState
         DomaReactionMixin<AdditionPackageDeliveryGame>,
         GameLoadingMixin<AdditionPackageDeliveryGame>,
         AiCameraMixin<AdditionPackageDeliveryGame>,
-        AppAudioLifecycleMixin<AdditionPackageDeliveryGame> {
+        AppAudioLifecycleMixin<AdditionPackageDeliveryGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -80,7 +83,6 @@ class _AdditionPackageDeliveryGameState
     [3, 1],
   ];
 
-  // ── State ────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
   int _currentRound = 0;
   bool _showWinDialog = false;
@@ -99,8 +101,24 @@ class _AdditionPackageDeliveryGameState
 
   bool _resolvingRound = false;
 
-  // ── Tracking (camera + taps + mistakes) ─────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
+  final GlobalKey _hintChipKey = GlobalKey();
+  final GlobalKey _hintSledKey = GlobalKey();
+
+  int get _hintChipIndex => _packageUsed.indexWhere((u) => !u);
+
+  Alignment? _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return null;
+
+    final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
@@ -239,6 +257,10 @@ class _AdditionPackageDeliveryGameState
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
 
+    cancelIdleTimer();
+    showHowToPlay = false;
+    startIdleTimer();
+
     setState(() {});
   }
 
@@ -288,6 +310,7 @@ class _AdditionPackageDeliveryGameState
   }
 
   Future<void> _onDelivered() async {
+    cancelIdleTimer();
     _tapTracker.recordCorrectTap();
     setState(() => _resolvingRound = true);
     HapticFeedback.mediumImpact();
@@ -331,6 +354,7 @@ class _AdditionPackageDeliveryGameState
   }
 
   Future<void> _onTooMany() async {
+    cancelIdleTimer();
     _tapTracker.recordMistake();
     setState(() {
       _resolvingRound = true;
@@ -348,11 +372,13 @@ class _AdditionPackageDeliveryGameState
       _resolvingRound = false;
       _tipping = false;
     });
+    startIdleTimer();
   }
 
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
@@ -371,7 +397,12 @@ class _AdditionPackageDeliveryGameState
     final needsLightingPrompt = hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
     return Listener(
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (!_introPlaying && !_showWinDialog && !_resolvingRound) {
+          resetIdleTimer();
+        }
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: LoadingScreen.arctic(),
@@ -392,8 +423,14 @@ class _AdditionPackageDeliveryGameState
                       ? _buildIntroLayer()
                       : _buildGameContent(),
                 ),
-                if (_showWinDialog)
-                  Positioned.fill(child: _buildGoodJobOverlay()),
+                if (showHowToPlay &&
+                    !_introPlaying &&
+                    !_showWinDialog &&
+                    !_resolvingRound &&
+                    !_tipping &&
+                    _hintChipIndex != -1)
+                  Positioned.fill(child: _buildHowToPlayOverlay()),
+                if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
               ],
             );
             return needsLightingPrompt
@@ -413,6 +450,28 @@ class _AdditionPackageDeliveryGameState
                 : gameContent;
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildHowToPlayOverlay() {
+    final start = _alignmentOf(_hintChipKey);
+    final end = _alignmentOf(_hintSledKey);
+    if (start == null || end == null) return const SizedBox.shrink();
+
+    return HowToPlayOverlay(
+      handAlignment: start,
+      handEndAlignment: end,
+      handOffset: const Offset(0.16, 0.48),
+      onDismiss: resetIdleTimer,
+      previewChild: Stack(
+        children: [
+          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+          Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: _buildGameContent(preview: true),
+          ),
+        ],
       ),
     );
   }
@@ -480,7 +539,7 @@ class _AdditionPackageDeliveryGameState
   }
 
   // ── Main game layout ─────────────────────────────────────────────────────
-  Widget _buildGameContent() {
+  Widget _buildGameContent({bool preview = false}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
@@ -513,14 +572,14 @@ class _AdditionPackageDeliveryGameState
                       Expanded(
                         flex: 3,
                         child: Align(
-                          child: _buildPackageTray(h),
+                          child: _buildPackageTray(h, preview),
                         ),
                       ),
                       Expanded(
                         flex: 3,
                         child: ScaleTransition(
                           scale: _sceneEnter,
-                          child: _buildDeliveryScene(w, h),
+                          child: _buildDeliveryScene(w, h, preview),
                         ),
                       ),
                       Expanded(flex: 3, child: _buildDestinationHouse(h)),
@@ -533,16 +592,15 @@ class _AdditionPackageDeliveryGameState
                 ),
               ],
             ),
-            _buildTravelingSled(w, h),
+            _buildTravelingSled(w, h, preview),
           ],
         );
       },
     );
   }
 
-  // ── Delivery scene: signboard + sled ─────────────────────────────────────
-  Widget _buildDeliveryScene(double w, double h) {
-    if (!_showEquation) return const SizedBox.shrink();
+  Widget _buildDeliveryScene(double w, double h, bool preview) {
+    if (!_showEquation || preview) return const SizedBox.shrink();
 
     final equationSize = (h * 0.35);
     final delivered = _currentTotal == _target;
@@ -561,13 +619,12 @@ class _AdditionPackageDeliveryGameState
     );
   }
 
-  Widget _buildTravelingSled(double w, double h) {
+  Widget _buildTravelingSled(double w, double h, bool preview) {
     final equationSize = h * 0.35;
     final sledWidth = (w / 3) * 0.95;
     final sledHeight = equationSize * 1.3;
     final houseSize = h * 0.75;
 
-    // Lane boundaries, matching the flex:3/3/3 columns in the Row above.
     final sceneLeft = w / 3;
     final sceneCenter = sceneLeft + (w / 3) / 2;
     final houseLeft = (w / 3) * 2;
@@ -594,7 +651,7 @@ class _AdditionPackageDeliveryGameState
             AnimatedBuilder(
               animation: _tipping ? _tipShake : _kZeroAnim,
               builder: (_, child) {
-                final angle = _tipping ? _tipShake.value : _tiltAngle;
+                final angle = _tipping ? _tipShake.value : (preview ? 0.0 : _tiltAngle);
                 return Transform.rotate(angle: angle, child: child);
               },
               child: Stack(
@@ -617,7 +674,7 @@ class _AdditionPackageDeliveryGameState
                     bottom: sledHeight * 0.35,
                     left: sledHeight * 0.16,
                     right: 0,
-                    child: _buildSledCargo(equationSize),
+                    child: _buildSledCargo(equationSize, preview),
                   ),
                 ],
               ),
@@ -696,18 +753,20 @@ class _AdditionPackageDeliveryGameState
     );
   }
 
-  Widget _buildSledCargo(double size) {
+  Widget _buildSledCargo(double size, bool preview) {
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) =>
       !_resolvingRound && !_packageUsed[details.data],
       onAcceptWithDetails: (details) => _onPackageDropped(details.data),
       builder: (context, candidateData, rejectedData) {
         return SizedBox(
+          key: preview ? null : _hintSledKey,
           width: size * 1.4,
           height: size * 0.8,
-          child: _sledLoad.isEmpty
+          child: (_sledLoad.isEmpty || preview)
               ? const SizedBox.shrink()
               : FittedBox(
+            // ...unchanged
             fit: BoxFit.scaleDown,
             alignment: Alignment.bottomCenter,
             child: Row(
@@ -739,8 +798,9 @@ class _AdditionPackageDeliveryGameState
     );
   }
 
-  Widget _packageChipVisual(int value, double size) {
-    final iconSize = value <= 2 ? size * 0.48 : size * 0.38;
+  Widget _packageChipVisual(int value, double size, {bool preview = false}) {
+    final shown = preview ? 1 : value;
+    final iconSize = shown <= 2 ? size * 0.48 : size * 0.38;
 
     return Container(
       constraints: BoxConstraints(
@@ -758,12 +818,13 @@ class _AdditionPackageDeliveryGameState
               runSpacing: size * 0.03,
               alignment: WrapAlignment.center,
               runAlignment: WrapAlignment.center,
-              children: List.generate(value, (_) => _miniPackage(iconSize)),
+              children: List.generate(shown, (_) => _miniPackage(iconSize)),
             ),
           ),
-          Positioned(
-            right: -4,
-            top: -4,
+          if (!preview)
+            Positioned(
+              right: -4,
+              top: -4,
             child: Container(
               width: size * 0.34,
               height: size * 0.34,
@@ -789,9 +850,9 @@ class _AdditionPackageDeliveryGameState
     );
   }
 
-  // ── Package tray ─────────────────────────────────────────────────────────
-  Widget _buildPackageTray(double h) {
+  Widget _buildPackageTray(double h, bool preview) {
     final chipSize = (h * 0.23);
+    final hintIndex = _hintChipIndex;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -800,12 +861,15 @@ class _AdditionPackageDeliveryGameState
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: List.generate(_packagePool.length, (i) {
-          final used = _packageUsed[i];
-          final chip = _packageChipVisual(_packagePool[i], chipSize);
+          final used = !preview && _packageUsed[i];
+          final chip = _packageChipVisual(_packagePool[i], chipSize, preview: preview);
 
-          final Widget choice = used
+          final Widget choice = preview
+              ? chip
+              : used
               ? Opacity(opacity: 0.25, child: chip)
               : Draggable<int>(
+            key: i == hintIndex ? _hintChipKey : null,
             data: i,
             feedback: Material(
               color: Colors.transparent,

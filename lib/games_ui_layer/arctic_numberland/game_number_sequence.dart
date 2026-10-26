@@ -10,6 +10,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -36,7 +38,8 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
         DomaReactionMixin,
         GameLoadingMixin,
         AiCameraMixin<Number012345SequenceScreen>,
-        AppAudioLifecycleMixin<Number012345SequenceScreen> {
+        AppAudioLifecycleMixin<Number012345SequenceScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -56,13 +59,40 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
 
   static const String _audioIntro = 'assets/audio/arctic_numberland/level17/intro.wav';
 
-  // ── Tracking Variables ─────────────────────────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
+  final GlobalKey _hintTileKey = GlobalKey();
+  final GlobalKey _hintSlotKey = GlobalKey();
+
+  int? get _hintNumber {
+    for (final n in _tileNumbers) {
+      if (n != null) return n;
+    }
+    return null;
+  }
+
+  int? get _hintSlotIndex {
+    for (var i = 0; i < _slotLocked.length; i++) {
+      if (!_slotLocked[i]) return i;
+    }
+    return null;
+  }
+
+  Alignment? _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return null;
+
+    final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
   bool _hideLightingCard = false;
   bool _loadingScreenElapsed = false;
   Timer? _minLoadTimer;
 
-  // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
   int _currentRound = 0;
 
@@ -213,6 +243,10 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
     for (final c in _slotPulseCtrlList) {
       c.reset();
     }
+
+    cancelIdleTimer();
+    showHowToPlay = false;
+    startIdleTimer();
   }
 
   // ── Drag & Drop Logic ──────────────────────────────────────────────────────
@@ -243,8 +277,8 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
 
       showDomaReaction(DomaState.correct);
 
-      // Check if all missing slots are solved
       if (_slotLocked.every((l) => l)) {
+        cancelIdleTimer();
 
         await Future.delayed(const Duration(milliseconds: 300));
 
@@ -305,8 +339,9 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
 
   @override
   void dispose() {
-    disposeAiCamera(); 
+    disposeAiCamera();
     _minLoadTimer?.cancel();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
@@ -350,6 +385,13 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
         ),
 
         if (!_introPlaying) buildDoma(context),
+
+        if (showHowToPlay &&
+            !_introPlaying &&
+            !_showWinDialog &&
+            _draggingNumber == null)
+          Positioned.fill(child: _buildHowToPlay()),
+
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
       ],
     );
@@ -368,8 +410,12 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
         : LoadingScreen.arctic();
 
     return Listener(
-      
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (!_introPlaying && !_showWinDialog) {
+          resetIdleTimer();
+        }
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: loadingSlot,
@@ -382,6 +428,29 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
                 )
               : contentWithOverlay,
         ),
+      ),
+    );
+  }
+
+  Widget _buildHowToPlay() {
+    final start = _alignmentOf(_hintTileKey);
+    final end = _alignmentOf(_hintSlotKey);
+
+    if (start == null || end == null) return const SizedBox.shrink();
+
+    return HowToPlayOverlay(
+      handAlignment: start,
+      handEndAlignment: end,
+      handOffset: const Offset(0.13, 0.45),
+      onDismiss: resetIdleTimer,
+      previewChild: Stack(
+        children: [
+          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+          Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: _buildGameContent(preview: true),
+          ),
+        ],
       ),
     );
   }
@@ -492,7 +561,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
   }
 
   // ── Game ───────────────────────────────────────────────────────────────────
-  Widget _buildGameContent() {
+  Widget _buildGameContent({bool preview = false}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
@@ -521,13 +590,13 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
             const SizedBox(height: 40),
 
             // ── SLOTS ROW ──────────────────────────
-            ScaleTransition(scale: _tilesEnter, child: _buildSlotsRow(w, h)),
+            ScaleTransition(scale: _tilesEnter, child: _buildSlotsRow(w, h, preview)),
 
             const SizedBox(height: 10),
 
             // ── TILES TRAY ─────────────────────────
             Expanded(
-              child: Stack(children: [Center(child: _buildTilesTray(w, h))]),
+              child: Stack(children: [Center(child: _buildTilesTray(w, h, preview))]),
             ),
 
             // ── PROGRESS DOTS ──────────────────────
@@ -541,8 +610,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
     );
   }
 
-  // ── Slots Row ──────────────────────────────────────────────────────────────
-  Widget _buildSlotsRow(double w, double h) {
+  Widget _buildSlotsRow(double w, double h, bool preview) {
     final slotSize = (w * 0.105).clamp(58.0, 90.0);
 
     return Row(
@@ -550,19 +618,20 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
       children: List.generate(6, (i) {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 5),
-          child: _buildSlot(i, slotSize),
+          child: _buildSlot(i, slotSize, preview),
         );
       }),
     );
   }
 
-  Widget _buildSlot(int slotIndex, double size) {
-    final isLocked = _slotLocked[slotIndex];
-    final isWrong = _slotWrong[slotIndex];
+  Widget _buildSlot(int slotIndex, double size, bool preview) {
+    final isLocked = !preview && _slotLocked[slotIndex];
+    final isWrong = !preview && _slotWrong[slotIndex];
+    final isEmpty = preview || _slots[slotIndex] == null;
     final placedNumber = _slots[slotIndex];
-    final isEmpty = placedNumber == null;
 
     return DragTarget<int>(
+      key: (!preview && slotIndex == _hintSlotIndex) ? _hintSlotKey : null,
       onWillAcceptWithDetails: (details) => !isLocked,
       onAcceptWithDetails: (details) {
         _onDropToSlot(slotIndex, details.data);
@@ -611,7 +680,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
               alignment: Alignment.center,
               children: [
                 // Slot index hint (faint, shown when empty)
-                if (isEmpty && !isHovered)
+                if (isEmpty && !isHovered && !preview)
                   Text(
                     '$slotIndex',
                     style: TextStyle(
@@ -660,27 +729,38 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
     );
   }
 
-  // ── Tiles Tray ─────────────────────────────────────────────────────────────
-  Widget _buildTilesTray(double w, double h) {
+  Widget _buildTilesTray(double w, double h, bool preview) {
     final tileSize = (w * 0.108).clamp(62.0, 95.0);
+    final hint = _hintNumber;
 
     return Wrap(
       alignment: WrapAlignment.center,
       spacing: 12,
       runSpacing: 12,
-      children: _tileNumbers.asMap().entries.map((entry) {
-        final tileNumber = entry.value;
+      children: _tileNumbers.map((tileNumber) {
         if (tileNumber == null) {
-          // Invisible placeholder to keep layout stable
           return SizedBox(width: tileSize, height: tileSize);
         }
-        return _buildDraggableTile(tileNumber, tileSize);
+        return _buildDraggableTile(
+          tileNumber,
+          tileSize,
+          isHint: !preview && tileNumber == hint,
+          preview: preview,
+        );
       }).toList(),
     );
   }
 
-  Widget _buildDraggableTile(int number, double size) {
+  Widget _buildDraggableTile(
+      int number,
+      double size, {
+        bool isHint = false,
+        bool preview = false,
+      }) {
+    if (preview) return _buildTileWidget(number, size, preview: true);
+
     return Draggable<int>(
+      key: isHint ? _hintTileKey : null,
       data: number,
       feedback: Material(
         color: Colors.transparent,
@@ -696,7 +776,12 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
     );
   }
 
-  Widget _buildTileWidget(int number, double size, {bool isDragging = false}) {
+  Widget _buildTileWidget(
+      int number,
+      double size, {
+        bool isDragging = false,
+        bool preview = false,
+      }) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       width: isDragging ? size * 1.1 : size,
@@ -717,7 +802,9 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
           ),
         ],
       ),
-      child: Padding(
+      child: preview
+          ? const SizedBox.shrink()
+          : Padding(
         padding: EdgeInsets.all(size * 0.10),
         child: Image.asset(
           'assets/fonts/game_numbers/$number.png',

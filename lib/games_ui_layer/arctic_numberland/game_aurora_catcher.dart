@@ -13,6 +13,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_audio_path.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
@@ -103,7 +105,8 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
         DomaReactionMixin<AuroraCatcherGame>,
         GameLoadingMixin<AuroraCatcherGame>,
         AiCameraMixin<AuroraCatcherGame>,
-        AppAudioLifecycleMixin<AuroraCatcherGame> {
+        AppAudioLifecycleMixin<AuroraCatcherGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -251,7 +254,8 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
     setState(() => _introPlaying = false);
     await Future.delayed(const Duration(milliseconds: 300));
     if (mounted) {
-      playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+      if (mounted) startIdleTimer();
     }
   }
 
@@ -311,6 +315,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
   Future<void> _onRibbonTapped(_AuroraRibbon ribbon) async {
     if (_caughtIds.contains(ribbon.id) || _catchingId != null) return;
     if (_targetIndex >= _round.targets.length) return;
+    cancelIdleTimer();
 
     final targetColor = _round.targets[_targetIndex];
     if (ribbon.color == targetColor) {
@@ -331,6 +336,8 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
       if (_targetIndex >= _round.targets.length) {
         await Future.delayed(const Duration(milliseconds: 500));
         await _onRoundComplete();
+      } else {
+        startIdleTimer();
       }
     } else {
       _tapTracker.recordMistake();
@@ -341,6 +348,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
       setState(() => _wrongId = null);
+      startIdleTimer();
     }
   }
 
@@ -350,6 +358,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
     });
 
     if (_currentRound + 1 >= _totalRounds) {
+      cancelIdleTimer();
       setState(() => _showWinAurora = true);
       await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       await _saveGameResult();
@@ -366,12 +375,14 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
     } else {
       setState(() => _currentRound++);
       _setupRound(playInstruction: false);
+      startIdleTimer();
     }
   }
 
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
     _skyTicker.dispose();
@@ -391,7 +402,15 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
         hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
     return Listener(
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (!_introPlaying &&
+            _catchingId == null &&
+            !_showWinAurora &&
+            !_showWinDialog) {
+          resetIdleTimer();
+        }
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: LoadingScreen.arctic(),
@@ -423,6 +442,19 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
                 if (_showWinAurora) _buildWinAurora(),
                 if (_showWinDialog)
                   Positioned.fill(child: _buildGoodJobOverlay()),
+                if (showHowToPlay &&
+                    !_introPlaying &&
+                    _catchingId == null &&
+                    !_showWinAurora &&
+                    !_showWinDialog)
+                  Positioned.fill(
+                    child: HowToPlayOverlay(
+                      previewChild: _buildHowToPreview(),
+                      handAlignment: Alignment.center,
+                      handOffset: const Offset(0.15, 0.46),
+                      onDismiss: resetIdleTimer,
+                    ),
+                  ),
               ],
             );
             return needsLightingPrompt
@@ -443,6 +475,24 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildHowToPreview() {
+    final sz = MediaQuery.of(context).size;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(_bgImage, fit: BoxFit.cover),
+        ),
+        Center(
+          child: Image.asset(
+            _auroraAsset,
+            width: sz.width * 0.2,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ],
     );
   }
 

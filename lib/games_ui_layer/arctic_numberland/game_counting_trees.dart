@@ -11,6 +11,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -35,7 +37,8 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
         DomaReactionMixin,
         GameLoadingMixin,
         AiCameraMixin<CountingTreesScreen>,
-        AppAudioLifecycleMixin<CountingTreesScreen> {
+        AppAudioLifecycleMixin<CountingTreesScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -90,13 +93,14 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
     0,
   ]);
 
-  // ── Tracking Variables ─────────────────────────────────────────────────────
+  final List<GlobalKey> _treeKeys = List.generate(5, (_) => GlobalKey());
+  final List<GlobalKey> _choiceKeys = List.generate(3, (_) => GlobalKey());
+
   final GameTapTracker _tapTracker = GameTapTracker();
   bool _hideLightingCard = false;
   bool _loadingScreenElapsed = false;
   Timer? _minLoadTimer;
 
-  // ── State ──────────────────────────────────────────────────────────────────
   bool _introPlaying = true;
   int _currentRound = 0;
 
@@ -109,25 +113,18 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
   late List<int> _roundPool;
   late List<int?> _treeTapOrder;
 
-  // Trees get highlighted when tapped for counting help
   late List<bool> _treeTapped;
   int _tappedTreeCount = 0;
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _domaFloatCtrl;
-
   late AnimationController _instructionCtrl;
-
   late AnimationController _treesEnterCtrl;
   late Animation<double> _treesEnter;
-
   late AnimationController _choicesEnterCtrl;
   late Animation<double> _choicesEnter;
-
   late AnimationController _correctPulseCtrl;
   late Animation<double> _correctPulse;
-
-  // Intro number dance
   late AnimationController _numberDanceCtrl;
   late Animation<double> _numberDance;
 
@@ -291,6 +288,8 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
     Future.delayed(const Duration(milliseconds: 150), () {
       if (mounted) _choicesEnterCtrl.forward(from: 0);
     });
+
+    startIdleTimer();
   }
 
   List<_TreeData> _generateTreePositions(int count, Random rng) {
@@ -376,6 +375,8 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
 
       if (!mounted) return;
 
+      cancelIdleTimer();
+
       setState(() {
         _tappedIndex = null;
       });
@@ -405,7 +406,8 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
 
   @override
   void dispose() {
-    disposeAiCamera(); 
+    disposeAiCamera();
+    disposeIdleTimer();
     _minLoadTimer?.cancel();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
@@ -445,6 +447,9 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
 
         _introPlaying ? _buildIntroLayer() : _buildGameContent(),
 
+        if (showHowToPlay && !_introPlaying && !_showWinDialog)
+          Positioned.fill(child: _buildHowToPlayOverlay()),
+
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
       ],
     );
@@ -463,8 +468,11 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
         : LoadingScreen.arctic();
 
     return Listener(
-      
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (!_introPlaying && !_showWinDialog) resetIdleTimer();
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: loadingSlot,
@@ -477,6 +485,34 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
                 )
               : contentWithOverlay,
         ),
+      ),
+    );
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
+  Widget _buildHowToPlayOverlay() {
+    return HowToPlayOverlay(
+      tapSequence: true,
+      handAlignment: _alignmentOf(_treeKeys[0]),
+      handEndAlignment: _alignmentOf(_choiceKeys[0]),
+      handOffset: const Offset(0.16, 0.48),
+      onDismiss: resetIdleTimer,
+      previewChild: Stack(
+        children: [
+          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+          _buildGameContent(preview: true),
+        ],
       ),
     );
   }
@@ -581,7 +617,7 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
   }
 
   // ── Game ───────────────────────────────────────────────────────────────────
-  Widget _buildGameContent() {
+  Widget _buildGameContent({bool preview = false}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
@@ -618,7 +654,7 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
                     flex: 6,
                     child: ScaleTransition(
                       scale: _treesEnter,
-                      child: _buildTreeScene(w, h),
+                      child: _buildTreeScene(w, h, preview),
                     ),
                   ),
 
@@ -627,7 +663,7 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
                     padding: const EdgeInsets.only(right: 32),
                     child: ScaleTransition(
                       scale: _choicesEnter,
-                      child: _buildChoicesColumn(h),
+                      child: _buildChoicesColumn(h, preview),
                     ),
                   ),
                 ],
@@ -646,7 +682,7 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
   }
 
   // ── Tree Scene ─────────────────────────────────────────────────────────────
-  Widget _buildTreeScene(double w, double h) {
+  Widget _buildTreeScene(double w, double h, bool preview) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final sw = constraints.maxWidth;
@@ -656,11 +692,12 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
           children: [
             // Trees scattered
             ...List.generate(_trees.length, (i) {
+
               final tree = _trees[i];
               final treeH = (sh * 0.33 * tree.scale);
               final px = tree.x * sw;
               final py = tree.y * sh;
-              final isTapped = _treeTapped[i];
+              final isTapped = !preview && _treeTapped[i];
 
               return Positioned(
                 left: px - treeH * 0.3,
@@ -694,18 +731,20 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
                             ),
                           ),
 
-                        // Tree image with tint when tapped
-                        ColorFiltered(
-                          colorFilter: isTapped
-                              ? _tappedTreeFilter
-                              : _normalTreeFilter,
-                          child: Image.asset(
-                            _treeAsset,
-                            height: treeH,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => Text(
-                              '🌲',
-                              style: TextStyle(fontSize: treeH * 0.6),
+                        KeyedSubtree(
+                          key: preview ? null : _treeKeys[i],
+                          child: ColorFiltered(
+                            colorFilter: isTapped
+                                ? _tappedTreeFilter
+                                : _normalTreeFilter,
+                            child: Image.asset(
+                              _treeAsset,
+                              height: treeH,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => Text(
+                                '🌲',
+                                style: TextStyle(fontSize: treeH * 0.6),
+                              ),
                             ),
                           ),
                         ),
@@ -751,7 +790,7 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
   }
 
   // ── Choices Column ─────────────────────────────────────────────────────────
-  Widget _buildChoicesColumn(double h) {
+  Widget _buildChoicesColumn(double h, bool preview) {
     final btnSize = (h * 0.18);
 
     return Column(
@@ -768,7 +807,9 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
               scale: isTappedCorrect
                   ? _correctPulse
                   : const AlwaysStoppedAnimation(1.0),
-              child: AnimatedContainer(
+              child: KeyedSubtree(
+                key: preview ? null : _choiceKeys[index],
+                child: AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
                 width: btnSize * 1.1,
                 height: btnSize,
@@ -787,26 +828,29 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
                     ),
                   ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Image.asset(
-                    'assets/fonts/game_numbers/${_choices[index]}.png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Center(
-                      child: Text(
-                        '${_choices[index]}',
-                        style: const TextStyle(
-                          fontFamily: ArcticAppTextStyles.fredoka,
-                          fontSize: 34,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                  child: preview
+                      ? const SizedBox.shrink()
+                      : Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Image.asset(
+                      'assets/fonts/game_numbers/${_choices[index]}.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Text(
+                          '${_choices[index]}',
+                          style: const TextStyle(
+                            fontFamily: ArcticAppTextStyles.fredoka,
+                            fontSize: 34,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
               ),
             ),
+          ),
           ),
         );
       }),

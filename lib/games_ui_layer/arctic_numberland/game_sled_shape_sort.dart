@@ -10,6 +10,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'game_decorate_snowy_tree.dart';
 import 'doma_reaction.dart';
@@ -56,7 +58,8 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
         DomaReactionMixin<SledShapeSortGame>,
         GameLoadingMixin<SledShapeSortGame>,
         AiCameraMixin<SledShapeSortGame>,
-        AppAudioLifecycleMixin<SledShapeSortGame> {
+        AppAudioLifecycleMixin<SledShapeSortGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -324,6 +327,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
     if (!mounted) return;
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
     if (mounted) setState(() => _inputEnabled = true);
+    if (mounted) startIdleTimer();
   }
 
   void _setupRound({bool playInstruction = true}) {
@@ -337,8 +341,9 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
 
     if (playInstruction) {
       Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted)
+        if (mounted) {
           playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
+        }
       });
     }
 
@@ -350,6 +355,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
     if (!_inputEnabled || _placedIds.contains(item.id)) return;
 
     if (item.shape == sledShape) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       HapticFeedback.mediumImpact();
       setState(() => _placedIds.add(item.id));
@@ -368,6 +374,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       await Future.delayed(const Duration(milliseconds: 400));
       if (!mounted) return;
       setState(() => _wrongItemId = null);
+      startIdleTimer();
     }
   }
 
@@ -386,13 +393,16 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
       setState(() => _showWinDialog = true);
     } else {
       setState(() => _currentRound++);
+      showHowToPlay = false; 
       _setupRound(playInstruction: false);
+      startIdleTimer();      
     }
   }
 
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
@@ -407,7 +417,10 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
     final needsLightingPrompt = hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
     return Listener(
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (!_introPlaying && !_showWinDialog && _inputEnabled) resetIdleTimer();
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: LoadingScreen.arctic(),
@@ -428,6 +441,12 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
                       ? _buildIntroLayer()
                       : _buildGameContent(),
                 ),
+                if (showHowToPlay &&
+                    !_introPlaying &&
+                    !_showWinDialog &&
+                    _inputEnabled &&
+                    _placedIds.length < _round.items.length)
+                  Positioned.fill(child: _buildHowToPlayOverlay()),
                 if (_showWinDialog)
                   Positioned.fill(child: _buildGoodJobOverlay()),
               ],
@@ -453,6 +472,74 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
     );
   }
 
+  Widget _buildHowToPlayOverlay() {
+    final h = MediaQuery.of(context).size.height;
+    final item = h * 0.18;
+    final sledH = h * 0.28;
+    final sledW = sledH * 1.3;
+    const itemY = -0.4; 
+    const sledY = 0.5;  
+
+    final preview = Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        Align(
+          alignment: const Alignment(0, sledY),
+          child: SizedBox(
+            width: sledW,
+            height: sledH,
+            child: Stack(
+              alignment: Alignment.bottomCenter,
+              clipBehavior: Clip.none,
+              children: [
+                Image.asset(_sledAsset, width: sledW, fit: BoxFit.contain),
+                Positioned(
+                  bottom: -sledH * 0.1,
+                  child: Container(
+                    width: sledH * 0.5,
+                    height: sledH * 0.5,
+                    padding: EdgeInsets.all(sledH * 0.06),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: ArcticColorTheme.pictonblue, width: 3),
+                    ),
+                    child: CustomPaint(
+                      painter: _ShapeOutlinePainter(_ShapeKind.star),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Align(
+          alignment: const Alignment(0, itemY),
+          child: Container(
+            width: item,
+            height: item,
+            padding: EdgeInsets.all(item * 0.12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.9),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+            ),
+            child: Image.asset('assets/images/objects/puzzle/star.png', fit: BoxFit.contain),
+          ),
+        ),
+      ],
+    );
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: Alignment(0, itemY * (1 - item / h)),
+      handEndAlignment: Alignment(0, sledY * (1 - sledH / h)),
+      handOffset: const Offset(0.05, 0.46),
+      onDismiss: resetIdleTimer,
+    );
+  }
+  
   // ── Intro layer ──────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
@@ -616,7 +703,11 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
         child: _itemVisual(item, size * 1.15),
       ),
       childWhenDragging: Opacity(opacity: 0.25, child: tile),
-      onDragStarted: () => HapticFeedback.selectionClick(),
+      onDragStarted: () {
+        HapticFeedback.selectionClick();
+        cancelIdleTimer(); 
+      },
+      onDraggableCanceled: (_, __) => startIdleTimer(),
       child: tile,
     );
   }

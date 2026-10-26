@@ -10,6 +10,8 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -38,7 +40,8 @@ class _Number12CountingObjectsScreenState
         DomaReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<Number12CountingObjectsScreen> {
+        AppAudioLifecycleMixin<Number12CountingObjectsScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -74,6 +77,8 @@ class _Number12CountingObjectsScreenState
   bool _hideLightingCard = false;
   bool _loadingScreenElapsed = false;
   Timer? _minLoadTimer;
+
+  final GlobalKey _choiceKey = GlobalKey();
 
   final List<Map<String, String>> _objects = [
     {'name': 'Earmuffs', 'asset': 'assets/images/objects/arctic/earmuffs.png'},
@@ -160,6 +165,7 @@ class _Number12CountingObjectsScreenState
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _minLoadTimer?.cancel();
     _numberDanceCtrl.dispose();
     _audioPlayer.dispose();
@@ -185,6 +191,7 @@ class _Number12CountingObjectsScreenState
     if (!_canTapChoices || _tappedIndex != null) {
       return;
     }
+    cancelIdleTimer();
 
     if (_choices[index] == _correctCount) {
       _tapTracker.recordCorrectTap();
@@ -209,12 +216,14 @@ class _Number12CountingObjectsScreenState
             .catchError((e) {
               debugPrint("Database Error marking level complete: $e");
             });
+        cancelIdleTimer();
         setState(() => _showWinDialog = true);
       } else {
         setState(() {
           _round++;
           _generateRound();
         });
+        startIdleTimer();
       }
     } else {
       _tapTracker.recordMistake();
@@ -223,7 +232,9 @@ class _Number12CountingObjectsScreenState
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
       await Future.delayed(const Duration(milliseconds: 600));
+      if (!mounted) return;
       setState(() => _tappedIndex = null);
+      startIdleTimer();
     }
   }
 
@@ -248,6 +259,7 @@ class _Number12CountingObjectsScreenState
     setState(() {
       _canTapChoices = true;
     });
+    startIdleTimer();
   }
 
   Color _choiceColor(int index) {
@@ -281,7 +293,10 @@ class _Number12CountingObjectsScreenState
         : LoadingScreen.arctic();
 
     return Listener(
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (_canTapChoices && _tappedIndex == null) resetIdleTimer();
+      },
       child: Scaffold(
         backgroundColor: ArcticColorTheme.lightgrayishcyan,
         body: buildWithLoading(
@@ -295,159 +310,25 @@ class _Number12CountingObjectsScreenState
                 if (_screenPhase == _ScreenPhase.intro)
                   _buildIntroLayer()
                 else
-                  Stack(
-                    children: [
-                      Column(
-                        children: [
-                          // HEADER
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 25,
-                            ),
-                            child: Stack(
-                              alignment: Alignment.topCenter,
-                              children: [
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: ArcticXButton(),
-                                ),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: ArcticLevelBadge(level: widget.level),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // MAIN CONTENT
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                left: 150,
-                                right: 150,
-
-                                // Leave room for progress dots.
-                                bottom: 30,
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  // OBJECT BOX
-                                  Expanded(
-                                    flex: 3,
-                                    child: Container(
-                                      height: double.infinity,
-                                      margin: const EdgeInsets.only(
-                                        bottom: 16,
-                                        left: 12,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: ArcticColorTheme.cotton,
-                                        borderRadius: BorderRadius.circular(24),
-                                        border: Border.all(
-                                          color: ArcticColorTheme.pictonblue,
-                                          width: 4,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: ArcticColorTheme.pictonblue
-                                                .withValues(alpha: 0.3),
-                                            blurRadius: 12,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(16),
-                                        child: _buildObjectGrid(),
-                                      ),
-                                    ),
-                                  ),
-
-                                  const SizedBox(width: 30),
-
-                                  // CHOICES
-                                  Expanded(
-                                    flex: 2,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: List.generate(_choices.length, (
-                                          index,
-                                        ) {
-                                          return Expanded(
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    vertical: 7,
-                                                  ),
-                                              child: GestureDetector(
-                                                onTap: _canTapChoices
-                                                    ? () => _onChoiceTap(index)
-                                                    : null,
-                                                child: AnimatedContainer(
-                                                  duration: const Duration(
-                                                    milliseconds: 250,
-                                                  ),
-                                                  width: double.infinity,
-                                                  decoration: BoxDecoration(
-                                                    color: _choiceColor(index),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          18,
-                                                        ),
-                                                    border: Border.all(
-                                                      color: _choiceBorderColor(
-                                                        index,
-                                                      ),
-                                                      width: 3,
-                                                    ),
-                                                  ),
-                                                  child: Center(
-                                                    child: Padding(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                            10,
-                                                          ),
-                                                      child: Image.asset(
-                                                        'assets/fonts/game_numbers/${_choices[index]}.png',
-                                                        fit: BoxFit.contain,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        }),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      // PROGRESS DOTS
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 15,
-                        child: Center(child: _buildProgressDots()),
-                      ),
-                    ],
-                  ),
+                  _buildMiniGameContent(),
 
                 if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
-                if (_showWinDialog)
-                  Positioned.fill(child: _buildGoodJobOverlay()),
+
+                if (showHowToPlay &&
+                    _screenPhase == _ScreenPhase.miniGame &&
+                    _canTapChoices &&
+                    _tappedIndex == null &&
+                    !_showWinDialog)
+                  Positioned.fill(
+                    child: HowToPlayOverlay(
+                      previewChild: _buildHintPreview(),
+                      handAlignment: _choiceHintAlignment(),
+                      handOffset: const Offset(0.15, 0.46),
+                      onDismiss: resetIdleTimer,
+                    ),
+                  ),
+
+                if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
               ],
             );
             return reactiveNeedsLightingPrompt
@@ -461,6 +342,176 @@ class _Number12CountingObjectsScreenState
           },
         ),
       ),
+    );
+  }
+
+  Alignment _choiceHintAlignment() {
+    final box = _choiceKey.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.centerRight;
+
+    final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
+  Widget _buildHintPreview() {
+    return Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        _buildMiniGameContent(preview: true),
+      ],
+    );
+  }
+
+  Widget _buildMiniGameContent({bool preview = false}) {
+    return Stack(
+      children: [
+        Column(
+          children: [
+            // HEADER
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 25,
+              ),
+              child: Stack(
+                alignment: Alignment.topCenter,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ArcticXButton(),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ArcticLevelBadge(level: widget.level),
+                  ),
+                ],
+              ),
+            ),
+
+            // MAIN CONTENT
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  left: 150,
+                  right: 150,
+
+                  // Leave room for progress dots.
+                  bottom: 30,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // OBJECT BOX
+                    Expanded(
+                      flex: 3,
+                      child: Container(
+                        height: double.infinity,
+                        margin: const EdgeInsets.only(
+                          bottom: 16,
+                          left: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: ArcticColorTheme.cotton,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: ArcticColorTheme.pictonblue,
+                            width: 4,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: ArcticColorTheme.pictonblue
+                                  .withValues(alpha: 0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: _buildObjectGrid(),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 30),
+
+                    // CHOICES
+                    Expanded(
+                      flex: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                        ),
+                        child: Column(
+                          mainAxisAlignment:
+                          MainAxisAlignment.center,
+                          children: List.generate(_choices.length, (
+                              index,
+                              ) {
+                            return Expanded(
+                              child: Padding(
+                                padding:
+                                const EdgeInsets.symmetric(
+                                  vertical: 7,
+                                ),
+                                child: GestureDetector(
+                                  onTap: _canTapChoices
+                                      ? () => _onChoiceTap(index)
+                                      : null,
+                                  child: AnimatedContainer(
+                                    key: (!preview && index == 0) ? _choiceKey : null,
+                                    duration: const Duration(milliseconds: 250),
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: _choiceColor(index),
+                                      borderRadius:
+                                      BorderRadius.circular(
+                                        18,
+                                      ),
+                                      border: Border.all(
+                                        color: _choiceBorderColor(
+                                          index,
+                                        ),
+                                        width: 3,
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(10),
+                                        child: preview
+                                            ? const SizedBox.shrink()
+                                            : Image.asset(
+                                          'assets/fonts/game_numbers/${_choices[index]}.png',
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        // PROGRESS DOTS
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 15,
+          child: Center(child: _buildProgressDots()),
+        ),
+      ],
     );
   }
 

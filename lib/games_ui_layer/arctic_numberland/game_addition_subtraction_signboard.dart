@@ -12,6 +12,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -45,7 +47,8 @@ class _SignboardMathGameState extends State<SignboardMathGame>
         DomaReactionMixin,
         GameLoadingMixin,
         AiCameraMixin<SignboardMathGame>,
-        AppAudioLifecycleMixin<SignboardMathGame> {
+        AppAudioLifecycleMixin<SignboardMathGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -243,6 +246,9 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
 
+    cancelIdleTimer();
+    showHowToPlay = false;
+
     _canInteract = false;
 
     setState(() {});
@@ -270,6 +276,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     setState(() {
       _canInteract = true;
     });
+    startIdleTimer();
   }
 
   List<int> _buildChoices(int target) {
@@ -303,6 +310,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     setState(() {
       _buried[index] = true;
     });
+    startIdleTimer();
   }
 
   Future<void> _onPieceDropped(int choiceIndex) async {
@@ -314,6 +322,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
     final isCorrect = _choices[choiceIndex] == _target;
 
     if (isCorrect) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       setState(() => _resolvingRound = true);
       HapticFeedback.mediumImpact();
@@ -351,12 +360,14 @@ class _SignboardMathGameState extends State<SignboardMathGame>
         _placedChoiceIndex = null;
         _placementWrong = false;
       });
+      startIdleTimer();
     }
   }
 
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
@@ -369,13 +380,16 @@ class _SignboardMathGameState extends State<SignboardMathGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    // Only reacts to a *confirmed* camera result, so it never flashes just
-    // because the screen mounted. Reappears if the face is lost again.
     final needsLightingPrompt =
         hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
     return Listener(
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (!_introPlaying && !_showWinDialog && _canInteract && !_resolvingRound) {
+          resetIdleTimer();
+        }
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: LoadingScreen.arctic(),
@@ -397,6 +411,43 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                       : _buildGameContent(),
                 ),
                 if (!_introPlaying) buildDoma(context),
+                if (showHowToPlay &&
+                    !_introPlaying &&
+                    !_showWinDialog &&
+                    _canInteract &&
+                    !_resolvingRound &&
+                    _placedChoiceIndex == null)
+                  Positioned.fill(
+                    child: Builder(
+                      builder: (context) {
+                        final sz = MediaQuery.of(context).size;
+                        final w = sz.width, h = sz.height;
+                        final s = h * 0.15;
+
+                        final needsErase = _spec.type == _RoundType.subtraction &&
+                            _buried.where((b) => b).length < _spec.b;
+
+                        if (needsErase) {
+                          final d = s + 8;
+                          return HowToPlayOverlay(
+                            previewChild: _buildEraseHowToPreview(),
+                            handAlignment: Alignment(-2 * d / w, 0),
+                            handEndAlignment: Alignment(2 * d / w, 0),
+                            handOffset: const Offset(0.05, 0.46),
+                            onDismiss: resetIdleTimer,
+                          );
+                        }
+
+                        return HowToPlayOverlay(
+                          previewChild: _buildDragHowToPreview(),
+                          handAlignment: Alignment(0.8 * (1 - s / w), 0.4 * (1 - s / h)),
+                          handEndAlignment: Alignment(0, 0.3 * (1 - s / h)),
+                          handOffset: const Offset(0.05, 0.46),
+                          onDismiss: resetIdleTimer,
+                        );
+                      },
+                    ),
+                  ),
                 if (_showWinDialog)
                   Positioned.fill(child: _buildGoodJobOverlay()),
               ],
@@ -409,7 +460,7 @@ class _SignboardMathGameState extends State<SignboardMathGame>
                         child: LightingPromptCard(
                           onClose: () {
                             setState(() => _hideLightingCard = true);
-                            releaseFaceGate(); // don't leave audio stuck
+                            releaseFaceGate();
                           },
                         ),
                       ),
@@ -419,6 +470,69 @@ class _SignboardMathGameState extends State<SignboardMathGame>
           },
         ),
       ),
+    );
+  }
+
+  Widget _hintSignboard() {
+    final sz = MediaQuery.of(context).size;
+    return Center(
+      child: SizedBox(
+        width: sz.width * 0.60,
+        height: sz.height * 0.85,
+        child: Image.asset(_signboardAsset, fit: BoxFit.fill),
+      ),
+    );
+  }
+
+  Widget _buildEraseHowToPreview() {
+    final s = MediaQuery.of(context).size.height * 0.15;
+    return Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        _hintSignboard(), // NEW
+        Align(
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(
+              3,
+                  (_) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Image.asset(_clusterAssets[2], height: s, fit: BoxFit.contain),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDragHowToPreview() {
+    final s = MediaQuery.of(context).size.height * 0.15;
+    return Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        _hintSignboard(), // NEW
+        Align(
+          alignment: const Alignment(0, 0.3), // slot moved to the board's lower part (was -0.2, -0.2)
+          child: Container(
+            width: s,
+            height: s,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.4),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: ArcticColorTheme.slateblue.withValues(alpha: 0.5),
+                width: 3,
+              ),
+            ),
+          ),
+        ),
+        Align(
+          alignment: const Alignment(0.8, 0.4),
+          child: Image.asset(_tagAsset, width: s, height: s, fit: BoxFit.contain),
+        ),
+      ],
     );
   }
 

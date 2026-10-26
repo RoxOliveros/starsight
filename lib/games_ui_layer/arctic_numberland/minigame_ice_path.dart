@@ -3,14 +3,15 @@
   import 'package:flutter/material.dart';
   import 'package:audioplayers/audioplayers.dart';
   import '../../business_layer/app_audio_lifecycle_mixin.dart';
-import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
+  import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
   import '../../ui_layer/arctic_numberland/arctic_theme.dart';
   import '../ai_camera_mixin.dart';
-import '../games_audio_helper.dart';
+  import '../games_audio_helper.dart';
+  import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
   import 'package:StarSight/business_layer/game_tap_tracker.dart';
-
-import 'doma_reaction.dart';
+  import 'doma_reaction.dart';
 
   class IceNumberPathGame extends StatefulWidget {
     final int minNumber;
@@ -41,14 +42,20 @@ import 'doma_reaction.dart';
     final int slot;
     bool completed;
 
-    _IcePath({required this.number, required this.slot, this.completed = false});
+    _IcePath(
+        {required this.number, required this.slot, this.completed = false});
   }
 
   class _IceNumberPathGameState extends State<IceNumberPathGame>
-      with TickerProviderStateMixin, DomaReactionMixin, AiCameraMixin, AppAudioLifecycleMixin {
+      with
+          TickerProviderStateMixin,
+          DomaReactionMixin,
+          AiCameraMixin,
+          AppAudioLifecycleMixin,
+          IdleHintMixin {
 
     final AudioPlayer _audioPlayer = AudioPlayer();
-    final AudioPlayer _domaPlayer= AudioPlayer();
+    final AudioPlayer _domaPlayer = AudioPlayer();
 
     @override
     List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
@@ -146,6 +153,7 @@ import 'doma_reaction.dart';
         setState(() {
           _canInteract = true;
         });
+        startIdleTimer();
       });
     }
 
@@ -272,6 +280,7 @@ import 'doma_reaction.dart';
         _isProcessing = false;
         _canInteract = true;
       });
+      startIdleTimer();
     }
 
     Future<void> _winRound() async {
@@ -282,6 +291,8 @@ import 'doma_reaction.dart';
         _canInteract = false;
         _isProcessing = true;
       });
+
+      cancelIdleTimer();
 
       _penguinCelebrateCtrl.forward(from: 0);
 
@@ -303,13 +314,17 @@ import 'doma_reaction.dart';
       _penguinCelebrateCtrl.dispose();
       _audioPlayer.dispose();
       _domaPlayer.dispose();
+      disposeIdleTimer();
       super.dispose();
     }
 
     @override
     Widget build(BuildContext context) {
       return Listener(
-        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        onPointerDown: (_) {
+          widget.tapTracker.recordGenericTap();
+          resetIdleTimer();
+        },
         child: LayoutBuilder(
           builder: (context, constraints) {
             final w = constraints.maxWidth;
@@ -341,16 +356,39 @@ import 'doma_reaction.dart';
                 ..._icePaths.map((f) => _buildIcePath(f, w, h)),
 
                 AnimatedBuilder(
-                  animation: Listenable.merge([
-                    _penguinMoveCtrl,
-                    _penguinCelebrateCtrl,
-                  ]),
+                  animation: Listenable.merge([_penguinMoveCtrl, _penguinCelebrateCtrl]),
                   builder: (_, __) => _buildPenguin(w, h),
                 ),
+
+                if (showHowToPlay && _canInteract && !_roundWon)
+                  Positioned.fill(
+                    child: HowToPlayOverlay(
+                      previewChild: _buildHintPreview(w, h),
+                      handAlignment: _hintHandAlignment(w, h),
+                      handOffset: const Offset(0.3, 0.8),
+                      onDismiss: resetIdleTimer,
+                    ),
+                  ),
               ],
             );
           },
         ),
+      );
+    }
+
+    Alignment _hintHandAlignment(double w, double h) {
+      final next = _icePaths.firstWhere((p) => p.number == _target);
+      final p = _slotPos(next.slot, w, h);
+      return Alignment(p.dx * 2 - 1, p.dy * 2 - 1);
+    }
+
+    Widget _buildHintPreview(double w, double h) {
+      return Stack(
+        children: [
+          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+          ..._icePaths.map((f) => _buildIcePath(f, w, h)),
+          _buildPenguin(w, h),
+        ],
       );
     }
 

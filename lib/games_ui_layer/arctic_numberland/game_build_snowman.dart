@@ -10,6 +10,8 @@ import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
 import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -35,7 +37,8 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
         DomaReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<BuildSnowmanGame> {
+        AppAudioLifecycleMixin<BuildSnowmanGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -194,7 +197,10 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
       }
     } catch (_) {
     } finally {
-      if (mounted) setState(() => _audioBusy = false);
+      if (mounted) {
+        setState(() => _audioBusy = false);
+        startIdleTimer();
+      }
     }
   }
 
@@ -218,6 +224,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
       if (mounted) setState(() => _audioBusy = false);
     }
     if (!mounted) return;
+    if (next != target) startIdleTimer();
 
     if (next == target) {
       _roundResolving = true;
@@ -254,6 +261,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
       );
 
       if (!mounted) return;
+      cancelIdleTimer();
       setState(() => _showWinDialog = true);
       return;
     }
@@ -273,6 +281,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
     _minLoadTimer?.cancel();
@@ -322,6 +331,28 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
 
         if (!_introPlaying) buildDoma(context),
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+        if (showHowToPlay && !_introPlaying && !_showWinDialog && !_audioBusy)
+          Positioned.fill(
+            child: Builder(
+              builder: (context) {
+                final sz = MediaQuery.of(context).size;
+                final b = sz.height * 0.30;
+                return HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(),
+                  handAlignment: Alignment(
+                    0.9 * (1 - b / sz.width),
+                    0.85 * (1 - b / sz.height),
+                  ),
+                  handEndAlignment: Alignment(
+                    0,
+                    0.2 * (1 - b / sz.height),
+                  ),
+                  handOffset: const Offset(0.15, 0.40),
+                  onDismiss: resetIdleTimer,
+                );
+              },
+            ),
+          ),
       ],
     );
 
@@ -339,8 +370,10 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
         : LoadingScreen.arctic();
 
     return Listener(
-      
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (!_audioBusy) resetIdleTimer();
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: loadingSlot,
@@ -354,6 +387,37 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
               : contentWithOverlay,
         ),
       ),
+    );
+  }
+
+  Widget _buildHowToPreview() {
+    final h = MediaQuery.of(context).size.height;
+    final ballSize = h * 0.30;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(_bgImage, fit: BoxFit.cover),
+        ),
+        Align(
+          alignment: const Alignment(0, 0.2),
+          child: Container(
+            width: ballSize,
+            height: ballSize,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.25),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.85),
+                width: 3,
+              ),
+            ),
+          ),
+        ),
+        Align(
+          alignment: const Alignment(0.9, 0.85),
+          child: Image.asset(_snowballAsset, width: ballSize),
+        ),
+      ],
     );
   }
 
@@ -729,6 +793,7 @@ class _BuildSnowmanGameState extends State<BuildSnowmanGame>
         _completeCtrl.reset();
         _sceneEnterCtrl.forward(from: 0);
         _instructionCtrl.forward(from: 0);
+        startIdleTimer();
       },
       onBack: () {
         Navigator.pop(context);

@@ -11,6 +11,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -39,7 +41,8 @@ class _Number345CountingObjectsScreenState
         DomaReactionMixin,
         GameLoadingMixin,
         AiCameraMixin<Number345CountingObjectsScreen>,
-        AppAudioLifecycleMixin<Number345CountingObjectsScreen> {
+        AppAudioLifecycleMixin<Number345CountingObjectsScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -59,8 +62,10 @@ class _Number345CountingObjectsScreenState
 
   static const String _audioIntro = 'assets/audio/arctic_numberland/level14/intro.wav';
 
-  // ── Tracking Variables ─────────────────────────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
+  final GlobalKey _correctKey = GlobalKey();
+  final GlobalKey _choiceKey = GlobalKey();
+
   bool _hideLightingCard = false;
   bool _loadingScreenElapsed = false;
   Timer? _minLoadTimer;
@@ -238,6 +243,7 @@ class _Number345CountingObjectsScreenState
     if (!mounted) return;
     setState(() => _screenPhase = _ScreenPhase.miniGame);
     _animateRoundIn();
+    startIdleTimer();
   }
 
   void _animateRoundIn() {
@@ -249,6 +255,7 @@ class _Number345CountingObjectsScreenState
 
   Future<void> _onChoiceTap(int index) async {
     if (_tappedIndex != null) return;
+    cancelIdleTimer();
     setState(() => _tappedIndex = index);
 
     final isCorrect = _choices[index] == _correctCount;
@@ -280,6 +287,7 @@ class _Number345CountingObjectsScreenState
             .catchError((e) {
               debugPrint("Database Error marking level complete: $e");
             });
+        cancelIdleTimer();
         setState(() => _showWinDialog = true);
       } else {
         setState(() {
@@ -287,22 +295,23 @@ class _Number345CountingObjectsScreenState
           _generateRound();
         });
         _animateRoundIn();
+        startIdleTimer();
       }
     } else {
       _tapTracker.recordMistake();
 
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
-
-      await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
       setState(() => _tappedIndex = null);
+      startIdleTimer();
     }
   }
 
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _minLoadTimer?.cancel();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
@@ -318,15 +327,12 @@ class _Number345CountingObjectsScreenState
   // ── Choice Colors ──────────────────────────────────────────────────────────
   Color _choiceColor(int index) {
     if (_tappedIndex == null) return ArcticColorTheme.pictonblue;
-    if (_choices[index] == _correctCount) return Colors.green;
-    if (_tappedIndex == index) return Colors.red;
     return ArcticColorTheme.pictonblue;
   }
 
   Color _choiceBorderColor(int index) {
     if (_tappedIndex == null) return ArcticColorTheme.slateblue;
     if (_choices[index] == _correctCount) return ArcticColorTheme.pictonblue;
-    if (_tappedIndex == index) return Colors.red.shade700;
     return ArcticColorTheme.slateblue;
   }
 
@@ -360,7 +366,19 @@ class _Number345CountingObjectsScreenState
         else
           _buildGameContent(),
 
-        if (_screenPhase == _ScreenPhase.miniGame) buildDoma(context),
+        if (showHowToPlay &&
+            _screenPhase == _ScreenPhase.miniGame &&
+            _tappedIndex == null &&
+            !_showWinDialog)
+          Positioned.fill(
+            child: HowToPlayOverlay(
+              previewChild: _buildHintPreview(),
+              handAlignment: _alignmentOf(_choiceKey),
+              handOffset: const Offset(0.15, 0.46),
+              onDismiss: resetIdleTimer,
+            ),
+          ),
+
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
       ],
     );
@@ -379,7 +397,12 @@ class _Number345CountingObjectsScreenState
         : LoadingScreen.arctic();
 
     return Listener(
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (_screenPhase == _ScreenPhase.miniGame && _tappedIndex == null) {
+          resetIdleTimer();
+        }
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: loadingSlot,
@@ -393,6 +416,27 @@ class _Number345CountingObjectsScreenState
               : contentWithOverlay,
         ),
       ),
+    );
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
+  Widget _buildHintPreview() {
+    return Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        _buildGameContent(preview: true),
+      ],
     );
   }
 
@@ -508,7 +552,7 @@ class _Number345CountingObjectsScreenState
   }
 
   // ── Game Content ───────────────────────────────────────────────────────────
-  Widget _buildGameContent() {
+  Widget _buildGameContent({bool preview = false}) {
     return Column(
       children: [
         // ── HEADER ──────────────────────────────
@@ -538,14 +582,14 @@ class _Number345CountingObjectsScreenState
                 flex: 6,
                 child: ScaleTransition(
                   scale: _objectsEnter,
-                  child: _buildObjectsBox(),
+                  child: _buildObjectsBox(preview: preview),
                 ),
               ),
               Expanded(
                 flex: 3,
                 child: ScaleTransition(
                   scale: _choicesEnter,
-                  child: _buildChoicesGrid(),
+                  child: _buildChoicesGrid(preview: preview),
                 ),
               ),
             ],
@@ -561,7 +605,7 @@ class _Number345CountingObjectsScreenState
     );
   }
 
-  Widget _buildObjectsBox() {
+  Widget _buildObjectsBox({bool preview = false}) {
     return Container(
       height: double.infinity,
       margin: const EdgeInsets.only(bottom: 16, left: 12),
@@ -579,7 +623,7 @@ class _Number345CountingObjectsScreenState
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: _buildObjectGrid(),
+        child: preview ? const SizedBox.shrink() : _buildObjectGrid(),
       ),
     );
   }
@@ -608,7 +652,7 @@ class _Number345CountingObjectsScreenState
     );
   }
 
-  Widget _buildChoicesGrid() {
+  Widget _buildChoicesGrid({bool preview = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16, left: 12, right: 12),
       child: GridView.builder(
@@ -626,6 +670,7 @@ class _Number345CountingObjectsScreenState
           final isTappedCorrect = _tappedIndex == index && isCorrect;
 
           return GestureDetector(
+            key: (!preview && index == 0) ? _choiceKey : null,
             onTap: () => _onChoiceTap(index),
             child: ScaleTransition(
               scale: isTappedCorrect
@@ -650,7 +695,9 @@ class _Number345CountingObjectsScreenState
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(10),
-                  child: Image.asset(
+                  child: preview
+                      ? const SizedBox.shrink()
+                      : Image.asset(
                     'assets/fonts/game_numbers/${_choices[index]}.png',
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => Center(

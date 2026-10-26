@@ -11,6 +11,8 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_addition_subtraction_signboard.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
@@ -36,7 +38,8 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
         DomaReactionMixin,
         GameLoadingMixin,
         AiCameraMixin<SubtractionCompareGame>,
-        AppAudioLifecycleMixin<SubtractionCompareGame> {
+        AppAudioLifecycleMixin<SubtractionCompareGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _domaPlayer= AudioPlayer();
@@ -96,8 +99,14 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   late List<int> _choices;
   int? _tappedChoiceIndex;
 
-  // ── Tracking (camera + taps + mistakes) ─────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
+  final GlobalKey _hintTrayKey = GlobalKey();
+  final GlobalKey _hintSlotKey = GlobalKey();
+  final GlobalKey _hintChoiceKey = GlobalKey();
+
+  int get _hintTrayIndex => _trayUsed.indexWhere((u) => !u);
+  int get _hintSlotIndex => _pairedSlot.indexWhere((s) => s == null);
+
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
@@ -199,6 +208,9 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     _showChoices = false;
     _canTapChoices = false;
 
+    cancelIdleTimer();      
+    showHowToPlay = false;  
+
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
 
@@ -216,9 +228,11 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
           _instructionPlayed = true;
           _canInteract = true;
         });
+        startIdleTimer();   
       });
     } else {
       _canInteract = true;
+      startIdleTimer();     
     }
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
@@ -255,6 +269,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     });
 
     if (_trayUsed.every((used) => used)) {
+      cancelIdleTimer(); 
       await Future.delayed(const Duration(milliseconds: 700));
 
       if (!mounted) return;
@@ -271,6 +286,9 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
       setState(() {
         _canTapChoices = true;
       });
+      startIdleTimer(); 
+    } else {
+      startIdleTimer(); 
     }
   }
 
@@ -288,6 +306,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
       _trayUsed[trayIndex] = false;
       _tappedChoiceIndex = null;
     });
+    startIdleTimer();
   }
 
   // ── Confirmation tap ─────────────────────────────────────────────────────
@@ -300,6 +319,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     final isCorrect = _choices[index] == _target;
 
     if (isCorrect) {
+      cancelIdleTimer(); 
       setState(() => _resolvingRound = true);
       _tapTracker.recordCorrectTap();
       HapticFeedback.mediumImpact();
@@ -333,12 +353,14 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
       setState(() => _tappedChoiceIndex = null);
+      startIdleTimer(); 
     }
   }
 
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _domaPlayer.dispose();
     _domaFloatCtrl.dispose();
@@ -351,13 +373,16 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    // Only reacts to a *confirmed* camera result, so it never flashes just
-    // because the screen mounted. Reappears if the face is lost again.
     final needsLightingPrompt =
         hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard;
 
     return Listener(
-      onPointerDown: (_) => _tapTracker.recordGenericTap(),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (!_introPlaying && !_showWinDialog && _canInteract && !_resolvingRound) {
+          resetIdleTimer();
+        }
+      },
       child: Scaffold(
         body: buildWithLoading(
           loadingScreen: LoadingScreen.arctic(),
@@ -379,6 +404,39 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                       : _buildGameContent(),
                 ),
                 if (!_introPlaying) buildDoma(context),
+                if (showHowToPlay &&
+                    !_introPlaying &&
+                    !_showWinDialog &&
+                    _canInteract &&
+                    !_resolvingRound &&
+                    (!_showChoices || _canTapChoices))
+                  Positioned.fill(
+                    child: Builder(
+                      builder: (context) {
+                        final sz = MediaQuery.of(context).size;
+                        final h = sz.height;
+                        final s = h * 0.2;
+
+                        if (_showChoices) {
+                          final b = h * 0.18;
+                          return HowToPlayOverlay(
+                            previewChild: _buildChoicesHowToPreview(),
+                            handAlignment: Alignment(0.8 * (1 - b / sz.width), 0),
+                            handOffset: const Offset(0.05, 0.46),
+                            onDismiss: resetIdleTimer,
+                          );
+                        }
+
+                        return HowToPlayOverlay(
+                          previewChild: _buildHowToPreview(),
+                          handAlignment: Alignment(0, 0.5 * (1 - s / h)),
+                          handEndAlignment: Alignment(0, -0.2 * (1 - s / h)),
+                          handOffset: const Offset(0.05, 0.46),
+                          onDismiss: resetIdleTimer,
+                        );
+                      },
+                    ),
+                  ),
                 if (_showWinDialog)
                   Positioned.fill(child: _buildGoodJobOverlay()),
               ],
@@ -404,6 +462,79 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     );
   }
 
+  Widget _buildChoicesHowToPreview() {
+    final h = MediaQuery.of(context).size.height;
+    final b = h * 0.18;
+    final caneH = h * 0.22;
+
+    Widget circle() => Container(
+      width: b,
+      height: b,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: ArcticColorTheme.pictonblue,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 3),
+      ),
+    );
+
+    return Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        Align(
+          alignment: const Alignment(-0.2, 0),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(
+              3,
+                  (_) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Image.asset(_candyCaneAsset, height: caneH, fit: BoxFit.contain),
+              ),
+            ),
+          ),
+        ),
+        Align(
+          alignment: const Alignment(0.8, 0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [circle(), circle(), circle()],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHowToPreview() {
+    final h = MediaQuery.of(context).size.height;
+    final s = h * 0.2;
+    return Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        Align(
+          alignment: const Alignment(0, -0.8),
+          child: Image.asset(_candyCanePlainAsset, height: s * 1.1, fit: BoxFit.contain),
+        ),
+        Align(
+          alignment: const Alignment(0, -0.1),
+          child: Container(
+            width: s,
+            height: s,
+            decoration: BoxDecoration(
+              color: Colors.grey.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+          ),
+        ),
+        Align(
+          alignment: const Alignment(0, 0.6),
+          child: Image.asset(_ribbonAsset, height: s, fit: BoxFit.contain),
+        ),
+      ],
+    );
+  }
+  
   // ── Intro / story setup ──────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
@@ -474,7 +605,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   }
 
   // ── Main game layout ─────────────────────────────────────────────────────
-  Widget _buildGameContent() {
+  Widget _buildGameContent({bool preview = false}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final h = constraints.maxHeight;
@@ -511,7 +642,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                           flex: 7,
                           child: ScaleTransition(
                             scale: _sceneEnter,
-                            child: _buildCompareScene(w, h),
+                            child: _buildCompareScene(w, h, preview),
                           ),
                         ),
                         SizedBox(
@@ -519,10 +650,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                           child: AnimatedSwitcher(
                             duration: const Duration(milliseconds: 250),
                             child: _showChoices
-                                ? _buildChoicesRow(
-                                    h,
-                                    key: const ValueKey('confirm'),
-                                  )
+                                ? _buildChoicesRow(h, preview, key: const ValueKey('confirm'))
                                 : const SizedBox(key: ValueKey('empty')),
                           ),
                         ),
@@ -542,7 +670,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     );
   }
 
-  Widget _buildCompareScene(double w, double h) {
+  Widget _buildCompareScene(double w, double h, bool preview) {
     final slotWidth = (w * 0.85 / _biggerCount).clamp(50.0, 100.0);
     final caneSize = (slotWidth * 0.8).clamp(40.0, 76.0);
     final cupSize = caneSize * 0.85;
@@ -588,14 +716,14 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
 
                           const SizedBox(height: 6),
 
-                          _buildCupSlot(i, cupSize),
+                          _buildCupSlot(i, cupSize, preview),
                         ],
                       ),
                     );
                   }),
                 ),
                 SizedBox(height: h * 0.03),
-                _buildCupTray(cupSize),
+                _buildCupTray(cupSize, preview),
               ],
             ),
           ),
@@ -604,7 +732,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     );
   }
 
-  Widget _buildCupSlot(int slotIndex, double size) {
+  Widget _buildCupSlot(int slotIndex, double size, bool preview) {
     final isFilled = _pairedSlot[slotIndex] != null;
     final isLeftover = _readyForConfirm && !isFilled;
 
@@ -626,6 +754,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
         final highlight = candidateData.isNotEmpty;
 
         return Container(
+          key: (!preview && slotIndex == _hintSlotIndex) ? _hintSlotKey : null, 
           width: size,
           height: size,
           decoration: BoxDecoration(
@@ -649,7 +778,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
     return slot;
   }
 
-  Widget _buildCupTray(double size) {
+  Widget _buildCupTray(double size, bool preview) {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
@@ -669,6 +798,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
         }
 
         return Draggable<int>(
+          key: (!preview && i == _hintTrayIndex) ? _hintTrayKey : null, 
           data: i,
           maxSimultaneousDrags: _canInteract && !_resolvingRound ? 1 : 0,
           feedback: Material(color: Colors.transparent, child: cup),
@@ -680,7 +810,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
   }
 
   // ── Choices row ─────────────────────────────────────────────────────
-  Widget _buildChoicesRow(double h, {Key? key}) {
+  Widget _buildChoicesRow(double h, bool preview, {Key? key}) {
     final btnSize = (h * 0.18);
 
     return Padding(
@@ -695,6 +825,7 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: GestureDetector(
+              key: (!preview && index == 1) ? _hintChoiceKey : null, 
               onTap: _tappedChoiceIndex == null
                   ? () => _onChoiceTap(index)
                   : null,
@@ -711,7 +842,9 @@ class _SubtractionCompareGameState extends State<SubtractionCompareGame>
                   ],
                 ),
                 alignment: Alignment.center,
-                child: Text(
+                child: preview
+                    ? null
+                    : Text(
                   '${_choices[index]}',
                   style: TextStyle(
                     fontFamily: ArcticAppTextStyles.fredoka,
