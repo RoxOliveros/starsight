@@ -15,6 +15,8 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'forest_audio_path.dart';
@@ -24,11 +26,13 @@ import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 class _FlowerSpot {
   final String letter;
   final Offset pos;
+
   const _FlowerSpot({required this.letter, required this.pos});
 }
 
 class ButterflyFlowerGardenGame extends StatefulWidget {
   final int level;
+
   const ButterflyFlowerGardenGame({super.key, required this.level});
 
   @override
@@ -42,10 +46,10 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
         GameLoadingMixin<ButterflyFlowerGardenGame>,
         TofiReactionMixin<ButterflyFlowerGardenGame>,
         AiCameraMixin,
-        AppAudioLifecycleMixin<ButterflyFlowerGardenGame> {
-
+        AppAudioLifecycleMixin<ButterflyFlowerGardenGame>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -56,14 +60,19 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_garden.png';
-  static const String _butterflyImage = 'assets/images/objects/forest/butterfly.png';
-  static const String _flowerAsset = 'assets/images/objects/forest/flower_not_bloom.png';
-  static const String _flowerBloomAsset = 'assets/images/objects/forest/flower_bloom.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_forest_garden.png';
+  static const String _butterflyImage =
+      'assets/images/objects/forest/butterfly.png';
+  static const String _flowerAsset =
+      'assets/images/objects/forest/flower_not_bloom.png';
+  static const String _flowerBloomAsset =
+      'assets/images/objects/forest/flower_bloom.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/butterfly_garden_intro.wav';
-  static const String _audioInstruction = '$_audioBase/butterfly_garden_instruction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/butterfly_garden_instruction.wav';
   static const String _audioWin = '$_audioBase/butterfly_garden_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -212,7 +221,10 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
     } catch (e) {
       debugPrint('Round audio error: $e');
     } finally {
-      if (mounted) setState(() => _inputEnabled = true);
+      if (mounted) {
+        setState(() => _inputEnabled = true);
+        startIdleTimer();
+      }
     }
   }
 
@@ -242,6 +254,8 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
     _flyCtrl.reset();
 
     if (playInstruction) _inputEnabled = false;
+    cancelIdleTimer();
+    if (showHowToPlay) showHowToPlay = false;
 
     setState(() {});
   }
@@ -251,6 +265,7 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
     final target = _targets[_currentRound];
 
     if (flower.letter == target) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       _resolving = true;
       HapticFeedback.mediumImpact();
@@ -274,6 +289,7 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
       if (!mounted) return;
       await _advanceRound();
     } else {
+      resetIdleTimer();
       _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
       setState(() => _wrongLetter = flower.letter);
@@ -292,7 +308,7 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
 
-      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -313,6 +329,7 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -370,6 +387,7 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _butterflyFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -384,23 +402,112 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.alphabetForest(),
-        gameBuilder: () => Stack(
-          children: [
-            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
-            if (!_introPlaying) buildTofi(context),
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
-          ],
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_resolving && !_hasSavedResult) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.alphabetForest(),
+          gameBuilder: () => Stack(
+            children: [
+              if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+              if (!_introPlaying) buildTofi(context),
+              if (showHowToPlay &&
+                  !_introPlaying &&
+                  _inputEnabled &&
+                  !_resolving &&
+                  !_hasSavedResult)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: _toAlignment(
+                      _demoFlowerCenter(screenSize),
+                      screenSize,
+                    ),
+                    handOffset: const Offset(0.15, 0.4),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Offset _demoFlowerCenter(Size s) {
+    final gardenH = s.height - 90 - 26;
+    final flowerSize = gardenH * 0.32;
+    final slot = _slots[1];
+
+    return Offset(
+      slot.dx * s.width,
+      90 + slot.dy * gardenH - 30 + flowerSize * 0.1,
+    );
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final gardenH = s.height - 90 - 26;
+    final flowerSize = gardenH * 0.32;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        ..._flowers.map((f) {
+          return Positioned(
+            left: f.pos.dx * s.width - flowerSize / 2,
+            top: 90 + f.pos.dy * gardenH - flowerSize / 2 - 30,
+            width: flowerSize,
+            height: flowerSize,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Image.asset(
+                  _flowerAsset,
+                  width: flowerSize,
+                  fit: BoxFit.contain,
+                ),
+                Positioned(
+                  bottom: flowerSize * 0.12,
+                  child: Text(
+                    f.letter,
+                    style: TextStyle(
+                      fontFamily: ForestAppTextStyles.fredoka,
+                      fontWeight: FontWeight.w900,
+                      fontSize: flowerSize * 0.24,
+                      color: ForestColorTheme.darkseagreen,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+        Positioned(
+          left: _butterflyPos.dx * s.width - 35,
+          top: 90 + _butterflyPos.dy * gardenH - 35,
+          child: Image.asset(_butterflyImage, width: 110),
+        ),
+      ],
     );
   }
 

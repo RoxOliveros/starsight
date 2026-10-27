@@ -13,6 +13,8 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
 import 'forest_game_berry_bush_harvest.dart';
@@ -36,10 +38,13 @@ class AlphabetHuntScreen extends StatefulWidget {
 }
 
 class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
-    with TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetHuntScreen> {
-
+    with
+        TofiReactionMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<AlphabetHuntScreen>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -55,7 +60,8 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
-  static const String _huntInstructionWav = 'assets/audio/alphabet_forest/alphabet_minigame_hunt_instruction.wav';
+  static const String _huntInstructionWav =
+      'assets/audio/alphabet_forest/alphabet_minigame_hunt_instruction.wav';
 
   bool _inputEnabled = false;
   bool _hideLightingCard = false;
@@ -169,6 +175,8 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
 
       final bool won = _correctCount + 1 >= _winCondition;
 
+      if (won) cancelIdleTimer();
+
       setState(() {
         obj.found = true;
         _correctCount++;
@@ -200,10 +208,14 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     } catch (e) {
       debugPrint('Instruction audio error: $e');
     }
-    if (mounted) setState(() => _inputEnabled = true);
+    if (mounted) {
+      setState(() => _inputEnabled = true);
+      startIdleTimer();
+    }
   }
 
   Future<void> _saveDataAndShowApplause() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -402,6 +414,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     OrientationService.setLandscape();
     _audioPlayer.dispose();
     _tofiPlayer.dispose();
@@ -413,107 +426,215 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     final Size screenSize = MediaQuery.of(context).size;
     final double objSize = (screenSize.height * 0.22).clamp(80.0, 150.0);
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/backgrounds/bg_game_forest.png',
-              fit: BoxFit.cover,
-            ),
-          ),
-          Stack(
-            children: [
-              buildTofi(context),
-
-              // ── Back button ──
-              const Positioned(top: 25, left: 25, child: ForestXButton()),
-
-              // Level Badge
-              Positioned(
-                top: 25,
-                right: 25,
-                child: ForestLevelBadge(
-                  level:
-                      ForestProgressService.levelNumberForLetter(
-                        widget.letter.toUpperCase(),
-                      ) ??
-                      1,
-                ),
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_hasSavedResult) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/backgrounds/bg_game_forest.png',
+                fit: BoxFit.cover,
               ),
+            ),
+            Stack(
+              children: [
+                buildTofi(context),
 
-              Positioned(
-                top: 80,
-                bottom: 20,
-                left: 180,
-                right: 20,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final double itemWidth =
-                        (constraints.maxWidth - (3 * 12)) / 4;
-                    final double itemHeight =
-                        (constraints.maxHeight - (2 * 12)) / 2;
-                    final double itemSize = itemWidth < itemHeight
-                        ? itemWidth
-                        : itemHeight;
-                    final double letterFontSize = itemSize * 0.45;
+                // ── Back button ──
+                const Positioned(top: 25, left: 25, child: ForestXButton()),
 
-                    return GridView.count(
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 4,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: itemWidth / itemHeight,
-                      children: _activeObjects.map((obj) {
-                        if (obj.found) return const SizedBox.shrink();
+                // Level Badge
+                Positioned(
+                  top: 25,
+                  right: 25,
+                  child: ForestLevelBadge(
+                    level:
+                        ForestProgressService.levelNumberForLetter(
+                          widget.letter.toUpperCase(),
+                        ) ??
+                        1,
+                  ),
+                ),
 
-                        return Opacity(
-                          opacity: _inputEnabled ? 1.0 : 0.7,
-                          child: GestureDetector(
-                            key: obj.key,
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => _onObjectTap(obj, obj.key),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                Image.asset(obj.imagePath, fit: BoxFit.contain),
-                                Text(
-                                  obj.letter,
-                                  style: TextStyle(
-                                    fontFamily: ForestAppTextStyles.fredoka,
-                                    fontSize: letterFontSize,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                    shadows: const [
-                                      Shadow(
-                                        blurRadius: 6,
-                                        color: Colors.black87,
-                                        offset: Offset(2, 2),
-                                      ),
-                                    ],
+                Positioned(
+                  top: 80,
+                  bottom: 20,
+                  left: 180,
+                  right: 20,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double itemWidth =
+                          (constraints.maxWidth - (3 * 12)) / 4;
+                      final double itemHeight =
+                          (constraints.maxHeight - (2 * 12)) / 2;
+                      final double itemSize = itemWidth < itemHeight
+                          ? itemWidth
+                          : itemHeight;
+                      final double letterFontSize = itemSize * 0.45;
+
+                      return GridView.count(
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 4,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: itemWidth / itemHeight,
+                        children: _activeObjects.map((obj) {
+                          if (obj.found) return const SizedBox.shrink();
+
+                          return Opacity(
+                            opacity: _inputEnabled ? 1.0 : 0.7,
+                            child: GestureDetector(
+                              key: obj.key,
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => _onObjectTap(obj, obj.key),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Image.asset(
+                                    obj.imagePath,
+                                    fit: BoxFit.contain,
                                   ),
-                                ),
-                              ],
+                                  Text(
+                                    obj.letter,
+                                    style: TextStyle(
+                                      fontFamily: ForestAppTextStyles.fredoka,
+                                      fontSize: letterFontSize,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      shadows: const [
+                                        Shadow(
+                                          blurRadius: 6,
+                                          color: Colors.black87,
+                                          offset: Offset(2, 2),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  },
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+
+            if (showHowToPlay &&
+                _inputEnabled &&
+                !_hasSavedResult &&
+                _firstTargetIndex() != -1)
+              Positioned.fill(
+                child: HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(screenSize),
+                  handAlignment: _handAlignmentForTarget(screenSize),
+                  handOffset: const Offset(0.15, 0.4),
+                  onDismiss: resetIdleTimer,
                 ),
               ),
-            ],
-          ),
 
-          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-            LightingPromptCard(
-              onClose: () {
-                setState(() => _hideLightingCard = true);
-                releaseFaceGate();
-              },
-            ),
-        ],
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+          ],
+        ),
       ),
+    );
+  }
+
+  // Index of the first target letter still on the board, or -1 if none.
+  int _firstTargetIndex() {
+    final String target = widget.letter.toUpperCase();
+    return _activeObjects.indexWhere((o) => !o.found && o.letter == target);
+  }
+
+  // Centre of that grid cell, converted to an Alignment.
+  Alignment _handAlignmentForTarget(Size s) {
+    final int index = _firstTargetIndex();
+    if (index < 0) return Alignment.center;
+
+    const double left = 180, right = 20, top = 80, bottom = 20, gap = 12;
+    final double gridW = s.width - left - right;
+    final double gridH = s.height - top - bottom;
+    final double cellW = (gridW - 3 * gap) / 4;
+    final double cellH = (gridH - gap) / 2;
+
+    final int col = index % 4;
+    final int row = index ~/ 4;
+
+    final double cx = left + col * (cellW + gap) + cellW / 2;
+    final double cy = top + row * (cellH + gap) + cellH / 2;
+
+    return Alignment((2 * cx / s.width) - 1, (2 * cy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size screenSize) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/backgrounds/bg_game_forest.png',
+          fit: BoxFit.cover,
+        ),
+        Positioned(
+          top: 80,
+          bottom: 20,
+          left: 180,
+          right: 20,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final double itemWidth = (constraints.maxWidth - (3 * 12)) / 4;
+              final double itemHeight = (constraints.maxHeight - (2 * 12)) / 2;
+              final double itemSize = itemWidth < itemHeight
+                  ? itemWidth
+                  : itemHeight;
+
+              return GridView.count(
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 4,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: itemWidth / itemHeight,
+                children: _activeObjects.map((obj) {
+                  if (obj.found) return const SizedBox.shrink();
+
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Image.asset(obj.imagePath, fit: BoxFit.contain),
+                      Text(
+                        obj.letter,
+                        style: TextStyle(
+                          fontFamily: ForestAppTextStyles.fredoka,
+                          fontSize: itemSize * 0.45,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          shadows: const [
+                            Shadow(
+                              blurRadius: 6,
+                              color: Colors.black87,
+                              offset: Offset(2, 2),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

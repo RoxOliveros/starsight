@@ -15,6 +15,8 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_audio_path.dart';
 import 'forest_game_apple_tree.dart';
@@ -25,6 +27,7 @@ class _LetterPair {
   final String upper;
   final String lower;
   bool matched;
+
   _LetterPair({required this.upper, required this.lower, this.matched = false});
 }
 
@@ -62,6 +65,7 @@ class _VinePainter extends CustomPainter {
 
 class CaterpillarLetterMatchGame extends StatefulWidget {
   final int level;
+
   const CaterpillarLetterMatchGame({super.key, required this.level});
 
   @override
@@ -70,10 +74,15 @@ class CaterpillarLetterMatchGame extends StatefulWidget {
 }
 
 class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
-    with TickerProviderStateMixin, GameLoadingMixin<CaterpillarLetterMatchGame>, TofiReactionMixin<CaterpillarLetterMatchGame>, AiCameraMixin, AppAudioLifecycleMixin<CaterpillarLetterMatchGame> {
-
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin<CaterpillarLetterMatchGame>,
+        TofiReactionMixin<CaterpillarLetterMatchGame>,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<CaterpillarLetterMatchGame>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -87,12 +96,15 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
   static const String _bgImage = 'assets/images/backgrounds/bg_game_forest.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
   static const String _leafAsset = 'assets/images/objects/forest/leaf.png';
-  static const String _caterpillarHeadAsset = 'assets/images/objects/forest/catterpillar_head.png';
-  static const String _caterpillarBodyAsset = 'assets/images/objects/forest/catterpillar_body.png';
+  static const String _caterpillarHeadAsset =
+      'assets/images/objects/forest/catterpillar_head.png';
+  static const String _caterpillarBodyAsset =
+      'assets/images/objects/forest/catterpillar_body.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/caterpillar_intro.wav';
-  static const String _audioInstruction = '$_audioBase/caterpillar_instruction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/caterpillar_instruction.wav';
   static const String _audioWin = '$_audioBase/caterpillar_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -156,17 +168,18 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
     if (_assetsPrecached) return;
     _assetsPrecached = true;
 
-    _precacheFuture = Future.wait([
-      for (final path in [
-        _caterpillarHeadAsset,
-        _caterpillarBodyAsset,
-        _bgImage,
-        _leafAsset,
-      ])
-        precacheImage(AssetImage(path), context),
-    ]).then((_) {}).catchError((e) {
-      debugPrint('Precache error: $e');
-    });
+    _precacheFuture =
+        Future.wait([
+          for (final path in [
+            _caterpillarHeadAsset,
+            _caterpillarBodyAsset,
+            _bgImage,
+            _leafAsset,
+          ])
+            precacheImage(AssetImage(path), context),
+        ]).then((_) {}).catchError((e) {
+          debugPrint('Precache error: $e');
+        });
   }
 
   void _initAnimations() {
@@ -231,10 +244,15 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
     } catch (e) {
       debugPrint('Instruction audio error: $e');
     }
-    if (mounted) setState(() => _inputEnabled = true);
+    if (mounted) {
+      setState(() => _inputEnabled = true);
+      startIdleTimer();
+    }
   }
 
   void _setupRound({bool playInstruction = true}) {
+    cancelIdleTimer();
+    showHowToPlay = false;
     final rng = Random();
     final letters = (List.generate(
       26,
@@ -262,8 +280,13 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
         } catch (e) {
           debugPrint('Instruction audio error: $e');
         }
-        if (mounted) setState(() => _inputEnabled = true);
+        if (mounted) {
+          setState(() => _inputEnabled = true);
+          startIdleTimer();
+        }
       });
+    } else if (_inputEnabled) {
+      startIdleTimer();
     }
 
     setState(() {});
@@ -300,6 +323,8 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
   }
 
   Future<void> _advanceRound() async {
+    cancelIdleTimer();
+    showHowToPlay = false;
     _solvedRounds++;
 
     setState(() => _celebratingRound = true);
@@ -311,7 +336,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
       await Future.delayed(const Duration(milliseconds: 200));
       if (!mounted) return;
 
-      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -330,6 +355,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -387,6 +413,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _tofiFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -401,23 +428,136 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.alphabetForest(),
-        gameBuilder: () => Stack(
-          children: [
-            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
-            if (!_introPlaying) buildTofi(context),
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
-          ],
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_celebratingRound && !_hasSavedResult) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.alphabetForest(),
+          gameBuilder: () => Stack(
+            children: [
+              if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+              if (!_introPlaying) buildTofi(context),
+              if (showHowToPlay &&
+                  !_introPlaying &&
+                  _inputEnabled &&
+                  !_celebratingRound &&
+                  !_hasSavedResult)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    tapSequence: true,
+                    handAlignment: _toAlignment(
+                      _demoPoint(screenSize, upper: true, slot: 0),
+                      screenSize,
+                    ),
+                    handPath: [
+                      _toAlignment(
+                        _demoPoint(screenSize, upper: true, slot: 0),
+                        screenSize,
+                      ),
+                      _toAlignment(
+                        _demoPoint(screenSize, upper: false, slot: 0),
+                        screenSize,
+                      ),
+                    ],
+                    handOffset: const Offset(0.15, 0.65),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  static const double _areaTop = 90.0;
+  static const double _areaBottom = 40.0;
+
+  Offset _demoPoint(Size s, {required bool upper, required int slot}) {
+    final iw = s.width;
+    final ih = s.height - _areaTop - _areaBottom;
+    return Offset(
+      _slotX[slot] * iw,
+      _areaTop + (upper ? _topY : _bottomY) * ih,
+    );
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          _bgImage,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              Container(color: ForestColorTheme.lightgrayishgreen),
+        ),
+        Positioned(
+          top: _areaTop,
+          left: 0,
+          right: 0,
+          bottom: _areaBottom,
+          child: LayoutBuilder(
+            builder: (context, inner) {
+              final w = inner.maxWidth;
+              final h = inner.maxHeight;
+              final size = h * 0.3;
+              final headSize = h * 0.4;
+
+              Widget head(double y) => Positioned(
+                left: (_slotX[0] - 0.075) * w - headSize / 2,
+                top: y * h - headSize / 2 - 16,
+                child: _buildCaterpillarHead(headSize),
+              );
+
+              Widget segment(int i, String letter, double y, Color color) =>
+                  Positioned(
+                    left: _slotX[i] * w - size / 2,
+                    top: y * h - size / 2,
+                    child: _buildSegment(
+                      letter: letter,
+                      matched: false,
+                      size: size,
+                      color: color,
+                      selected: false,
+                      hideLetters: i != 0,
+                    ),
+                  );
+
+              return Stack(
+                children: [
+                  head(_topY),
+                  head(_bottomY),
+                  for (int i = 0; i < _slotX.length; i++) ...[
+                    segment(i, i == 0 ? 'A' : '', _topY, ForestColorTheme.seagreen),
+                    segment(i, i == 0 ? 'a' : '', _bottomY, ForestColorTheme.lightgreen),
+                  ],
+                ],
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -491,7 +631,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
     );
   }
 
-  Widget _buildGameUI(double w, double h) {
+  Widget _buildGameUI(double w, double h, {bool hideLetters = false}) {
     return ScaleTransition(
       scale: _sceneEnter,
       child: Stack(
@@ -516,8 +656,8 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
                   children: [
                     for (int i = 0; i < _pairs.length; i++)
                       if (_pairs[i].matched) _buildConnectionLine(i, iw, ih),
-                    _buildUpperCaterpillar(iw, ih),
-                    _buildLowerCaterpillar(iw, ih),
+                    _buildUpperCaterpillar(iw, ih, hideLetters),
+                    _buildLowerCaterpillar(iw, ih, hideLetters),
                   ],
                 );
               },
@@ -535,7 +675,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
     );
   }
 
-  Widget _buildUpperCaterpillar(double w, double h) {
+  Widget _buildUpperCaterpillar(double w, double h, bool hideLetters) {
     final headSize = (h * 0.4);
 
     return Stack(
@@ -545,12 +685,13 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
           top: _topY * h - headSize / 2 - 16,
           child: _buildCaterpillarHead(headSize),
         ),
-        for (int i = 0; i < _pairs.length; i++) _buildUpperSegmentSlot(i, w, h),
+        for (int i = 0; i < _pairs.length; i++)
+          _buildUpperSegmentSlot(i, w, h, hideLetters),
       ],
     );
   }
 
-  Widget _buildLowerCaterpillar(double w, double h) {
+  Widget _buildLowerCaterpillar(double w, double h, bool hideLetters) {
     final headSize = (h * 0.4);
 
     return Stack(
@@ -560,12 +701,13 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
           top: _bottomY * h - headSize / 2 - 16,
           child: _buildCaterpillarHead(headSize),
         ),
-        for (int i = 0; i < _pairs.length; i++) _buildLowerSegmentSlot(i, w, h),
+        for (int i = 0; i < _pairs.length; i++)
+          _buildLowerSegmentSlot(i, w, h, hideLetters),
       ],
     );
   }
 
-  Widget _buildUpperSegmentSlot(int pairIndex, double w, double h) {
+  Widget _buildUpperSegmentSlot(int pairIndex, double w, double h, bool hideLetters) {
     final pair = _pairs[pairIndex];
     final size = (h * 0.3);
     final segment = _buildSegment(
@@ -608,8 +750,8 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
     );
   }
 
-  Widget _buildLowerSegmentSlot(int slotIndex, double w, double h) {
-    final pairIndex = _lowerOrder[slotIndex];
+  Widget _buildLowerSegmentSlot(int slotIndex, double w, double h, bool hideLetters) {
+      final pairIndex = _lowerOrder[slotIndex];
     final pair = _pairs[pairIndex];
     final size = h * 0.3;
     final wrong = _wrongSlotIndex == slotIndex;
@@ -666,6 +808,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
     required double size,
     required Color color,
     required bool selected,
+    bool hideLetters = false,
   }) {
     return AnimatedScale(
       scale: matched ? 1.12 : 1.0,
@@ -701,7 +844,8 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
                 height: size,
                 fit: BoxFit.contain,
               ),
-              Stack(
+              if (!hideLetters)
+                Stack(
                 alignment: Alignment.center,
                 children: [
                   Text(

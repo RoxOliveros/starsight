@@ -1,500 +1,550 @@
-  import 'dart:math';
-  import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
-  import 'package:flutter/material.dart';
-  import 'package:flutter/services.dart';
-  import 'package:audioplayers/audioplayers.dart';
-  import 'package:firebase_auth/firebase_auth.dart';
-  import 'package:StarSight/business_layer/forest_database_service.dart';
-  import 'package:StarSight/business_layer/game_tap_tracker.dart';
-  import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-  import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-  import '../../business_layer/forest_progress_service.dart';
-  import '../../business_layer/orientation_service.dart';
-  import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
-  import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
-  import '../../ui_layer/game_loading_mixin.dart';
-  import '../../ui_layer/loading_screen.dart';
-  import '../games_audio_helper.dart';
+import 'dart:math';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/forest_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import '../../business_layer/forest_progress_service.dart';
+import '../../business_layer/orientation_service.dart';
+import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
+import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
-  import 'alphabet_intro.dart';
-  import 'forest_audio_path.dart';
-  import 'tofi_reaction.dart';
-  import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
+import 'alphabet_intro.dart';
+import 'forest_audio_path.dart';
+import 'tofi_reaction.dart';
+import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
-  class _PawTrail {
-    final String letter;
-    final List<Offset> pawPositions;
-    final List<double> pawAngles;
-    final Offset letterPos;
-    final String animalAsset;
+class _PawTrail {
+  final String letter;
+  final List<Offset> pawPositions;
+  final List<double> pawAngles;
+  final Offset letterPos;
+  final String animalAsset;
 
-    const _PawTrail({
-      required this.letter,
-      required this.pawPositions,
-      required this.pawAngles,
-      required this.letterPos,
-      required this.animalAsset,
+  const _PawTrail({
+    required this.letter,
+    required this.pawPositions,
+    required this.pawAngles,
+    required this.letterPos,
+    required this.animalAsset,
+  });
+}
+
+class FollowThePawPrintsGame extends StatefulWidget {
+  final int level;
+
+  const FollowThePawPrintsGame({super.key, required this.level});
+
+  @override
+  State<FollowThePawPrintsGame> createState() => _FollowThePawPrintsGameState();
+}
+
+class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin<FollowThePawPrintsGame>,
+        TofiReactionMixin<FollowThePawPrintsGame>,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<FollowThePawPrintsGame>,
+        IdleHintMixin {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
+
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
+
+  @override
+  AudioPlayer get tofiPlayer => _tofiPlayer;
+
+  final GameTapTracker _tapTracker = GameTapTracker();
+
+  // ── Asset paths ──────────────────────────────────────────────────────────
+  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_grassland.png';
+  static const String _dogImage = 'assets/images/characters/dog.png';
+  static const String _pawAsset = 'assets/images/objects/forest/paw_print.png';
+  static const String _sparkleAsset = 'assets/images/objects/forest/sparkle.png';
+  static const String _leafAsset = 'assets/images/objects/forest/leaf.png';
+
+  static const String _audioBase = ForestAudioAssets.base;
+  static const String _audioIntro = '$_audioBase/paw_prints_intro.wav';
+  static const String _audioWin = '$_audioBase/paw_prints_win.wav';
+
+  static const Map<String, String> _instructionAudioForLetter = {
+    'S': '$_audioBase/follow_paws_s.wav',
+    'T': '$_audioBase/follow_paws_t.wav',
+    'U': '$_audioBase/follow_paws_u.wav',
+  };
+
+  static const Map<String, String> _letterAnimalAudio = {
+    'S': '$_audioBase/s_is_for_squirrel.wav',
+    'T': '$_audioBase/t_is_for_tiger.wav',
+    'U': '$_audioBase/u_is_for_unicorn.wav',
+  };
+
+  static const List<String> _roundOrder = ['S', 'T', 'U'];
+  static final List<double> _leafAngles = List.generate(8, (i) => i * pi / 4);
+
+  late List<_PawTrail> _trails;
+
+  int _currentRoundIndex = 0;
+  int _solvedRounds = 0;
+  int _targetProgress = 0;
+
+  String? _wrongPawKey;
+  String? _sparkleKey;
+  _PawTrail? _celebratingTrail;
+
+  bool _introPlaying = true;
+  bool _resolving = false;
+  bool _showCelebration = false;
+  bool _showAllAnimals = false;
+  bool _inputEnabled = false;
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+
+  String get _targetLetter => _roundOrder[_currentRoundIndex];
+
+  late AnimationController _tofiFloatCtrl;
+  late AnimationController _instructionCtrl;
+  late AnimationController _sceneEnterCtrl;
+  late Animation<double> _sceneEnter;
+  late AnimationController _pulseCtrl;
+  late AnimationController _shakeCtrl;
+  late Animation<double> _shake;
+  late AnimationController _letterPopCtrl;
+  late AnimationController _tofiWalkCtrl;
+  late AnimationController _animalWaveCtrl;
+  late AnimationController _ambientLeavesCtrl;
+
+  @override
+  void initState() {
+    OrientationService.setLandscape();
+    super.initState();
+
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
+
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
+
+    _trails = _buildTrails();
+    _initAnimations();
+    _setupRound(playInstruction: false);
+    finishLoading(_startIntroFlow);
+  }
+
+  List<_PawTrail> _buildTrails() {
+    return [
+      _buildSingleTrail(
+        letter: 'S',
+        centerX: 0.2,
+        count: 5,
+        animalAsset: 'assets/images/objects/forest/squirrel.png',
+      ),
+      _buildSingleTrail(
+        letter: 'T',
+        centerX: 0.5,
+        count: 3,
+        animalAsset: 'assets/images/objects/forest/tiger.png',
+      ),
+      _buildSingleTrail(
+        letter: 'U',
+        centerX: 0.8,
+        count: 4,
+        animalAsset: 'assets/images/objects/forest/unicorn.png',
+      ),
+    ];
+  }
+
+  _PawTrail _buildSingleTrail({
+    required String letter,
+    required double centerX,
+    required int count,
+    required String animalAsset,
+  }) {
+    final positions = List.generate(count, (i) {
+      final t = count == 1 ? 0.0 : i / (count - 1);
+      final y = 0.88 - t * 0.46;
+      final curve = sin(t * pi) * 0.05;
+      final x = (centerX + (centerX < 0.5 ? curve : -curve)).clamp(0.08, 0.92);
+      return Offset(x, y);
     });
+    final angles = List.generate(
+      count,
+      (i) => (i.isEven ? -0.18 : 0.18) + i * 0.015,
+    );
+
+    return _PawTrail(
+      letter: letter,
+      pawPositions: positions,
+      pawAngles: angles,
+      letterPos: Offset(centerX, 0.17),
+      animalAsset: animalAsset,
+    );
   }
 
-  class FollowThePawPrintsGame extends StatefulWidget {
-    final int level;
-    const FollowThePawPrintsGame({super.key, required this.level});
+  void _initAnimations() {
+    _tofiFloatCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
 
-    @override
-    State<FollowThePawPrintsGame> createState() => _FollowThePawPrintsGameState();
+    _instructionCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+
+    _sceneEnterCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _sceneEnter = CurvedAnimation(
+      parent: _sceneEnterCtrl,
+      curve: Curves.elasticOut,
+    );
+
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+
+    _shakeCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _shake = TweenSequence([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: -0.14), weight: 25),
+      TweenSequenceItem(tween: Tween(begin: -0.14, end: 0.14), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 0.14, end: 0.0), weight: 25),
+    ]).animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.easeInOut));
+
+    _letterPopCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+
+    _tofiWalkCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+
+    _animalWaveCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+
+    _ambientLeavesCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 14000),
+    )..repeat();
   }
 
-  class _FollowThePawPrintsGameState extends State<FollowThePawPrintsGame>
-      with TickerProviderStateMixin, GameLoadingMixin<FollowThePawPrintsGame>, TofiReactionMixin<FollowThePawPrintsGame>, AiCameraMixin, AppAudioLifecycleMixin<FollowThePawPrintsGame> {
-
-    final AudioPlayer _audioPlayer = AudioPlayer();
-    final AudioPlayer _tofiPlayer= AudioPlayer();
-
-    @override
-    List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
-
-    @override
-    AudioPlayer get tofiPlayer => _tofiPlayer;
-
-    final GameTapTracker _tapTracker = GameTapTracker();
-
-    // ── Asset paths ──────────────────────────────────────────────────────────
-    static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_grassland.png';
-    static const String _dogImage = 'assets/images/characters/dog.png';
-    static const String _pawAsset = 'assets/images/objects/forest/paw_print.png';
-    static const String _sparkleAsset = 'assets/images/objects/forest/sparkle.png';
-    static const String _leafAsset = 'assets/images/objects/forest/leaf.png';
-
-    static const String _audioBase = ForestAudioAssets.base;
-    static const String _audioIntro = '$_audioBase/paw_prints_intro.wav';
-    static const String _audioWin = '$_audioBase/paw_prints_win.wav';
-
-    static const Map<String, String> _instructionAudioForLetter = {
-      'S': '$_audioBase/follow_paws_s.wav',
-      'T': '$_audioBase/follow_paws_t.wav',
-      'U': '$_audioBase/follow_paws_u.wav',
-    };
-
-    static const Map<String, String> _letterAnimalAudio = {
-      'S': '$_audioBase/s_is_for_squirrel.wav',
-      'T': '$_audioBase/t_is_for_tiger.wav',
-      'U': '$_audioBase/u_is_for_unicorn.wav',
-    };
-
-    static const List<String> _roundOrder = ['S', 'T', 'U'];
-    static final List<double> _leafAngles = List.generate(8, (i) => i * pi / 4);
-
-    late List<_PawTrail> _trails;
-
-    int _currentRoundIndex = 0;
-    int _solvedRounds = 0;
-    int _targetProgress = 0;
-
-    String? _wrongPawKey;
-    String? _sparkleKey;
-    _PawTrail? _celebratingTrail;
-
-    bool _introPlaying = true;
-    bool _resolving = false;
-    bool _showCelebration = false;
-    bool _showAllAnimals = false;
-    bool _inputEnabled = false;
-    bool _hideLightingCard = false;
-    bool _hasSavedResult = false;
-
-    String get _targetLetter => _roundOrder[_currentRoundIndex];
-
-    late AnimationController _tofiFloatCtrl;
-    late AnimationController _instructionCtrl;
-    late AnimationController _sceneEnterCtrl;
-    late Animation<double> _sceneEnter;
-    late AnimationController _pulseCtrl;
-    late AnimationController _shakeCtrl;
-    late Animation<double> _shake;
-    late AnimationController _letterPopCtrl;
-    late AnimationController _tofiWalkCtrl;
-    late AnimationController _animalWaveCtrl;
-    late AnimationController _ambientLeavesCtrl;
-
-    @override
-    void initState() {
-      OrientationService.setLandscape();
-      super.initState();
-
-      sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
-      startAiCamera();
-      _tapTracker.startSession();
-
-      onFaceDetectionChanged = (detected) {
-        if (detected && mounted) setState(() => _hideLightingCard = false);
-      };
-
-      _trails = _buildTrails();
-      _initAnimations();
-      _setupRound(playInstruction: false);
-      finishLoading(_startIntroFlow);
-    }
-
-    List<_PawTrail> _buildTrails() {
-      return [
-        _buildSingleTrail(
-          letter: 'S',
-          centerX: 0.2,
-          count: 5,
-          animalAsset: 'assets/images/objects/forest/squirrel.png',
-        ),
-        _buildSingleTrail(
-          letter: 'T',
-          centerX: 0.5,
-          count: 3,
-          animalAsset: 'assets/images/objects/forest/tiger.png',
-        ),
-        _buildSingleTrail(
-          letter: 'U',
-          centerX: 0.8,
-          count: 4,
-          animalAsset: 'assets/images/objects/forest/unicorn.png',
-        ),
-      ];
-    }
-
-    _PawTrail _buildSingleTrail({
-      required String letter,
-      required double centerX,
-      required int count,
-      required String animalAsset,
-    }) {
-      final positions = List.generate(count, (i) {
-        final t = count == 1 ? 0.0 : i / (count - 1);
-        final y = 0.88 - t * 0.46;
-        final curve = sin(t * pi) * 0.05;
-        final x = (centerX + (centerX < 0.5 ? curve : -curve)).clamp(0.08, 0.92);
-        return Offset(x, y);
-      });
-      final angles = List.generate(
-        count,
-            (i) => (i.isEven ? -0.18 : 0.18) + i * 0.015,
-      );
-
-      return _PawTrail(
-        letter: letter,
-        pawPositions: positions,
-        pawAngles: angles,
-        letterPos: Offset(centerX, 0.17),
-        animalAsset: animalAsset,
-      );
-    }
-
-    void _initAnimations() {
-      _tofiFloatCtrl = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 2000),
-      )..repeat(reverse: true);
-
-      _instructionCtrl = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 500),
-      );
-
-      _sceneEnterCtrl = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 700),
-      );
-      _sceneEnter = CurvedAnimation(
-        parent: _sceneEnterCtrl,
-        curve: Curves.elasticOut,
-      );
-
-      _pulseCtrl = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 900),
-      )..repeat();
-
-      _shakeCtrl = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 400),
-      );
-      _shake = TweenSequence([
-        TweenSequenceItem(tween: Tween(begin: 0.0, end: -0.14), weight: 25),
-        TweenSequenceItem(tween: Tween(begin: -0.14, end: 0.14), weight: 50),
-        TweenSequenceItem(tween: Tween(begin: 0.14, end: 0.0), weight: 25),
-      ]).animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.easeInOut));
-
-      _letterPopCtrl = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 600),
-      );
-
-      _tofiWalkCtrl = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 1400),
-      );
-
-      _animalWaveCtrl = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 500),
-      );
-
-      _ambientLeavesCtrl = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 14000),
-      )..repeat();
-    }
-
-    Future<void> _startIntroFlow() async {
-      await Future.delayed(const Duration(milliseconds: 300));
-      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
-      if (!mounted) return;
-      setState(() => _introPlaying = false);
-      _sceneEnterCtrl.forward(from: 0);
-      _instructionCtrl.forward(from: 0);
-      await Future.delayed(const Duration(milliseconds: 300));
-      if (!mounted) return;
-      try {
-        await playVoiceRestartingOnFaceLoss(
-          _audioPlayer,
-          _instructionAudioForLetter[_targetLetter]!,
-        );
-      } finally {
-        if (mounted) _inputEnabled = true;
-      }
-    }
-
-    void _setupRound({bool playInstruction = true}) {
-      _targetProgress = 0;
-      _wrongPawKey = null;
-      _sparkleKey = null;
-      _resolving = false;
-      _inputEnabled = !playInstruction && !_introPlaying;
-      _showCelebration = false;
-      _celebratingTrail = null;
-      _showAllAnimals = false;
-
-      _letterPopCtrl.reset();
-      _tofiWalkCtrl.reset();
-      _animalWaveCtrl.stop();
-      _animalWaveCtrl.reset();
-      _sceneEnterCtrl.forward(from: 0);
-      _instructionCtrl.forward(from: 0);
-
-      if (playInstruction) {
-        Future.delayed(const Duration(milliseconds: 400), () async {
-          if (!mounted) return;
-          try {
-            await playVoiceRestartingOnFaceLoss(
-              _audioPlayer,
-              _instructionAudioForLetter[_targetLetter]!,
-            );
-          } finally {
-            if (mounted) _inputEnabled = true;
-          }
-        });
-      }
-
-      setState(() {});
-    }
-
-    Future<void> _onPawTapped(_PawTrail trail, int index) async {
-      if (!_inputEnabled || _resolving) return;
-
-      final isTargetTrail = trail.letter == _targetLetter;
-      final isNextExpected = isTargetTrail && index == _targetProgress;
-
-      if (!isNextExpected) {
-        _tapTracker.recordMistake();
-        HapticFeedback.heavyImpact();
-        GamesSfxPlayer.instance.play(GameSfx.bubblePop);
-        showTofiReaction(TofiState.wrong);
-
-        final key = '${trail.letter}-$index';
-        setState(() => _wrongPawKey = key);
-        _shakeCtrl.forward(from: 0);
-        GamesSfxPlayer.instance.play(GameSfx.bubblePop);
-        await Future.delayed(const Duration(milliseconds: 450));
-        if (!mounted) return;
-        setState(() => _wrongPawKey = null);
-        return;
-      }
-
-      _tapTracker.recordCorrectTap();
-      HapticFeedback.selectionClick();
-      _audioPlayer.stop();
-      final key = '${trail.letter}-$index';
-      setState(() {
-        _targetProgress++;
-        _sparkleKey = key;
-      });
-
-      showTofiReaction(TofiState.correct);
-
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted && _sparkleKey == key) setState(() => _sparkleKey = null);
-      });
-
-      if (_targetProgress >= trail.pawPositions.length) {
-        await _onTrailCompleted(trail);
-      }
-    }
-
-    Offset _positionAlongTrail(_PawTrail trail, double t) {
-      final points = trail.pawPositions;
-      if (points.length == 1) return points.first;
-      final scaled = t * (points.length - 1);
-      final i = scaled.floor().clamp(0, points.length - 2);
-      final localT = scaled - i;
-      final a = points[i];
-      final b = points[i + 1];
-      return Offset(a.dx + (b.dx - a.dx) * localT, a.dy + (b.dy - a.dy) * localT);
-    }
-
-    Future<void> _onTrailCompleted(_PawTrail trail) async {
-      _resolving = true;
-      HapticFeedback.mediumImpact();
-      setState(() {
-        _showCelebration = true;
-        _celebratingTrail = trail;
-      });
-
-      _tofiWalkCtrl.forward(from: 0);
-      _letterPopCtrl.forward(from: 0);
-
-      await Future.delayed(const Duration(milliseconds: 900));
-      if (!mounted) return;
-
-      _animalWaveCtrl.repeat(reverse: true);
-
+  Future<void> _startIntroFlow() async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioIntro);
+    if (!mounted) return;
+    setState(() => _introPlaying = false);
+    _sceneEnterCtrl.forward(from: 0);
+    _instructionCtrl.forward(from: 0);
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+    try {
       await playVoiceRestartingOnFaceLoss(
         _audioPlayer,
-        _letterAnimalAudio[trail.letter]!,
+        _instructionAudioForLetter[_targetLetter]!,
       );
-      if (!mounted) return;
-
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (!mounted) return;
-
-      _animalWaveCtrl.stop();
-      setState(() {
-        _showCelebration = false;
-        _celebratingTrail = null;
-      });
-
-      await _advanceRound();
-    }
-
-    Future<void> _advanceRound() async {
-      _solvedRounds++;
-
-      if (_currentRoundIndex >= _roundOrder.length - 1) {
-        setState(() {
-          _showAllAnimals = true;
-        });
-
-        _animalWaveCtrl.repeat(reverse: true);
-        await Future.delayed(const Duration(seconds: 2));
-
-        if (!mounted) return;
-        _animalWaveCtrl.stop();
-
-        await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
-        if (!mounted) return;
-
-        ForestProgressService.instance.markLevelComplete(widget.level).catchError(
-              (e) {
-            debugPrint("Database Error marking level complete: $e");
-          },
-        );
-        if (!mounted) return;
-
-        await _saveDataAndShowGoodJob();
-        return;
+    } finally {
+      if (mounted) {
+        _inputEnabled = true;
+        startIdleTimer();
       }
+    }
+  }
 
-      _currentRoundIndex++;
-      _setupRound();
+  void _setupRound({bool playInstruction = true}) {
+    _targetProgress = 0;
+    _wrongPawKey = null;
+    _sparkleKey = null;
+    _resolving = false;
+    _inputEnabled = !playInstruction && !_introPlaying;
+    _showCelebration = false;
+    _celebratingTrail = null;
+    _showAllAnimals = false;
+    cancelIdleTimer();
+    showHowToPlay = false;
+
+    _letterPopCtrl.reset();
+    _tofiWalkCtrl.reset();
+    _animalWaveCtrl.stop();
+    _animalWaveCtrl.reset();
+    _sceneEnterCtrl.forward(from: 0);
+    _instructionCtrl.forward(from: 0);
+
+    if (playInstruction) {
+      Future.delayed(const Duration(milliseconds: 400), () async {
+        if (!mounted) return;
+        try {
+          await playVoiceRestartingOnFaceLoss(
+            _audioPlayer,
+            _instructionAudioForLetter[_targetLetter]!,
+          );
+        } finally {
+          if (mounted) {
+            _inputEnabled = true;
+            startIdleTimer();
+          }
+        }
+      });
     }
 
-    Future<void> _saveDataAndShowGoodJob() async {
-      if (_hasSavedResult) return;
-      _hasSavedResult = true;
-      List<String> finalEmotions = stopAiCamera();
+    setState(() {});
+  }
 
-      ForestDatabaseService.saveGameData(
-        gameId: 'forest_paw_prints',
-        activityName: 'Follow the Paw Prints',
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      ).catchError((e) {
-        debugPrint("Database Error saving metrics: $e");
+  Future<void> _onPawTapped(_PawTrail trail, int index) async {
+    if (!_inputEnabled || _resolving) return;
+
+    final isTargetTrail = trail.letter == _targetLetter;
+    final isNextExpected = isTargetTrail && index == _targetProgress;
+
+    if (!isNextExpected) {
+      _tapTracker.recordMistake();
+      HapticFeedback.heavyImpact();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showTofiReaction(TofiState.wrong);
+
+      final key = '${trail.letter}-$index';
+      setState(() => _wrongPawKey = key);
+      _shakeCtrl.forward(from: 0);
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      await Future.delayed(const Duration(milliseconds: 450));
+      if (!mounted) return;
+      setState(() => _wrongPawKey = null);
+      return;
+    }
+
+    _tapTracker.recordCorrectTap();
+    HapticFeedback.selectionClick();
+    _audioPlayer.stop();
+    final key = '${trail.letter}-$index';
+    setState(() {
+      _targetProgress++;
+      _sparkleKey = key;
+    });
+
+    showTofiReaction(TofiState.correct);
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted && _sparkleKey == key) setState(() => _sparkleKey = null);
+    });
+
+    if (_targetProgress >= trail.pawPositions.length) {
+      await _onTrailCompleted(trail);
+    }
+  }
+
+  Offset _positionAlongTrail(_PawTrail trail, double t) {
+    final points = trail.pawPositions;
+    if (points.length == 1) return points.first;
+    final scaled = t * (points.length - 1);
+    final i = scaled.floor().clamp(0, points.length - 2);
+    final localT = scaled - i;
+    final a = points[i];
+    final b = points[i + 1];
+    return Offset(a.dx + (b.dx - a.dx) * localT, a.dy + (b.dy - a.dy) * localT);
+  }
+
+  Future<void> _onTrailCompleted(_PawTrail trail) async {
+    cancelIdleTimer();
+    _resolving = true;
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _showCelebration = true;
+      _celebratingTrail = trail;
+    });
+
+    _tofiWalkCtrl.forward(from: 0);
+    _letterPopCtrl.forward(from: 0);
+
+    await Future.delayed(const Duration(milliseconds: 900));
+    if (!mounted) return;
+
+    _animalWaveCtrl.repeat(reverse: true);
+
+    await playVoiceRestartingOnFaceLoss(
+      _audioPlayer,
+      _letterAnimalAudio[trail.letter]!,
+    );
+    if (!mounted) return;
+
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+
+    _animalWaveCtrl.stop();
+    setState(() {
+      _showCelebration = false;
+      _celebratingTrail = null;
+    });
+
+    await _advanceRound();
+  }
+
+  Future<void> _advanceRound() async {
+    _solvedRounds++;
+
+    if (_currentRoundIndex >= _roundOrder.length - 1) {
+      setState(() {
+        _showAllAnimals = true;
       });
 
+      _animalWaveCtrl.repeat(reverse: true);
+      await Future.delayed(const Duration(seconds: 2));
+
       if (!mounted) return;
-      _showGoodJob();
-    }
+      _animalWaveCtrl.stop();
 
-    void _showGoodJob() {
-      showDialog(
-        context: context,
-        useSafeArea: false,
-        barrierDismissible: false,
-        barrierColor: Colors.transparent,
-        builder: (_) => Material(
-          type: MaterialType.transparency,
-          child: GoodJobOverlay(
-            characterImage: _dogImage,
-            onNext: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (_) => AlphabetIntroScreen(letter: 'V'),
-                ),
-              );
-            },
-            onRestart: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (_) => FollowThePawPrintsGame(level: widget.level),
-                ),
-              );
-            },
-            onBack: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop();
-            },
-          ),
-        ),
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
+      if (!mounted) return;
+
+      ForestProgressService.instance.markLevelComplete(widget.level).catchError(
+        (e) {
+          debugPrint("Database Error marking level complete: $e");
+        },
       );
+      if (!mounted) return;
+
+      await _saveDataAndShowGoodJob();
+      return;
     }
 
-    @override
-    void dispose() {
-      disposeAiCamera();
-      _tofiFloatCtrl.dispose();
-      _instructionCtrl.dispose();
-      _sceneEnterCtrl.dispose();
-      _pulseCtrl.dispose();
-      _shakeCtrl.dispose();
-      _letterPopCtrl.dispose();
-      _tofiWalkCtrl.dispose();
-      _animalWaveCtrl.dispose();
-      _ambientLeavesCtrl.dispose();
-      _audioPlayer.dispose();
-      _tofiPlayer.dispose();
-      super.dispose();
-    }
+    _currentRoundIndex++;
+    _setupRound();
+  }
 
-    @override
-    Widget build(BuildContext context) {
-      return Scaffold(
+  Future<void> _saveDataAndShowGoodJob() async {
+    cancelIdleTimer();
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    List<String> finalEmotions = stopAiCamera();
+
+    ForestDatabaseService.saveGameData(
+      gameId: 'forest_paw_prints',
+      activityName: 'Follow the Paw Prints',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    if (!mounted) return;
+    _showGoodJob();
+  }
+
+  void _showGoodJob() {
+    showDialog(
+      context: context,
+      useSafeArea: false,
+      barrierDismissible: false,
+      barrierColor: Colors.transparent,
+      builder: (_) => Material(
+        type: MaterialType.transparency,
+        child: GoodJobOverlay(
+          characterImage: _dogImage,
+          onNext: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => AlphabetIntroScreen(letter: 'V'),
+              ),
+            );
+          },
+          onRestart: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => FollowThePawPrintsGame(level: widget.level),
+              ),
+            );
+          },
+          onBack: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pop();
+          },
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    disposeAiCamera();
+    disposeIdleTimer();
+    _tofiFloatCtrl.dispose();
+    _instructionCtrl.dispose();
+    _sceneEnterCtrl.dispose();
+    _pulseCtrl.dispose();
+    _shakeCtrl.dispose();
+    _letterPopCtrl.dispose();
+    _tofiWalkCtrl.dispose();
+    _animalWaveCtrl.dispose();
+    _ambientLeavesCtrl.dispose();
+    _audioPlayer.dispose();
+    _tofiPlayer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_resolving && !_hasSavedResult) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
         body: buildWithLoading(
           loadingScreen: LoadingScreen.alphabetForest(),
           gameBuilder: () => Stack(
             children: [
               if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
-              if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              if (showHowToPlay &&
+                  !_introPlaying &&
+                  _inputEnabled &&
+                  !_resolving &&
+                  !_hasSavedResult)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    tapSequence: true,
+                    handAlignment: _toAlignment(
+                      _demoPawCenter(screenSize, 0),
+                      screenSize,
+                    ),
+                    handPath: [
+                      for (int i = 0; i < _trails[1].pawPositions.length; i++)
+                        _toAlignment(_demoPawCenter(screenSize, i), screenSize),
+                    ],
+                    handOffset: const Offset(0.15, 0.65),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
                 LightingPromptCard(
                   onClose: () {
                     setState(() => _hideLightingCard = true);
@@ -504,421 +554,472 @@ import 'alphabet_game_ui.dart';
             ],
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    Widget _buildIntroLayer() {
-      final screenH = MediaQuery.of(context).size.height;
+  double _topPad(Size s) => (s.height * 0.12).clamp(48.0, 90.0);
+  double _areaH(Size s) => s.height - _topPad(s) - 26;
 
-      return Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              _bgImage,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  Container(color: ForestColorTheme.lightgrayishgreen),
-            ),
-          ),
-          const Positioned(top: 25, left: 25, child: ForestXButton()),
-          Positioned(
-            top: 25,
-            right: 20,
-            child: ForestLevelBadge(level: widget.level),
-          ),
-          Center(
-            child: AnimatedBuilder(
-              animation: _tofiFloatCtrl,
-              builder: (_, child) => Transform.translate(
-                offset: Offset(
-                  0,
-                  Tween<double>(begin: -6, end: 6).evaluate(
-                    CurvedAnimation(
-                      parent: _tofiFloatCtrl,
-                      curve: Curves.easeInOut,
-                    ),
-                  ),
-                ),
-                child: child,
-              ),
-              child: Image.asset(
-                _dogImage,
-                height: screenH * 0.72,
-                errorBuilder: (_, __, ___) =>
-                const Text('🐶', style: TextStyle(fontSize: 90)),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
+  Offset _demoPawCenter(Size s, int index) {
+    final p = _trails[1].pawPositions[index];
+    return Offset(p.dx * s.width, _topPad(s) + p.dy * _areaH(s));
+  }
 
-    Widget _buildGameContent() {
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          final w = constraints.maxWidth;
-          final h = constraints.maxHeight;
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
 
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: Image.asset(
-                  _bgImage,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
-                      Container(color: ForestColorTheme.lightgrayishgreen),
-                ),
-              ),
-              Positioned.fill(child: _buildAmbientLeaves(w, h)),
-              _buildGameUI(w, h),
-            ],
-          );
-        },
-      );
-    }
+  Widget _buildHowToPreview(Size s) {
+    final areaH = _areaH(s);
+    final top = _topPad(s);
+    const maxPaws = 5;
+    final spacingPx = areaH * 0.46 / (maxPaws - 1);
+    final size = min(min(spacingPx * 1.0, s.width * 0.09), 70.0)
+        .clamp(30.0, 70.0);
 
-    Widget _buildGameUI(double w, double h) {
-      return ScaleTransition(
-        scale: _sceneEnter,
-        child: Stack(
-          children: [
-            const Positioned(top: 25, left: 25, child: ForestXButton()),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          _bgImage,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              Container(color: ForestColorTheme.lightgrayishgreen),
+        ),
+        for (final trail in _trails)
+          for (int i = 0; i < trail.pawPositions.length; i++)
             Positioned(
-              top: 25,
-              right: 25,
-              child: ForestLevelBadge(level: widget.level),
-            ),
-            Padding(
-              padding: EdgeInsets.only(top: (h * 0.12).clamp(48.0, 90.0)),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, inner) =>
-                          _buildTrailsArea(inner.maxWidth, inner.maxHeight),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: _buildProgressDots(),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    Widget _buildTrailsArea(double w, double h) {
-      return SizedBox(
-        width: w,
-        height: h,
-        child: Stack(
-          children: [
-            for (final trail in _trails) _buildTrailLetter(trail, w, h),
-            for (final trail in _trails)
-              for (int i = 0; i < trail.pawPositions.length; i++)
-                _buildPaw(trail, i, w, h),
-            if (_sparkleKey != null) _buildSparkleForKey(_sparkleKey!, w, h),
-            if (_showCelebration) _buildTofiWalkOverlay(w, h),
-          ],
-        ),
-      );
-    }
-
-    Widget _buildPaw(_PawTrail trail, int index, double w, double h) {
-      final isTarget = trail.letter == _targetLetter;
-      final completed = isTarget && index < _targetProgress;
-      final isNext = isTarget && index == _targetProgress;
-      final wrong = _wrongPawKey == '${trail.letter}-$index';
-      final pos = trail.pawPositions[index];
-      final angle = trail.pawAngles[index];
-      const maxPaws = 5;
-      final spacingPx = h * 0.46 / (maxPaws - 1);
-      final size = min(min(spacingPx * 1.0, w * 0.09), 70.0).clamp(30.0, 70.0);
-
-      return Positioned(
-        left: pos.dx * w - size / 2,
-        top: pos.dy * h - size / 2,
-        width: size,
-        height: size,
-        child: GestureDetector(
-          onTap: () => _onPawTapped(trail, index),
-          child: AnimatedBuilder(
-            animation: Listenable.merge([_pulseCtrl, _shakeCtrl]),
-            builder: (_, child) {
-              final pulseScale = isNext
-                  ? 1.0 + 0.12 * sin(_pulseCtrl.value * 2 * pi)
-                  : 1.0;
-              final scale = completed ? 1.15 : pulseScale;
-              final shakeAngle = wrong ? _shake.value : 0.0;
-              return Transform.rotate(
-                angle: angle + shakeAngle,
-                child: Transform.scale(scale: scale, child: child),
-              );
-            },
-            child: Container(
-              decoration: completed
-                  ? BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: ForestColorTheme.mediumseagreen.withValues(
-                      alpha: 0.6,
-                    ),
-                    blurRadius: 16,
-                    spreadRadius: 4,
-                  ),
-                ],
-              )
-                  : null,
-              child: ColorFiltered(
-                colorFilter: completed
-                    ? ColorFilter.mode(
-                  ForestColorTheme.mediumseagreen.withValues(alpha: 0.55),
-                  BlendMode.srcATop,
-                )
-                    : const ColorFilter.mode(Colors.transparent, BlendMode.dst),
+              left: trail.pawPositions[i].dx * s.width - size / 2,
+              top: top + trail.pawPositions[i].dy * areaH - size / 2,
+              width: size,
+              height: size,
+              child: Transform.rotate(
+                angle: trail.pawAngles[i],
                 child: Image.asset(
                   _pawAsset,
                   width: size,
                   height: size,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Text(
-                    '🐾',
-                    style: TextStyle(
-                      fontSize: size * 0.8,
-                      color: completed
-                          ? ForestColorTheme.mediumseagreen
-                          : Colors.brown,
-                    ),
-                  ),
                 ),
               ),
             ),
+      ],
+    );
+  }
+
+  Widget _buildIntroLayer() {
+    final screenH = MediaQuery.of(context).size.height;
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            _bgImage,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                Container(color: ForestColorTheme.lightgrayishgreen),
           ),
         ),
-      );
-    }
-
-    Widget _buildSparkleForKey(String key, double w, double h) {
-      for (final trail in _trails) {
-        for (int i = 0; i < trail.pawPositions.length; i++) {
-          if ('${trail.letter}-$i' != key) continue;
-          final pos = trail.pawPositions[i];
-          return Positioned(
-            left: pos.dx * w - 25,
-            top: pos.dy * h - 25,
-            child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.easeOut,
-              builder: (_, v, __) => Opacity(
-                opacity: (1 - v).clamp(0.0, 1.0),
-                child: Transform.scale(
-                  scale: 0.5 + v,
-                  child: Image.asset(
-                    _sparkleAsset,
-                    width: 50,
-                    errorBuilder: (_, __, ___) =>
-                    const Text('✨', style: TextStyle(fontSize: 34)),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }
-      }
-      return const SizedBox.shrink();
-    }
-
-    Widget _buildTrailLetter(_PawTrail trail, double w, double h) {
-      final isTarget = trail.letter == _targetLetter;
-      final showAnimal = _showAllAnimals || (isTarget && _showCelebration);
-
-      final slotW = w * 0.27;
-      final slotH = (h * 0.28).clamp(60.0, 120.0);
-      final left = (trail.letterPos.dx * w - slotW / 2).clamp(0.0, w - slotW);
-      final top = (trail.letterPos.dy * h - slotH / 2).clamp(0.0, h - slotH);
-
-      return Positioned(
-        left: left,
-        top: top,
-        width: slotW,
-        height: slotH,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
+        const Positioned(top: 25, left: 25, child: ForestXButton()),
+        Positioned(
+          top: 25,
+          right: 20,
+          child: ForestLevelBadge(level: widget.level),
+        ),
+        Center(
           child: AnimatedBuilder(
-            animation: _letterPopCtrl,
-            builder: (_, child) {
-              final scale = isTarget
-                  ? 1.0 + 0.18 * Curves.elasticOut.transform(_letterPopCtrl.value)
-                  : 1.0;
-              return Transform.scale(scale: scale, child: child);
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(6),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _outlinedLetter(
-                    trail.letter,
-                    fontSize: 60,
-                    fillColor: ForestColorTheme.darkseagreen,
+            animation: _tofiFloatCtrl,
+            builder: (_, child) => Transform.translate(
+              offset: Offset(
+                0,
+                Tween<double>(begin: -6, end: 6).evaluate(
+                  CurvedAnimation(
+                    parent: _tofiFloatCtrl,
+                    curve: Curves.easeInOut,
                   ),
-                  if (showAnimal) ...[
-                    const SizedBox(width: 8),
-                    AnimatedBuilder(
-                      animation: _animalWaveCtrl,
-                      builder: (_, child) => Transform.rotate(
-                        angle: 0.15 * sin(_animalWaveCtrl.value * 2 * pi),
-                        child: child,
-                      ),
-                      child: Image.asset(trail.animalAsset, height: 70),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    Widget _buildTofiWalkOverlay(double w, double h) {
-      final trail = _celebratingTrail;
-      if (trail == null) return const SizedBox.shrink();
-
-      return AnimatedBuilder(
-        animation: _tofiWalkCtrl,
-        builder: (_, __) {
-          final t = Curves.easeInOut.transform(_tofiWalkCtrl.value);
-          final pos = _positionAlongTrail(trail, t);
-          final size = (h * 0.21);
-
-          return Stack(
-            children: [
-              ..._leafAngles.map((baseAngle) {
-                final angle = baseAngle + _tofiWalkCtrl.value * 6;
-                final radius = size * 0.55;
-                final dx = pos.dx * w + cos(angle) * radius;
-                final dy = pos.dy * h + sin(angle) * radius;
-                return Positioned(
-                  left: dx - 10,
-                  top: dy - 10,
-                  child: Opacity(
-                    opacity: 0.8,
-                    child: Image.asset(
-                      _leafAsset,
-                      width: 20,
-                      errorBuilder: (_, __, ___) =>
-                      const Text('🍃', style: TextStyle(fontSize: 16)),
-                    ),
-                  ),
-                );
-              }),
-              Positioned(
-                left: pos.dx * w - size / 2,
-                top: pos.dy * h - size,
-                child: Image.asset(
-                  _dogImage,
-                  height: size,
-                  errorBuilder: (_, __, ___) =>
-                  const Text('🐶', style: TextStyle(fontSize: 60)),
                 ),
               ),
-            ],
-          );
-        },
-      );
-    }
-
-    Widget _buildAmbientLeaves(double w, double h) {
-      return IgnorePointer(
-        child: AnimatedBuilder(
-          animation: _ambientLeavesCtrl,
-          builder: (_, __) {
-            return Stack(
-              children: List.generate(4, (i) {
-                final speedOffset = i * 0.25;
-                final t = (_ambientLeavesCtrl.value + speedOffset) % 1.0;
-                final x = t;
-                final y = 0.05 + 0.15 * i + 0.05 * sin(t * 2 * pi);
-                return Positioned(
-                  left: x * w,
-                  top: y * h,
-                  child: Opacity(
-                    opacity: 0.5,
-                    child: Image.asset(
-                      _leafAsset,
-                      width: 18,
-                      errorBuilder: (_, __, ___) =>
-                      const Text('🍃', style: TextStyle(fontSize: 14)),
-                    ),
-                  ),
-                );
-              }),
-            );
-          },
-        ),
-      );
-    }
-
-    Widget _outlinedLetter(
-        String letter, {
-          required double fontSize,
-          required Color fillColor,
-        }) {
-      return Stack(
-        children: [
-          Text(
-            letter,
-            style: TextStyle(
-              fontFamily: ForestAppTextStyles.fredoka,
-              fontWeight: FontWeight.w900,
-              fontSize: fontSize,
-              foreground: Paint()
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = fontSize * 0.09
-                ..color = Colors.white,
+              child: child,
+            ),
+            child: Image.asset(
+              _dogImage,
+              height: screenH * 0.72,
+              errorBuilder: (_, __, ___) =>
+                  const Text('🐶', style: TextStyle(fontSize: 90)),
             ),
           ),
-          Text(
-            letter,
-            style: TextStyle(
-              fontFamily: ForestAppTextStyles.fredoka,
-              fontWeight: FontWeight.w900,
-              fontSize: fontSize,
-              color: fillColor,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGameContent() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final h = constraints.maxHeight;
+
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                _bgImage,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    Container(color: ForestColorTheme.lightgrayishgreen),
+              ),
+            ),
+            Positioned.fill(child: _buildAmbientLeaves(w, h)),
+            _buildGameUI(w, h),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildGameUI(double w, double h) {
+    return ScaleTransition(
+      scale: _sceneEnter,
+      child: Stack(
+        children: [
+          const Positioned(top: 25, left: 25, child: ForestXButton()),
+          Positioned(
+            top: 25,
+            right: 25,
+            child: ForestLevelBadge(level: widget.level),
+          ),
+          Padding(
+            padding: EdgeInsets.only(top: (h * 0.12).clamp(48.0, 90.0)),
+            child: Column(
+              children: [
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, inner) =>
+                        _buildTrailsArea(inner.maxWidth, inner.maxHeight),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: _buildProgressDots(),
+                ),
+              ],
             ),
           ),
         ],
-      );
-    }
-
-    Widget _buildProgressDots() {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(_roundOrder.length, (i) {
-          final done = i < _solvedRounds;
-          final current = i == _currentRoundIndex;
-
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            width: current ? 24 : 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: done
-                  ? ForestColorTheme.mediumseagreen
-                  : current
-                  ? ForestColorTheme.seagreen
-                  : ForestColorTheme.seagreen.withValues(alpha: 0.35),
-              borderRadius: BorderRadius.circular(6),
-            ),
-          );
-        }),
-      );
-    }
+      ),
+    );
   }
+
+  Widget _buildTrailsArea(double w, double h) {
+    return SizedBox(
+      width: w,
+      height: h,
+      child: Stack(
+        children: [
+          for (final trail in _trails) _buildTrailLetter(trail, w, h),
+          for (final trail in _trails)
+            for (int i = 0; i < trail.pawPositions.length; i++)
+              _buildPaw(trail, i, w, h),
+          if (_sparkleKey != null) _buildSparkleForKey(_sparkleKey!, w, h),
+          if (_showCelebration) _buildTofiWalkOverlay(w, h),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaw(_PawTrail trail, int index, double w, double h) {
+    final isTarget = trail.letter == _targetLetter;
+    final completed = isTarget && index < _targetProgress;
+    final isNext = isTarget && index == _targetProgress;
+    final wrong = _wrongPawKey == '${trail.letter}-$index';
+    final pos = trail.pawPositions[index];
+    final angle = trail.pawAngles[index];
+    const maxPaws = 5;
+    final spacingPx = h * 0.46 / (maxPaws - 1);
+    final size = min(min(spacingPx * 1.0, w * 0.09), 70.0).clamp(30.0, 70.0);
+
+    return Positioned(
+      left: pos.dx * w - size / 2,
+      top: pos.dy * h - size / 2,
+      width: size,
+      height: size,
+      child: GestureDetector(
+        onTap: () => _onPawTapped(trail, index),
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_pulseCtrl, _shakeCtrl]),
+          builder: (_, child) {
+            final pulseScale = isNext
+                ? 1.0 + 0.12 * sin(_pulseCtrl.value * 2 * pi)
+                : 1.0;
+            final scale = completed ? 1.15 : pulseScale;
+            final shakeAngle = wrong ? _shake.value : 0.0;
+            return Transform.rotate(
+              angle: angle + shakeAngle,
+              child: Transform.scale(scale: scale, child: child),
+            );
+          },
+          child: Container(
+            decoration: completed
+                ? BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: ForestColorTheme.mediumseagreen.withValues(
+                          alpha: 0.6,
+                        ),
+                        blurRadius: 16,
+                        spreadRadius: 4,
+                      ),
+                    ],
+                  )
+                : null,
+            child: ColorFiltered(
+              colorFilter: completed
+                  ? ColorFilter.mode(
+                      ForestColorTheme.mediumseagreen.withValues(alpha: 0.55),
+                      BlendMode.srcATop,
+                    )
+                  : const ColorFilter.mode(Colors.transparent, BlendMode.dst),
+              child: Image.asset(
+                _pawAsset,
+                width: size,
+                height: size,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Text(
+                  '🐾',
+                  style: TextStyle(
+                    fontSize: size * 0.8,
+                    color: completed
+                        ? ForestColorTheme.mediumseagreen
+                        : Colors.brown,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSparkleForKey(String key, double w, double h) {
+    for (final trail in _trails) {
+      for (int i = 0; i < trail.pawPositions.length; i++) {
+        if ('${trail.letter}-$i' != key) continue;
+        final pos = trail.pawPositions[i];
+        return Positioned(
+          left: pos.dx * w - 25,
+          top: pos.dy * h - 25,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOut,
+            builder: (_, v, __) => Opacity(
+              opacity: (1 - v).clamp(0.0, 1.0),
+              child: Transform.scale(
+                scale: 0.5 + v,
+                child: Image.asset(
+                  _sparkleAsset,
+                  width: 50,
+                  errorBuilder: (_, __, ___) =>
+                      const Text('✨', style: TextStyle(fontSize: 34)),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildTrailLetter(_PawTrail trail, double w, double h) {
+    final isTarget = trail.letter == _targetLetter;
+    final showAnimal = _showAllAnimals || (isTarget && _showCelebration);
+
+    final slotW = w * 0.27;
+    final slotH = (h * 0.28).clamp(60.0, 120.0);
+    final left = (trail.letterPos.dx * w - slotW / 2).clamp(0.0, w - slotW);
+    final top = (trail.letterPos.dy * h - slotH / 2).clamp(0.0, h - slotH);
+
+    return Positioned(
+      left: left,
+      top: top,
+      width: slotW,
+      height: slotH,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: AnimatedBuilder(
+          animation: _letterPopCtrl,
+          builder: (_, child) {
+            final scale = isTarget
+                ? 1.0 + 0.18 * Curves.elasticOut.transform(_letterPopCtrl.value)
+                : 1.0;
+            return Transform.scale(scale: scale, child: child);
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _outlinedLetter(
+                  trail.letter,
+                  fontSize: 60,
+                  fillColor: ForestColorTheme.darkseagreen,
+                ),
+                if (showAnimal) ...[
+                  const SizedBox(width: 8),
+                  AnimatedBuilder(
+                    animation: _animalWaveCtrl,
+                    builder: (_, child) => Transform.rotate(
+                      angle: 0.15 * sin(_animalWaveCtrl.value * 2 * pi),
+                      child: child,
+                    ),
+                    child: Image.asset(trail.animalAsset, height: 70),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTofiWalkOverlay(double w, double h) {
+    final trail = _celebratingTrail;
+    if (trail == null) return const SizedBox.shrink();
+
+    return AnimatedBuilder(
+      animation: _tofiWalkCtrl,
+      builder: (_, __) {
+        final t = Curves.easeInOut.transform(_tofiWalkCtrl.value);
+        final pos = _positionAlongTrail(trail, t);
+        final size = (h * 0.21);
+
+        return Stack(
+          children: [
+            ..._leafAngles.map((baseAngle) {
+              final angle = baseAngle + _tofiWalkCtrl.value * 6;
+              final radius = size * 0.55;
+              final dx = pos.dx * w + cos(angle) * radius;
+              final dy = pos.dy * h + sin(angle) * radius;
+              return Positioned(
+                left: dx - 10,
+                top: dy - 10,
+                child: Opacity(
+                  opacity: 0.8,
+                  child: Image.asset(
+                    _leafAsset,
+                    width: 20,
+                    errorBuilder: (_, __, ___) =>
+                        const Text('🍃', style: TextStyle(fontSize: 16)),
+                  ),
+                ),
+              );
+            }),
+            Positioned(
+              left: pos.dx * w - size / 2,
+              top: pos.dy * h - size,
+              child: Image.asset(
+                _dogImage,
+                height: size,
+                errorBuilder: (_, __, ___) =>
+                    const Text('🐶', style: TextStyle(fontSize: 60)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildAmbientLeaves(double w, double h) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _ambientLeavesCtrl,
+        builder: (_, __) {
+          return Stack(
+            children: List.generate(4, (i) {
+              final speedOffset = i * 0.25;
+              final t = (_ambientLeavesCtrl.value + speedOffset) % 1.0;
+              final x = t;
+              final y = 0.05 + 0.15 * i + 0.05 * sin(t * 2 * pi);
+              return Positioned(
+                left: x * w,
+                top: y * h,
+                child: Opacity(
+                  opacity: 0.5,
+                  child: Image.asset(
+                    _leafAsset,
+                    width: 18,
+                    errorBuilder: (_, __, ___) =>
+                        const Text('🍃', style: TextStyle(fontSize: 14)),
+                  ),
+                ),
+              );
+            }),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _outlinedLetter(
+    String letter, {
+    required double fontSize,
+    required Color fillColor,
+  }) {
+    return Stack(
+      children: [
+        Text(
+          letter,
+          style: TextStyle(
+            fontFamily: ForestAppTextStyles.fredoka,
+            fontWeight: FontWeight.w900,
+            fontSize: fontSize,
+            foreground: Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = fontSize * 0.09
+              ..color = Colors.white,
+          ),
+        ),
+        Text(
+          letter,
+          style: TextStyle(
+            fontFamily: ForestAppTextStyles.fredoka,
+            fontWeight: FontWeight.w900,
+            fontSize: fontSize,
+            color: fillColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProgressDots() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(_roundOrder.length, (i) {
+        final done = i < _solvedRounds;
+        final current = i == _currentRoundIndex;
+
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          width: current ? 24 : 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: done
+                ? ForestColorTheme.mediumseagreen
+                : current
+                ? ForestColorTheme.seagreen
+                : ForestColorTheme.seagreen.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(6),
+          ),
+        );
+      }),
+    );
+  }
+}

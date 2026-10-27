@@ -15,6 +15,8 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_audio_path.dart';
 import 'forest_game_fishing.dart';
@@ -95,10 +97,15 @@ class LetterFirefliesGame extends StatefulWidget {
 }
 
 class _LetterFirefliesGameState extends State<LetterFirefliesGame>
-    with TickerProviderStateMixin, GameLoadingMixin<LetterFirefliesGame>, TofiReactionMixin<LetterFirefliesGame>, AiCameraMixin, AppAudioLifecycleMixin<LetterFirefliesGame> {
-
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin<LetterFirefliesGame>,
+        TofiReactionMixin<LetterFirefliesGame>,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<LetterFirefliesGame>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -126,6 +133,7 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     _RoundConfig(fireflyCount: 5, moveDurationMs: 1500, sizeFactor: 0.32),
     _RoundConfig(fireflyCount: 6, moveDurationMs: 1200, sizeFactor: 0.30),
   ];
+
   static int get _totalRounds => _roundConfigs.length;
 
   // ═════════════════════════════════════════════════════════════════════
@@ -253,6 +261,8 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
 
   Future<void> _announceTarget() async {
     _inputEnabled = false;
+    cancelIdleTimer();
+    showHowToPlay = false;
     try {
       await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioFindPrefix);
       if (!mounted) return;
@@ -261,11 +271,16 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
         ForestAudioAssets.forLetter(_targetLetter),
       );
     } finally {
-      if (mounted) _inputEnabled = true;
+      if (mounted) {
+        _inputEnabled = true;
+        startIdleTimer();
+      }
     }
   }
 
   void _setupRound({bool playInstruction = true}) {
+    cancelIdleTimer();
+    showHowToPlay = false;
     final config = _roundConfigs[_currentRound];
     final rng = Random();
 
@@ -371,6 +386,8 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
   Future<void> _handleCorrectAnswer(Firefly firefly, int index) async {
     _tapTracker.recordCorrectTap();
     _interactionLocked = true;
+    cancelIdleTimer();
+    showHowToPlay = false;
     HapticFeedback.mediumImpact();
 
     setState(() => firefly.popped = true);
@@ -410,7 +427,7 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
     if (!mounted) return;
 
     if (_currentRound >= _totalRounds - 1) {
-      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -429,6 +446,7 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -488,6 +506,7 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _tofiFloatCtrl.dispose();
     _floatCtrl.dispose();
     _targetPulseCtrl.dispose();
@@ -507,26 +526,102 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.alphabetForest(),
-        gameBuilder: () => Stack(
-          children: [
-            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
-            if (!_introPlaying) buildTofi(context),
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
-          ],
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled &&
+            !_interactionLocked &&
+            !_roundCelebrating &&
+            !_hasSavedResult) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.alphabetForest(),
+          gameBuilder: () => Stack(
+            children: [
+              if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+              if (!_introPlaying) buildTofi(context),
+              if (showHowToPlay &&
+                  !_introPlaying &&
+                  _inputEnabled &&
+                  !_interactionLocked &&
+                  !_roundCelebrating &&
+                  !_hasSavedResult)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: _toAlignment(
+                      _demoFireflyCenter(screenSize, _demoTapIndex),
+                      screenSize,
+                    ),
+                    handOffset: const Offset(0.2, 0.65),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  static const double _areaTop = 95.0;
+  static const double _areaBottom = 26.0;
+
+  static const List<Offset> _demoAnchors = [
+    Offset(0.40, 0.30),
+    Offset(0.70, 0.25),
+    Offset(0.55, 0.68),
+    Offset(0.82, 0.65),
+  ];
+  static const int _demoTapIndex = 1;
+
+  Offset _demoFireflyCenter(Size s, int index) {
+    final areaH = s.height - _areaTop - _areaBottom;
+    final a = _demoAnchors[index];
+    return Offset(a.dx * s.width, _areaTop + a.dy * areaH);
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final areaH = s.height - _areaTop - _areaBottom;
+    final size = areaH * 0.34;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Container(color: Colors.indigo.withValues(alpha: 0.18)),
+        for (final a in _demoAnchors)
+          Positioned(
+            left: a.dx * s.width - size / 2,
+            top: _areaTop + a.dy * areaH - size / 2,
+            width: size,
+            height: size,
+            child: Image.asset(
+              _fireflyImage,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const SizedBox(),
+            ),
+          ),
+      ],
+    );
+  }
   Widget _buildIntroLayer() {
     final screenH = MediaQuery.of(context).size.height;
 
@@ -583,8 +678,9 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
                 _fireflyImage,
                 height: screenH * 0.40,
                 errorBuilder: (_, __, ___) =>
-                const Text('🐶', style: TextStyle(fontSize: 80)),
-              ),            ],
+                    const Text('🐶', style: TextStyle(fontSize: 80)),
+              ),
+            ],
           ),
         ),
       ],
@@ -692,7 +788,8 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
             : 1.0;
 
         final rawLeft = firefly.anchor.dx * w - size / 2 + floatX;
-        final rawTop = firefly.anchor.dy * h - size / 2 + floatY + celebrateBounce;
+        final rawTop =
+            firefly.anchor.dy * h - size / 2 + floatY + celebrateBounce;
 
         final safeLeft = rawLeft.clamp(0.0, w - size).toDouble();
         final safeTop = rawTop.clamp(0.0, h - size).toDouble();

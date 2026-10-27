@@ -16,6 +16,8 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'forest_audio_path.dart';
@@ -132,6 +134,7 @@ class _LetterGuidePainter extends CustomPainter {
 
 class FallenStickLetterBuilderGame extends StatefulWidget {
   final int level;
+
   const FallenStickLetterBuilderGame({super.key, required this.level});
 
   @override
@@ -141,10 +144,15 @@ class FallenStickLetterBuilderGame extends StatefulWidget {
 
 class _FallenStickLetterBuilderGameState
     extends State<FallenStickLetterBuilderGame>
-    with TickerProviderStateMixin, GameLoadingMixin<FallenStickLetterBuilderGame>, TofiReactionMixin<FallenStickLetterBuilderGame>, AiCameraMixin, AppAudioLifecycleMixin<FallenStickLetterBuilderGame> {
-
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin<FallenStickLetterBuilderGame>,
+        TofiReactionMixin<FallenStickLetterBuilderGame>,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<FallenStickLetterBuilderGame>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -157,11 +165,13 @@ class _FallenStickLetterBuilderGameState
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_forest.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static const String _stickLongAsset = 'assets/images/objects/forest/stick_long.png';
+  static const String _stickLongAsset =
+      'assets/images/objects/forest/stick_long.png';
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/fallen_stick_intro.wav';
-  static const String _audioInstruction = '$_audioBase/fallen_stick_instructions.wav';
+  static const String _audioInstruction =
+      '$_audioBase/fallen_stick_instructions.wav';
   static const String _audioWin = '$_audioBase/fallen_stick_win.wav';
 
   static const int _maxSticks = 4;
@@ -340,6 +350,8 @@ class _FallenStickLetterBuilderGameState
 
   Future<void> _announceRound() async {
     _inputEnabled = false;
+    cancelIdleTimer();
+    showHowToPlay = false;
     try {
       if (_currentRoundIndex == 0) {
         await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
@@ -352,7 +364,10 @@ class _FallenStickLetterBuilderGameState
         ForestAudioAssets.forLetter(_rounds[_currentRoundIndex].letter),
       );
     } finally {
-      if (mounted) _inputEnabled = true;
+      if (mounted) {
+        _inputEnabled = true;
+        startIdleTimer();
+      }
     }
   }
 
@@ -443,6 +458,8 @@ class _FallenStickLetterBuilderGameState
   void _checkRoundComplete() {
     if (!_sticks.every((s) => s.placed)) return;
     _inputEnabled = false;
+    cancelIdleTimer();
+    showHowToPlay = false;
     Future.delayed(const Duration(milliseconds: 500), () async {
       if (!mounted) return;
       final letter = _rounds[_currentRoundIndex].letter;
@@ -468,7 +485,7 @@ class _FallenStickLetterBuilderGameState
 
   Future<void> _advanceRound() async {
     if (_currentRoundIndex >= _rounds.length - 1) {
-      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       if (!mounted) return;
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
         (e) {
@@ -491,6 +508,7 @@ class _FallenStickLetterBuilderGameState
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -548,6 +566,7 @@ class _FallenStickLetterBuilderGameState
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _tofiFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -567,23 +586,98 @@ class _FallenStickLetterBuilderGameState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.alphabetForest(),
-        gameBuilder: () => Stack(
-          children: [
-            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
-            if (!_introPlaying) buildTofi(context),
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
-          ],
+    final Size screenSize = MediaQuery.of(context).size;
+    final hintStick = _hintStick;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_hasSavedResult) resetIdleTimer();
+      },
+      onPointerUp: (_) {
+        if (_inputEnabled && !_hasSavedResult) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.alphabetForest(),
+          gameBuilder: () => Stack(
+            children: [
+              if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+              if (!_introPlaying) buildTofi(context),
+              if (showHowToPlay &&
+                  !_introPlaying &&
+                  _inputEnabled &&
+                  !_hasSavedResult &&
+                  _draggingIndex == null &&
+                  hintStick != null)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: _toAlignment(
+                      _demoPoint(screenSize, hintStick, pile: true),
+                      screenSize,
+                    ),
+                    handEndAlignment: _toAlignment(
+                      _demoPoint(screenSize, hintStick, pile: false),
+                      screenSize,
+                    ),
+                    handOffset: const Offset(0.15, 0.4),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  static const double _areaTop = 90.0;
+  static const double _areaBottom = 26.0;
+
+  StickPiece? get _hintStick {
+    for (final s in _sticks) {
+      if (!s.placed) return s;
+    }
+    return null;
+  }
+
+  Offset _demoPoint(Size s, StickPiece stick, {required bool pile}) {
+    final areaW = s.width;
+    final areaH = s.height - _areaTop - _areaBottom;
+    final letterH = areaH * _letterZoneFraction;
+
+    final p = pile
+        ? _pileCenterPx(stick, areaW, areaH)
+        : _targetCenterPx(stick, areaW, letterH);
+
+    return Offset(p.dx, _areaTop + p.dy);
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final areaH = s.height - _areaTop - _areaBottom;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Padding(
+          padding: const EdgeInsets.only(top: _areaTop, bottom: _areaBottom),
+          child: _buildBuildArea(s.width, areaH),
+        ),
+      ],
     );
   }
 
@@ -805,12 +899,12 @@ class _FallenStickLetterBuilderGameState
         onPanStart: stick.placed
             ? null
             : (_) {
-          if (!_inputEnabled) return;
-          setState(() {
-            _draggingIndex = stick.index;
-            stick.dragPixelPos = pileCenter;
-          });
-        },
+                if (!_inputEnabled) return;
+                setState(() {
+                  _draggingIndex = stick.index;
+                  stick.dragPixelPos = pileCenter;
+                });
+              },
         onPanUpdate: (details) {
           if (_draggingIndex != stick.index) return;
           setState(() {

@@ -15,6 +15,8 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_audio_path.dart';
 import 'forest_game_letter_treehouse.dart';
@@ -37,6 +39,7 @@ class _TrainRound {
 
 class AlphabetTrainGame extends StatefulWidget {
   final int level;
+
   const AlphabetTrainGame({super.key, required this.level});
 
   @override
@@ -49,10 +52,10 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
         GameLoadingMixin<AlphabetTrainGame>,
         TofiReactionMixin<AlphabetTrainGame>,
         AiCameraMixin,
-        AppAudioLifecycleMixin<AlphabetTrainGame> {
-
+        AppAudioLifecycleMixin<AlphabetTrainGame>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -195,6 +198,7 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstruction);
     if (!mounted) return;
     setState(() => _inputEnabled = true);
+    startIdleTimer();
   }
 
   void _setupRound() {
@@ -203,6 +207,8 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
     _slotFilled = false;
     _shakingChoice = null;
     _missingShaking = false;
+    showHowToPlay = false;
+    startIdleTimer();
 
     _round = _generateRoundForIndex(_currentRoundIndex);
 
@@ -282,11 +288,12 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
     _tapTracker.recordCorrectTap();
     _roundLocked = true;
     _inputEnabled = false;
+    cancelIdleTimer();
     HapticFeedback.mediumImpact();
 
     setState(() => _slotFilled = true);
     _carBounceCtrl.forward(from: 0);
-    await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioCorrect);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioCorrect);
 
     showTofiReaction(TofiState.correct);
     if (!mounted) return;
@@ -320,13 +327,14 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
       _shakingChoice = null;
       _missingShaking = false;
     });
+    startIdleTimer();
   }
 
   Future<void> _advanceRound() async {
     _solvedRounds++;
 
     if (_currentRoundIndex >= _totalRounds - 1) {
-      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -340,7 +348,7 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
       return;
     }
 
-    await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioRoundComplete);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioRoundComplete);
     if (!mounted) return;
 
     _currentRoundIndex++;
@@ -405,6 +413,7 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _tofiFloatCtrl.dispose();
     _trainBobCtrl.dispose();
     _instructionCtrl.dispose();
@@ -420,23 +429,219 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.alphabetForest(),
-        gameBuilder: () => Stack(
-          children: [
-            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
-            if (!_introPlaying) buildTofi(context),
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
-          ],
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_roundLocked) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.alphabetForest(),
+          gameBuilder: () => Stack(
+            children: [
+              if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+              if (!_introPlaying) buildTofi(context),
+              if (showHowToPlay &&
+                  !_introPlaying &&
+                  _inputEnabled &&
+                  !_roundLocked)
+                Positioned.fill(child: _buildHowToPlayOverlay()),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _hintLetter(String text, double size) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Text(
+          text,
+          style: TextStyle(
+            fontFamily: ForestAppTextStyles.fredoka,
+            fontWeight: FontWeight.w900,
+            fontSize: size * 0.46,
+            foreground: Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = size * 0.05
+              ..color = Colors.white,
+          ),
+        ),
+        Text(
+          text,
+          style: TextStyle(
+            fontFamily: ForestAppTextStyles.fredoka,
+            fontWeight: FontWeight.w900,
+            fontSize: size * 0.46,
+            color: ForestColorTheme.darkseagreen,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _hintWagon(String text, double size, {bool slot = false}) {
+    return Container(
+      width: size,
+      height: size,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: slot
+          ? BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white, width: 3),
+      )
+          : null,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Image.asset(_trainWagonImage,
+              width: size, height: size, fit: BoxFit.contain),
+          _hintLetter(text, size),
+        ],
+      ),
+    );
+  }
+
+  Widget _hintCard(String letter, double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: ForestColorTheme.seagreen, width: 3),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        letter,
+        style: TextStyle(
+          fontFamily: ForestAppTextStyles.fredoka,
+          fontWeight: FontWeight.w900,
+          fontSize: size * 0.46,
+          color: ForestColorTheme.darkseagreen,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHowToPlayOverlay() {
+    final sz = MediaQuery.of(context).size;
+    final sw = sz.width, sh = sz.height;
+
+    // Fixed demo: A ? C  ->  answer B
+    const demoChoices = ['E', 'B'];
+    const demoAnswer = 'B';
+
+    // Same layout math as _buildGameUI
+    final avail = sh - 90 - 26;
+    final h1 = avail * 3 / 5;
+    final h2 = avail * 2 / 5;
+    final carSize = (h1 * 0.62).clamp(70.0, 110.0).toDouble();
+    final cardSize = (h2 * 0.7).clamp(60.0, 90.0).toDouble();
+
+    // Slot (the "?") is the 2nd of 3 wagons, then the engine
+    final trainW = 3 * (carSize + 8) + carSize * 1.15 + 8;
+    final trainLeft = (sw - trainW) / 2;
+    final slotCx = trainLeft + (carSize + 8) + (carSize + 8) / 2;
+    final slotCy = 90 + h1 / 2 - 4;
+
+    // The "B" card in the choices row
+    final choicesW = demoChoices.length * cardSize + (demoChoices.length - 1) * 18;
+    final choicesLeft = (sw - choicesW) / 2;
+    final idx = demoChoices.indexOf(demoAnswer);
+    final cardCx = choicesLeft + idx * (cardSize + 18) + cardSize / 2;
+    final cardCy = 90 + h1 + h2 / 2;
+
+    final startPt = Offset(cardCx, cardCy);
+    final endPt = Offset(slotCx, slotCy);
+
+    Alignment al(Offset p) => Alignment(2 * p.dx / sw - 1, 2 * p.dy / sh - 1);
+
+    return HowToPlayOverlay(
+      previewBuilder: (t) {
+        final pos = Offset.lerp(startPt, endPt, t)!;
+        final moving = cardSize * 1.15;
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(
+              child: Image.asset(_bgImage,
+                  fit: BoxFit.cover, alignment: Alignment.bottomCenter),
+            ),
+            // Train: A ? C + engine
+            Positioned(
+              top: 90,
+              left: 0,
+              width: sw,
+              height: h1,
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _hintWagon('A', carSize),
+                    _hintWagon('?', carSize, slot: true),
+                    _hintWagon('C', carSize),
+                    Container(
+                      width: carSize * 1.15,
+                      height: carSize,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Image.asset(_trainHeadImage, fit: BoxFit.contain),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Choices
+            Positioned(
+              top: 90 + h1,
+              left: 0,
+              width: sw,
+              height: h2,
+              child: Center(
+                child: Wrap(
+                  spacing: 18,
+                  children: [
+                    for (final l in demoChoices)
+                      Opacity(
+                        opacity: l == demoAnswer ? 0.3 : 1.0,
+                        child: _hintCard(l, cardSize),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            // Dragged B card
+            Positioned(
+              left: pos.dx - moving / 2,
+              top: pos.dy - moving / 2,
+              child: _hintCard(demoAnswer, moving),
+            ),
+          ],
+        );
+      },
+      handAlignment: al(startPt),
+      handEndAlignment: al(endPt),
+      handOffset: const Offset(0.17, 0.46),
+      onDismiss: resetIdleTimer,
     );
   }
 
@@ -836,7 +1041,10 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
     return Draggable<String>(
       data: letter,
       maxSimultaneousDrags: _inputEnabled ? 1 : 0,
-      onDragStarted: () => HapticFeedback.selectionClick(),
+      onDragStarted: () {
+        HapticFeedback.selectionClick();
+        resetIdleTimer();
+      },
       onDraggableCanceled: (_, __) {},
       feedback: Material(color: Colors.transparent, child: card(scale: 1.15)),
       childWhenDragging: Opacity(opacity: 0.3, child: card()),

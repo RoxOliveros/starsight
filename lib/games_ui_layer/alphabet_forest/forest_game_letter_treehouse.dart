@@ -15,6 +15,8 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_audio_path.dart';
 import 'forest_game_finale.dart';
@@ -89,7 +91,8 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
         GameLoadingMixin<LetterTreehouseGame>,
         TofiReactionMixin<LetterTreehouseGame>,
         AiCameraMixin,
-        AppAudioLifecycleMixin<LetterTreehouseGame> {
+        AppAudioLifecycleMixin<LetterTreehouseGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _tofiPlayer= AudioPlayer();
@@ -303,6 +306,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
 
   void _onDragStart(_ForestLetterData piece, DragStartDetails details) {
     if (_interactionLocked || piece.consumed) return;
+    resetIdleTimer();            
     setState(() {
       piece.dragging = true;
       _draggedPiece = piece;
@@ -341,10 +345,14 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
   }
 
   Future<void> _announceInstruction() async {
+    cancelIdleTimer();           
+    showHowToPlay = false;       
     await playVoiceRestartingOnFaceLoss(
       _audioPlayer,
       ForestAudioAssets.forLetter(_targetLetter),
     );
+    if (!mounted) return;        
+    startIdleTimer();            
   }
 
   Future<void> _onLetterDropped(String letter, _ForestLetterData piece) async {
@@ -364,6 +372,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
   Future<void> _handleCorrectAnswer(_ForestLetterData piece) async {
     if (_interactionLocked) return;
     _tapTracker.recordCorrectTap();
+    cancelIdleTimer();
     _tofiPlayer.stop();
     _interactionLocked = true;
     HapticFeedback.mediumImpact();
@@ -406,6 +415,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     showTofiReaction(TofiState.wrong);
     if (!mounted) return;
     setState(() => piece.wrong = false);
+    startIdleTimer();
   }
 
   // ═════════════════════════════════════════════════════════════════════
@@ -499,6 +509,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _tofiFloatCtrl.dispose();
     _targetBounceCtrl.dispose();
     _instructionCtrl.dispose();
@@ -516,25 +527,134 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.alphabetForest(),
-        gameBuilder: () => Stack(
-          key: _gameAreaKey,
-          children: [
-            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
-            if (!_introPlaying) buildTofi(context),
-            if (_draggedPiece != null) _buildDragGhost(),
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
-          ],
+    return Listener(
+      onPointerDown: (_) {
+        if (!_introPlaying && !_interactionLocked) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.alphabetForest(),
+          gameBuilder: () => Stack(
+            key: _gameAreaKey,
+            children: [
+              if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+              if (!_introPlaying) buildTofi(context),
+              if (_draggedPiece != null) _buildDragGhost(),
+              if (showHowToPlay &&
+                  !_introPlaying &&
+                  !_interactionLocked &&
+                  _draggedPiece == null)
+                Positioned.fill(child: _buildHowToPlayOverlay()),   
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHowToPlayOverlay() {
+    final sz = MediaQuery.of(context).size;
+    final sw = sz.width, sh = sz.height;
+
+    const demoLetters = ['A', 'B', 'C'];
+    const demoAnswer = 'B';
+
+    final availH = sh - 95 - 60;
+    final midY = 95 + availH / 2;
+
+    const pieceSize = 78.0;
+    const pieceH = pieceSize * 0.8;
+    const gap = 16.0;
+
+    final colLeft = sw * 3 / 13;
+    final colW = sw * 3 / 13;
+    final colCx = colLeft + colW / 2;
+
+    final houseLeft = sw * 6 / 13;
+    final houseW = sw * 7 / 13;
+
+    final idx = demoLetters.indexOf(demoAnswer);
+    final colH = demoLetters.length * pieceH + (demoLetters.length - 1) * gap;
+    final colTop = midY - colH / 2;
+    final startPt = Offset(colCx, colTop + idx * (pieceH + gap) + pieceH / 2);
+
+    final endPt = Offset(houseLeft + houseW / 2, midY);
+
+    Alignment al(Offset p) => Alignment(2 * p.dx / sw - 1, 2 * p.dy / sh - 1);
+
+    return HowToPlayOverlay(
+      previewBuilder: (t) {
+        final pos = Offset.lerp(startPt, endPt, t)!;
+        const ghostSize = 92.0;
+        final landed = t > 0.99;
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+
+            Positioned(
+              left: houseLeft,
+              top: 95,
+              width: houseW,
+              height: availH,
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Image.asset(
+                  landed ? _treeHouseImage : _treeHouseBrokenImage,
+                  width: houseW,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+
+            Positioned(
+              left: colLeft,
+              top: colTop,
+              width: colW,
+              child: Column(
+                children: [
+                  for (int i = 0; i < demoLetters.length; i++) ...[
+                    Opacity(
+                      opacity: demoLetters[i] == demoAnswer ? 0.3 : 1.0,
+                      child: _buildLetterPiece(
+                        demoLetters[i],
+                        pieceSize,
+                        wrong: false,
+                      ),
+                    ),
+                    if (i != demoLetters.length - 1)
+                      const SizedBox(height: gap),
+                  ],
+                ],
+              ),
+            ),
+
+            if (!landed)
+              Positioned(
+                left: pos.dx - ghostSize * 0.75,
+                top: pos.dy - ghostSize * 0.4,
+                child: Transform.scale(
+                  scale: 1.1,
+                  child: _buildLetterPiece(demoAnswer, ghostSize, wrong: false),
+                ),
+              ),
+          ],
+        );
+      },
+      handAlignment: al(startPt),
+      handEndAlignment: al(endPt),
+      handOffset: const Offset(0.17, 0.46),
+      onDismiss: resetIdleTimer,
     );
   }
 

@@ -1,24 +1,29 @@
 import 'package:flutter/material.dart';
 
 class HowToPlayOverlay extends StatefulWidget {
-  final Widget previewChild;
+  final Widget? previewChild;
+  final Widget Function(double dragT)? previewBuilder;
   final Alignment handAlignment;
   final Alignment? handEndAlignment;
   final Offset handOffset;
   final VoidCallback? onDismiss;
   final bool tapSequence;
+  final List<Alignment>? handPath;
 
   const HowToPlayOverlay({
     super.key,
-    required this.previewChild,
+    this.previewChild,
+    this.previewBuilder,
     required this.handAlignment,
     this.handEndAlignment,
+    this.handPath,
     this.handOffset = Offset.zero,
     this.onDismiss,
     this.tapSequence = false,
-  });
+  }) : assert(previewChild != null || previewBuilder != null);
 
-  static const String _handAsset = 'assets/images/objects/lagoon/pointing_hand.png';
+  static const String _handAsset =
+      'assets/images/objects/lagoon/pointing_hand.png';
 
   @override
   State<HowToPlayOverlay> createState() => _HowToPlayOverlayState();
@@ -29,14 +34,29 @@ class _HowToPlayOverlayState extends State<HowToPlayOverlay>
   late final AnimationController _tapCtrl;
 
   bool get _isSequence => widget.tapSequence && widget.handEndAlignment != null;
-  bool get _isDrag => widget.handEndAlignment != null && !widget.tapSequence;
+
+  bool get _isPathSequence =>
+      widget.tapSequence &&
+      widget.handPath != null &&
+      widget.handPath!.length >= 2;
+
+  bool get _isDrag =>
+      (widget.handEndAlignment != null || widget.handPath != null) &&
+      !widget.tapSequence;
+
+  double _dragProgress(double t) =>
+      Curves.easeInOut.transform(((t - 0.2) / 0.55).clamp(0.0, 1.0));
 
   @override
   void initState() {
     super.initState();
     _tapCtrl = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: _isDrag ? 2200 : (_isSequence ? 2600 : 900)),
+      duration: Duration(
+        milliseconds: _isPathSequence
+            ? 1300 * widget.handPath!.length
+            : (_isDrag ? 2200 : (_isSequence ? 2600 : 900)),
+      ),
     )..repeat();
   }
 
@@ -46,11 +66,16 @@ class _HowToPlayOverlayState extends State<HowToPlayOverlay>
     super.dispose();
   }
 
-  // 0 -> 1 -> 0 pulse used by tap mode
   double _tapValue(double t) {
     if (t < 0.4) return Curves.easeOut.transform(t / 0.4);
     if (t < 0.6) return 1.0;
     return 1.0 - Curves.easeIn.transform((t - 0.6) / 0.4);
+  }
+
+  Alignment _alongPath(List<Alignment> path, double t) {
+    final pos = t.clamp(0.0, 1.0) * (path.length - 1);
+    final i = pos.floor().clamp(0, path.length - 2);
+    return Alignment.lerp(path[i], path[i + 1], pos - i)!;
   }
 
   @override
@@ -90,7 +115,13 @@ class _HowToPlayOverlayState extends State<HowToPlayOverlay>
                           child: SizedBox(
                             width: screenSize.width,
                             height: screenSize.height,
-                            child: widget.previewChild,
+                            child: widget.previewBuilder == null
+                                ? widget.previewChild!
+                                : AnimatedBuilder(
+                              animation: _tapCtrl,
+                              builder: (_, __) =>
+                                  widget.previewBuilder!(_dragProgress(_tapCtrl.value)),
+                            ),
                           ),
                         ),
                       ),
@@ -103,34 +134,50 @@ class _HowToPlayOverlayState extends State<HowToPlayOverlay>
                         var liftY = 0.0;
                         var scale = 1.0;
 
-                        if (_isSequence) {
-                          double pulse(double a, double b) =>
-                              (t < a || t > b) ? 0.0 : _tapValue((t - a) / (b - a));
+                        if (_isPathSequence) {
+                          final path = widget.handPath!;
+                          final n = path.length;
+                          final scaled = (t * n).clamp(0.0, n - 0.0001);
+                          final k = scaled.floor();
+                          final u = scaled - k;
+                          final next = path[(k + 1) % n];
 
-                          final p = pulse(0.0, 0.25) + pulse(0.5, 0.75);
-                          final toEnd =
-                          Curves.easeInOut.transform(((t - 0.25) / 0.25).clamp(0.0, 1.0));
-                          final back =
-                          Curves.easeInOut.transform(((t - 0.8) / 0.2).clamp(0.0, 1.0));
-
-                          align = Alignment.lerp(
-                              widget.handAlignment, widget.handEndAlignment!, toEnd - back)!;
-                          liftY = -p * 16;
-                          scale = 1.0 - p * 0.08;
+                          if (u < 0.65) {
+                            final v = _tapValue(u / 0.65);
+                            align = path[k];
+                            liftY = -v * 16;
+                            scale = 1.0 - v * 0.08;
+                          } else {
+                            final move = Curves.easeInOut.transform(
+                              (u - 0.65) / 0.35,
+                            );
+                            align = Alignment.lerp(path[k], next, move)!;
+                          }
+                        } else if (_isSequence) {
+                          double pulse(double a, double b) => (t < a || t > b)
+                              ? 0.0
+                              : _tapValue((t - a) / (b - a));
                         } else if (!_isDrag) {
                           final v = _tapValue(t);
                           liftY = -v * 16;
                           scale = 1.0 - v * 0.08;
                         } else {
-                          final move = Curves.easeInOut
-                              .transform(((t - 0.2) / 0.55).clamp(0.0, 1.0));
-                          align = Alignment.lerp(
-                              widget.handAlignment, widget.handEndAlignment!, move)!;
+                          final move = _dragProgress(t);
+
+                          final path = widget.handPath;
+                          align = (path != null && path.length >= 2)
+                              ? _alongPath(path, move)
+                              : Alignment.lerp(
+                                  widget.handAlignment,
+                                  widget.handEndAlignment ??
+                                      widget.handAlignment,
+                                  move,
+                                )!;
                           final press = t < 0.15
                               ? t / 0.15
                               : (t < 0.8
-                              ? 1.0
-                              : 1.0 - ((t - 0.8) / 0.1).clamp(0.0, 1.0));
+                                    ? 1.0
+                                    : 1.0 - ((t - 0.8) / 0.1).clamp(0.0, 1.0));
                           scale = 1.0 - press * 0.1;
                         }
 
@@ -144,14 +191,20 @@ class _HowToPlayOverlayState extends State<HowToPlayOverlay>
                                 translation: widget.handOffset,
                                 child: Transform.translate(
                                   offset: Offset(0, liftY),
-                                  child: Transform.scale(scale: scale, child: child),
+                                  child: Transform.scale(
+                                    scale: scale,
+                                    child: child,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         );
                       },
-                      child: Image.asset(HowToPlayOverlay._handAsset, width: 60),
+                      child: Image.asset(
+                        HowToPlayOverlay._handAsset,
+                        width: 60,
+                      ),
                     ),
                   ],
                 ),

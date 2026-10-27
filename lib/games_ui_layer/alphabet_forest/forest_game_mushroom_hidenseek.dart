@@ -15,6 +15,8 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'forest_audio_path.dart';
@@ -37,6 +39,7 @@ class MushroomSpot {
 
 class MushroomHideAndSeekGame extends StatefulWidget {
   final int level;
+
   const MushroomHideAndSeekGame({super.key, required this.level});
 
   @override
@@ -50,10 +53,10 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
         GameLoadingMixin<MushroomHideAndSeekGame>,
         TofiReactionMixin<MushroomHideAndSeekGame>,
         AiCameraMixin,
-        AppAudioLifecycleMixin<MushroomHideAndSeekGame> {
-
+        AppAudioLifecycleMixin<MushroomHideAndSeekGame>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -68,7 +71,8 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
   static const String _mushroomAsset = 'assets/images/objects/forest/mushroom.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
 
-  static const List<String> _animalAssets = ['assets/images/objects/forest/ladybug.png',];
+  static const List<String> _animalAssets = ['assets/images/objects/forest/ladybug.png',
+  ];
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/mushroom_hide_n_seek_intro.wav';
@@ -254,7 +258,10 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     } catch (e) {
       debugPrint('Round audio error: $e');
     } finally {
-      if (mounted) setState(() => _inputEnabled = true);
+      if (mounted) {
+        setState(() => _inputEnabled = true);
+        startIdleTimer();
+      }
     }
   }
 
@@ -263,8 +270,8 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
   void _setupRound({bool playInstruction = true}) {
     _roundLocked = false;
     _shakingIndex = null;
-
-    final rng = Random();
+    cancelIdleTimer();
+    showHowToPlay = false;
 
     for (final ctrl in _flashCtrls) {
       ctrl.reset();
@@ -292,6 +299,7 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     final isMatch = mushroom.letter == _targetLetter;
 
     if (isMatch) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       showTofiReaction(TofiState.correct);
 
@@ -309,6 +317,7 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
 
       await _advanceRound();
     } else {
+      resetIdleTimer();
       _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
       setState(() => _shakingIndex = index);
@@ -331,7 +340,7 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
     _solvedRounds++;
 
     if (_currentRound >= _totalRounds - 1) {
-      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -350,6 +359,7 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -407,6 +417,7 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _tofiFloatCtrl.dispose();
     _mushroomBounceCtrl.dispose();
     _instructionCtrl.dispose();
@@ -430,23 +441,81 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.alphabetForest(),
-        gameBuilder: () => Stack(
-          children: [
-            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
-            if (!_introPlaying) buildTofi(context),
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
-          ],
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_roundLocked && !_hasSavedResult) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.alphabetForest(),
+          gameBuilder: () => Stack(
+            children: [
+              if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+              if (!_introPlaying) buildTofi(context),
+              if (showHowToPlay &&
+                  !_introPlaying &&
+                  _inputEnabled &&
+                  !_roundLocked &&
+                  !_hasSavedResult)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: _toAlignment(
+                      _demoMushroomCenter(screenSize),
+                      screenSize,
+                    ),
+                    handOffset: const Offset(0.15, 0.55),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  double _gardenH(Size s) => s.height - 90 - 26;
+
+  Offset _demoMushroomCenter(Size s) {
+    final p = _mushroomSlots[1];
+    return Offset(p.dx * s.width, 90 + p.dy * _gardenH(s));
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final gardenH = _gardenH(s);
+    final mushroomSize = (gardenH * 0.26).clamp(90.0, 150.0);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        for (final p in _mushroomSlots)
+          Positioned(
+            left: p.dx * s.width - mushroomSize / 2,
+            top: 90 + p.dy * gardenH - mushroomSize / 2,
+            width: mushroomSize,
+            height: mushroomSize,
+            child: Image.asset(_mushroomAsset, fit: BoxFit.contain),
+          ),
+      ],
     );
   }
 
@@ -609,7 +678,6 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
                     height: mushroomSize * 1.15,
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.red,
                     ),
                   ),
                 ),

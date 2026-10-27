@@ -15,6 +15,8 @@ import 'dart:math';
 import 'dart:async';
 import '../../business_layer/orientation_service.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
 import 'forest_game_berry_bush_harvest.dart';
@@ -42,10 +44,10 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
         SingleTickerProviderStateMixin,
         TofiReactionMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<AlphabetFallScreen> {
-
+        AppAudioLifecycleMixin<AlphabetFallScreen>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -67,10 +69,12 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
 
   int _correctCount = 0;
 
-  static const String _fallInstructionWav = 'assets/audio/alphabet_forest/alphabet_minigame_fall_instruction.wav';
+  static const String _fallInstructionWav =
+      'assets/audio/alphabet_forest/alphabet_minigame_fall_instruction.wav';
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+  bool _gameLoopsStarted = false;
 
   @override
   void initState() {
@@ -249,11 +253,16 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
         'assets/audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
       );
     } finally {
-      if (mounted) _startGameLoops();
+      if (mounted) {
+        _startGameLoops();
+        _gameLoopsStarted = true;
+        startIdleTimer();
+      }
     }
   }
 
   Future<void> _saveDataAndShowApplause() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -432,9 +441,9 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
 
   @override
   void dispose() {
-    // Safely cancel timers using ?.
     _spawnTimer?.cancel();
     _gameTimer?.cancel();
+    disposeIdleTimer();
 
     _audioPlayer.dispose();
     _tofiPlayer.dispose();
@@ -446,17 +455,23 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/backgrounds/bg_game_forest.png',
-              fit: BoxFit.cover,
-            ),
-          ),
+    final Size size = MediaQuery.of(context).size;
 
-          Stack(
+    return Listener(
+      onPointerDown: (_) {
+        if (_gameLoopsStarted && !_hasSavedResult) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/backgrounds/bg_game_forest.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+
+            Stack(
               children: [
                 const Positioned(top: 25, left: 25, child: ForestXButton()),
                 Positioned(
@@ -520,15 +535,72 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
                 ),
               ],
             ),
-          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-            LightingPromptCard(
-              onClose: () {
-                setState(() => _hideLightingCard = true);
-                releaseFaceGate(); // don't leave the tutorial audio waiting
-              },
-            ),
-        ],
+
+            if (showHowToPlay && _gameLoopsStarted && !_hasSavedResult)
+              Positioned.fill(
+                child: HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(size.width, size.height),
+                  handAlignment: const Alignment(0.0, 0.05),
+                  handOffset: const Offset(0.15, 0.55),
+                  onDismiss: resetIdleTimer,
+                ),
+              ),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate(); // don't leave the tutorial audio waiting
+                },
+              ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildHowToPreview(double sw, double sh) {
+    final double objSize = sw * 0.12;
+    final String letter = widget.letter.toUpperCase();
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/backgrounds/bg_game_forest.png',
+          fit: BoxFit.cover,
+        ),
+        Positioned(
+          left: (sw - objSize) / 2,
+          top: sh * 0.4,
+          child: SizedBox(
+            width: objSize,
+            height: objSize,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Image.asset(_getImageForLetter(letter), fit: BoxFit.contain),
+                Text(
+                  letter,
+                  style: TextStyle(
+                    fontFamily: ForestAppTextStyles.fredoka,
+                    fontSize: objSize * 0.5,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    shadows: const [
+                      Shadow(
+                        blurRadius: 6,
+                        color: Colors.black87,
+                        offset: Offset(2, 2),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
