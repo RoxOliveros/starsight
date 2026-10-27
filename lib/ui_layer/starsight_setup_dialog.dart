@@ -130,12 +130,15 @@ class _StarsightSetupDialogState extends State<_StarsightSetupDialog>
       if (StarsightSetupTutorial.isSessionCalibrated) {
         setState(() => _isCalibrationDone = true);
         // Start camera for the visual preview, but DO NOT wipe server memory!
-        startAiCamera(captureInterval: const Duration(milliseconds: 900));
+        startAiCamera(captureInterval: const Duration(milliseconds: 500));
       } else {
         // First time this session: wipe server memory, then start camera
         resetCalibrationForNewChild().then((_) {
           if (mounted) {
-            startAiCamera(captureInterval: const Duration(milliseconds: 900));
+            startAiCamera(
+              captureInterval: const Duration(milliseconds: 500),
+              fastCalibration: true,
+            );
           }
         });
       }
@@ -166,10 +169,12 @@ class _StarsightSetupDialogState extends State<_StarsightSetupDialog>
     if (_isCalibrationDone) return null;
     if (!isFaceDetected) return 'PLEASE LOOK AT THE CAMERA...';
 
-    // Change the message based on how many frames are done
-    if (calibrationProgress >= 25) {
+    final needed = calibrationNeeded <= 0 ? 1 : calibrationNeeded;
+    final fraction = calibrationProgress / needed;
+
+    if (fraction >= 0.8) {
       return 'HOLD ON, NEARLY THERE...';
-    } else if (calibrationProgress >= 15) {
+    } else if (fraction >= 0.5) {
       return 'HALFWAY THERE, KEEP LOOKING...';
     }
 
