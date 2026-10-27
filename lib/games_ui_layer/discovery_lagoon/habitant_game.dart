@@ -13,6 +13,8 @@ import 'package:StarSight/games_ui_layer/discovery_lagoon/seed_game.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -38,7 +40,7 @@ class HabitantGame extends StatefulWidget {
 }
 
 class _HabitantGameState extends State<HabitantGame>
-    with AiCameraMixin, AppAudioLifecycleMixin<HabitantGame>, KikiReactionMixin {
+    with AiCameraMixin, AppAudioLifecycleMixin<HabitantGame>, KikiReactionMixin, IdleHintMixin  {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer= AudioPlayer();
@@ -150,6 +152,8 @@ class _HabitantGameState extends State<HabitantGame>
         setState(() {
           _showIntro = false;
         });
+        showHowToPlay = false;
+        startIdleTimer();
       }
     });
 
@@ -159,6 +163,7 @@ class _HabitantGameState extends State<HabitantGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     OrientationService.setLandscape();
     _audioSubscription?.cancel();
     _audioPlayer.dispose();
@@ -255,7 +260,11 @@ class _HabitantGameState extends State<HabitantGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Listener(
+        onPointerDown: (_) {
+          if (!_showIntro && !_isGameWon && !_isProcessingMove) resetIdleTimer();
+        },
+        child:  Scaffold(
       body: Stack(
         children: [
           Column(
@@ -316,6 +325,12 @@ class _HabitantGameState extends State<HabitantGame>
             child: LagoonLevelBadge(level: widget.level),
           ),
 
+          if (showHowToPlay &&
+              !_showIntro &&
+              !_isGameWon &&
+              !_isProcessingMove)
+            Positioned.fill(child: _buildHowToPlayOverlay()),
+
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {
@@ -356,6 +371,64 @@ class _HabitantGameState extends State<HabitantGame>
             ),
         ],
       ),
+        ),
+    );
+  }
+
+  Widget _buildHowToPlayOverlay() {
+    final sz = MediaQuery.of(context).size;
+    final sw = sz.width, sh = sz.height;
+
+    Alignment al(double cx, double cy) =>
+        Alignment(2 * cx / sw - 1, 2 * cy / sh - 1);
+
+    Widget cell(String bg, {String? character, CharacterAdjustment? adj}) {
+      return Expanded(
+        child: Container(
+          decoration: BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/images/backgrounds/$bg'),
+              fit: BoxFit.cover,
+            ),
+          ),
+          child: character == null
+              ? null
+              : Center(
+            child: Transform.translate(
+              offset: Offset(adj!.offsetX, adj.offsetY),
+              child: Image.asset(
+                'assets/images/characters/$character',
+                height: adj.size,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final preview = Column(
+      children: [
+        Expanded(
+          child: Row(children: [
+            cell('bg_arctic.png', character: sadImages['dog'], adj: adjustments['dog']),
+            cell('bg_town.png'),
+          ]),
+        ),
+        Expanded(
+          child: Row(children: [
+            cell('bg_rainbow_closeup2.png', character: sadImages['bear'], adj: adjustments['bear']),
+            cell('bg_forest_closeup.png'),
+          ]),
+        ),
+      ],
+    );
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: al(sw * 0.25, sh * 0.25 + 40),
+      handEndAlignment: al(sw * 0.25, sh * 0.75 + 40),
+      handOffset: const Offset(0.05, 0.46),
+      onDismiss: resetIdleTimer,
     );
   }
 
@@ -428,6 +501,9 @@ class _HabitantGameState extends State<HabitantGame>
           if (_checkForWin()) {
             await _playWinAudio();
             await _saveDataAndShowGoodJob();
+          } else if (mounted) {      
+            showHowToPlay = false;   
+            startIdleTimer();        
           }
         } finally {
           _isProcessingMove = false;
@@ -446,6 +522,8 @@ class _HabitantGameState extends State<HabitantGame>
           child: Center(
             child: Draggable<String>(
               data: zoneId,
+              onDragStarted: cancelIdleTimer,                   
+              onDraggableCanceled: (_, __) => startIdleTimer(), 
               feedback: Material(
                 color: Colors.transparent,
                 child: characterImageWidget,

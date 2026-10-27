@@ -13,6 +13,8 @@ import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -26,7 +28,7 @@ class SeedGame extends StatefulWidget {
 }
 
 class _SeedGameState extends State<SeedGame>
-    with AiCameraMixin, AppAudioLifecycleMixin<SeedGame>, KikiReactionMixin {
+    with AiCameraMixin, AppAudioLifecycleMixin<SeedGame>, KikiReactionMixin, IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer= AudioPlayer();
@@ -40,6 +42,7 @@ class _SeedGameState extends State<SeedGame>
   final GameTapTracker _tapTracker = GameTapTracker();
   final double kikiVerticalOffset = 40.0;
   late List<String> currentSequence;
+  final List<GlobalKey> _slotKeys = List.generate(4, (_) => GlobalKey());
 
   bool showIntro = true;
   bool showGoodJob = false;
@@ -138,12 +141,14 @@ class _SeedGameState extends State<SeedGame>
     setState(() {
       _isProcessingRound = false;
     });
+    startIdleTimer();
   }
 
   @override
   void dispose() {
     _disposed = true;
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     OrientationService.setLandscape();
     super.dispose();
@@ -211,6 +216,7 @@ class _SeedGameState extends State<SeedGame>
       setState(() {
         _isProcessingRound = false;
       });
+      startIdleTimer();
     } else {
       await Future.delayed(const Duration(milliseconds: 800));
 
@@ -228,6 +234,7 @@ class _SeedGameState extends State<SeedGame>
     if (_hasSavedResult) return;
 
     _hasSavedResult = true;
+    cancelIdleTimer();
 
     List<String> finalEmotions = stopAiCamera();
 
@@ -258,7 +265,14 @@ class _SeedGameState extends State<SeedGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Listener(
+        onPointerDown: (_) {
+          _tapTracker.recordGenericTap();
+          if (!showIntro && !_isProcessingRound && !isCorrect && !showGoodJob) {
+            resetIdleTimer();
+          }
+        },
+        child: Scaffold(
       body: Stack(
         children: [
           Positioned.fill(
@@ -292,36 +306,7 @@ class _SeedGameState extends State<SeedGame>
           else
             SafeArea(
               child: LayoutBuilder(
-                builder: (context, constraints) {
-                  double maxByHeight = constraints.maxHeight * 0.45;
-                  double maxByWidth = constraints.maxWidth / 5.5;
-
-                  double universalCardSize = maxByHeight < maxByWidth
-                      ? maxByHeight
-                      : maxByWidth;
-
-                  return Center(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: SizedBox(
-                        height: universalCardSize,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(7, (index) {
-                            if (index % 2 == 1) {
-                              return _buildArrow(universalCardSize);
-                            }
-                            int cardIndex = index ~/ 2;
-                            return _buildDraggableSlot(
-                              cardIndex,
-                              universalCardSize,
-                            );
-                          }),
-                        ),
-                      ),
-                    ),
-                  );
-                },
+                  builder: (context, constraints) => _buildCardsRow(constraints),
               ),
             ),
 
@@ -331,6 +316,21 @@ class _SeedGameState extends State<SeedGame>
                 setState(() => _hideLightingCard = true);
                 releaseFaceGate();
               },
+            ),
+
+          if (showHowToPlay &&
+              !showIntro &&
+              !_isProcessingRound &&
+              !isCorrect &&
+              !showGoodJob)
+            Positioned.fill(
+              child: HowToPlayOverlay(
+                previewChild: _buildHowToPreview(),
+                handAlignment: _alignmentOf(_slotKeys[0]),
+                handEndAlignment: _alignmentOf(_slotKeys[1]),
+                handOffset: const Offset(0.15, 0.46),
+                onDismiss: resetIdleTimer,
+              ),
             ),
 
           if (showGoodJob)
@@ -357,17 +357,81 @@ class _SeedGameState extends State<SeedGame>
                   _hasSavedResult = false;
                   _tapTracker.startSession();
                 });
+                startIdleTimer();
               },
               onBack: () => Navigator.of(context).pop(),
             ),
         ],
       ),
+        ),
     );
   }
 
-  Widget _buildArrow(double height) {
+  Widget _buildCardsRow(BoxConstraints constraints, {bool preview = false}) {
+    double maxByHeight = constraints.maxHeight * 0.45;
+    double maxByWidth = constraints.maxWidth / 5.5;
+
+    double universalCardSize =
+    maxByHeight < maxByWidth ? maxByHeight : maxByWidth;
+
+    return Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: SizedBox(
+          height: universalCardSize,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(7, (index) {
+              if (index % 2 == 1) {
+                return _buildArrow(universalCardSize, preview: preview);
+              }
+              int cardIndex = index ~/ 2;
+              return _buildDraggableSlot(
+                cardIndex,
+                universalCardSize,
+                preview: preview,
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
+  Widget _buildHowToPreview() {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/backgrounds/bg_rainbow_closeup2.png',
+            fit: BoxFit.cover,
+          ),
+        ),
+        SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) =>
+                _buildCardsRow(constraints, preview: true),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildArrow(double height, {bool preview = false}) {
     return Visibility(
-      visible: isCorrect,
+      visible: !preview && isCorrect,
       maintainSize: true,
       maintainAnimation: true,
       maintainState: true,
@@ -382,24 +446,37 @@ class _SeedGameState extends State<SeedGame>
     );
   }
 
-  Widget _buildDraggableSlot(int index, double cardSize) {
+  Widget _buildDraggableSlot(int index, double cardSize, {bool preview = false}) {
     return DragTarget<int>(
       onAcceptWithDetails: (details) => _onItemDropped(details.data, index),
       builder: (context, candidateData, rejectedData) {
-        return Draggable<int>(
-          data: index,
-          maxSimultaneousDrags: isCorrect || showGoodJob || _isProcessingRound
-              ? 0
-              : 1,
-          feedback: Material(
-            color: Colors.transparent,
-            child: _buildCardUI(currentSequence[index], true, cardSize),
+        return KeyedSubtree(
+          key: (!preview && index < 4) ? _slotKeys[index] : null,
+          child: Draggable<int>(
+            data: index,
+            maxSimultaneousDrags: isCorrect || showGoodJob || _isProcessingRound
+                ? 0
+                : 1,
+            onDragStarted: cancelIdleTimer,
+            onDragEnd: (_) {
+              if (!isCorrect && !_isProcessingRound && !showGoodJob) {
+                startIdleTimer();
+              }
+            },
+            feedback: Material(
+              color: Colors.transparent,
+              child: _buildCardUI(currentSequence[index], true, cardSize),
+            ),
+            childWhenDragging: Opacity(
+              opacity: 0.5,
+              child: _buildCardUI(currentSequence[index], false, cardSize),
+            ),
+            child: _buildCardUI(
+              preview ? allInitialSequences[0][index] : currentSequence[index],
+              false,
+              cardSize,
+            ),
           ),
-          childWhenDragging: Opacity(
-            opacity: 0.5,
-            child: _buildCardUI(currentSequence[index], false, cardSize),
-          ),
-          child: _buildCardUI(currentSequence[index], false, cardSize),
         );
       },
     );

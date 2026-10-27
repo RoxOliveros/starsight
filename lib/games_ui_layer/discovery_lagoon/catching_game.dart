@@ -15,6 +15,8 @@ import 'package:StarSight/games_ui_layer/discovery_lagoon/soft_hard_game.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -61,7 +63,8 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
         SingleTickerProviderStateMixin,
         AiCameraMixin,
         AppAudioLifecycleMixin<CatchingGameScreen>,
-        KikiReactionMixin {
+        KikiReactionMixin,
+        IdleHintMixin {
 
   late AnimationController _gameLoopController;
 
@@ -185,6 +188,8 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
 
     setState(() => _currentPhase = GamePhase.playing);
     _gameLoopController.forward();
+    showHowToPlay = false;
+    startIdleTimer();
   }
 
   Future<void> _startSweetRound() => _startRound(
@@ -242,10 +247,13 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     if (!mounted) return;
 
     setState(() => _canTapFavorite = true);
+    showHowToPlay = false;
+    startIdleTimer();
   }
 
   Future<void> _onFavoriteTasteTapped() async {
     if (!_canTapFavorite || _currentPhase != GamePhase.favoriteTaste) return;
+    cancelIdleTimer();
 
     _tapTracker.recordCorrectTap();
     setState(() => _canTapFavorite = false);
@@ -290,7 +298,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   }
 
   void _updateGame() {
-    if (_currentPhase != GamePhase.playing) return;
+    if (_currentPhase != GamePhase.playing || showHowToPlay) return;
 
     var roundDone = false;
 
@@ -346,6 +354,8 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   }
 
   Future<void> _onRoundFinished() async {
+    cancelIdleTimer();
+    showHowToPlay = false;
     final passed = _caughtCount > _wrongCatchCount;
 
     if (!passed) {
@@ -422,7 +432,8 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
 
   void _onPanUpdate(DragUpdateDetails details, double screenWidth) {
     if (_currentPhase != GamePhase.playing) return;
-
+    resetIdleTimer(); 
+    
     setState(() {
       _basketX += details.delta.dx / screenWidth;
       _basketX = _basketX.clamp(0.15, 0.85);
@@ -430,6 +441,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   }
 
   void _restartGame() {
+    cancelIdleTimer();
     setState(() {
       _caughtCount = 0;
       _wrongCatchCount = 0;
@@ -445,6 +457,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _gameLoopController.dispose();
     _audioPlayer.dispose();
     _kikiPlayer.dispose();
@@ -473,6 +486,11 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
             ),
           ],
 
+          if (showHowToPlay &&
+              (_currentPhase == GamePhase.playing ||
+                  (_currentPhase == GamePhase.favoriteTaste && _canTapFavorite)))
+            Positioned.fill(child: _buildHowToPlayOverlay(sw, sh)),
+
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {
@@ -482,6 +500,86 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildHowToPlayOverlay(double sw, double sh) {
+    Alignment al(double cx, double cy) =>
+        Alignment(2 * cx / sw - 1, 2 * cy / sh - 1);
+
+    // ── Favorite taste: tap a basket ──
+    if (_currentPhase == GamePhase.favoriteTaste) {
+      final preview = Stack(
+        clipBehavior: Clip.none,
+        fit: StackFit.expand,
+        children: [
+          Image.asset('assets/images/backgrounds/bg_rainbow_closeup.png', fit: BoxFit.cover),
+          Positioned(
+            bottom: -sh * 0.20,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Image.asset('assets/images/characters/kiki_the_cat.png',
+                  height: sh * 1.15, fit: BoxFit.contain),
+            ),
+          ),
+          Positioned(
+            bottom: -sh * 0.12,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildFavoriteChoice('assets/images/objects/lagoon/chocolate.png', sh, sw),
+                _buildFavoriteChoice('assets/images/objects/lagoon/lemon.png', sh, sw),
+                _buildFavoriteChoice('assets/images/objects/lagoon/fries.png', sh, sw),
+                _buildFavoriteChoice('assets/images/objects/lagoon/bittergourd.png', sh, sw),
+              ],
+            ),
+          ),
+        ],
+      );
+      return HowToPlayOverlay(
+        previewChild: preview,
+        handAlignment: al(sw * 0.38, sh * 0.83), // 2nd basket's food
+        handOffset: const Offset(0.05, 0.46),
+        onDismiss: resetIdleTimer,
+      );
+    }
+
+    // ── Playing: drag the basket ──
+    final basketW = sh * 0.75, basketH = sh * 0.55, foodS = sh * 0.26;
+    final basketCy = sh * 0.85;
+    const startX = 0.35, endX = 0.65;
+
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset('assets/images/backgrounds/bg_rainbow_closeup.png', fit: BoxFit.cover),
+        Positioned(
+          left: sw * 0.30 - foodS / 2,
+          top: sh * 0.15,
+          child: Image.asset(_sweetFoodImages[0], width: foodS, height: foodS),
+        ),
+        Positioned(
+          left: sw * 0.70 - foodS / 2,
+          top: sh * 0.30,
+          child: Image.asset(_sourFoodImages[1], width: foodS, height: foodS),
+        ),
+        Positioned(
+          left: sw * startX - basketW / 2,
+          bottom: -sh * 0.15,
+          child: Image.asset('assets/images/objects/lagoon/basket.png',
+              width: basketW, height: basketH, fit: BoxFit.contain),
+        ),
+      ],
+    );
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: al(sw * startX, basketCy),
+      handEndAlignment: al(sw * endX, basketCy),
+      handOffset: const Offset(0.05, 0.46),
+      onDismiss: resetIdleTimer,
     );
   }
 

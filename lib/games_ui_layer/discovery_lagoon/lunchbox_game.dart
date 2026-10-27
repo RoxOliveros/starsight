@@ -13,6 +13,8 @@ import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import '../tryagain_prompt.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
@@ -398,7 +400,9 @@ class _LunchboxGameState extends State<LunchboxGame>
     with
         AiCameraMixin,
         AppAudioLifecycleMixin<LunchboxGame>,
-        KikiReactionMixin {
+        KikiReactionMixin,
+        IdleHintMixin  {
+
   final GameTapTracker _tapTracker = GameTapTracker();
   final AudioPlayer _foodAudioPlayer = AudioPlayer();
   final AudioPlayer _roundAudioPlayer = AudioPlayer();
@@ -456,6 +460,7 @@ class _LunchboxGameState extends State<LunchboxGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _foodAudioPlayer.dispose();
     _roundAudioPlayer.dispose();
     _kikiPlayer.dispose();
@@ -501,11 +506,14 @@ class _LunchboxGameState extends State<LunchboxGame>
     if (audioPath == null) return;
 
     if (mounted) setState(() => _canInteract = false);
+    cancelIdleTimer(); 
+    showHowToPlay = false; 
 
     await playVoiceRestartingOnFaceLoss(_roundAudioPlayer, audioPath);
     if (!mounted) return;
 
     setState(() => _canInteract = true);
+    startIdleTimer(); 
   }
 
   Future<void> _playFoodAudio(String id) async {
@@ -532,6 +540,7 @@ class _LunchboxGameState extends State<LunchboxGame>
     if (kikiState == KikiState.normal) {
       showKikiReaction(KikiState.wrong);
     }
+    startIdleTimer();
   }
 
   Future<void> _evaluateLunchbox() async {
@@ -714,6 +723,7 @@ class _LunchboxGameState extends State<LunchboxGame>
       child: GestureDetector(
         onTap: () async {
           if (!_canInteract || selectedDessertId != null) return;
+          cancelIdleTimer();
 
           _tapTracker.recordCorrectTap();
 
@@ -763,6 +773,7 @@ class _LunchboxGameState extends State<LunchboxGame>
       child: GestureDetector(
         onTap: () async {
           if (!_canInteract || selectedDrinkId != null) return;
+          cancelIdleTimer();
 
           _tapTracker.recordCorrectTap();
 
@@ -802,7 +813,11 @@ class _LunchboxGameState extends State<LunchboxGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Listener(
+        onPointerDown: (_) {
+          if (_canInteract) resetIdleTimer();
+        },
+        child:  Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
           final screenWidth = constraints.maxWidth;
@@ -834,6 +849,7 @@ class _LunchboxGameState extends State<LunchboxGame>
                     onPanUpdate: currentBatch == 4 && activeSauceId != null
                         ? (details) {
                             if (currentStroke != null) {
+                              resetIdleTimer();
                               setState(
                                 () => currentStroke!.points.add(
                                   details.localPosition,
@@ -1134,6 +1150,8 @@ class _LunchboxGameState extends State<LunchboxGame>
                       _playFoodAudio('ketchup');
                       _tapTracker.recordCorrectTap();
                       setState(() => activeSauceId = 'ketchup');
+                      showHowToPlay = false;
+                      startIdleTimer();
                     },
                   ),
                 ),
@@ -1148,6 +1166,8 @@ class _LunchboxGameState extends State<LunchboxGame>
                       _playFoodAudio('mustard');
                       _tapTracker.recordCorrectTap();
                       setState(() => activeSauceId = 'mustard');
+                      showHowToPlay = false;
+                      startIdleTimer();
                     },
                   ),
                 ),
@@ -1162,6 +1182,8 @@ class _LunchboxGameState extends State<LunchboxGame>
                       _playFoodAudio('mayo');
                       _tapTracker.recordCorrectTap();
                       setState(() => activeSauceId = 'mayo');
+                      showHowToPlay = false;
+                      startIdleTimer();
                     },
                   ),
                 ),
@@ -1254,6 +1276,11 @@ class _LunchboxGameState extends State<LunchboxGame>
                 ),
               ],
 
+              if (showHowToPlay && _canInteract)
+                Positioned.fill(
+                  child: _buildHowToPlayOverlay(screenWidth, constraints.maxHeight),
+                ),
+
               if (!_canInteract)
                 Positioned.fill(
                   child: AbsorbPointer(
@@ -1282,6 +1309,114 @@ class _LunchboxGameState extends State<LunchboxGame>
           );
         },
       ),
+        ),
+    );
+  }
+
+  Widget _buildHowToPlayOverlay(double sw, double sh) {
+    final plate = sw * 0.18;
+    Alignment al(double cx, double cy) =>
+        Alignment(2 * cx / sw - 1, 2 * cy / sh - 1);
+
+    final bg = Positioned.fill(
+      child: Image.asset('assets/images/backgrounds/bg_table.png', fit: BoxFit.cover),
+    );
+    final box = Align(
+      alignment: Alignment.center,
+      child: Image.asset('assets/images/objects/lagoon/lunchbox.png',
+          width: sw * 0.45, fit: BoxFit.contain),
+    );
+    const offset = Offset(0.05, 0.46);
+
+    // ── Batches 5-6: tap a sample dessert / drink ──
+    if (currentBatch >= 5) {
+      final isDrink = currentBatch == 6;
+      final s = isDrink ? plate * 1.2 : plate;
+      final sampleId = isDrink ? 'water' : 'strawberry';
+      return HowToPlayOverlay(
+        previewChild: Stack(children: [
+          bg,
+          Align(
+            alignment: Alignment.center,
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Image.asset(
+                getFoodAsset(sampleId),
+                width: s,
+                height: s,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        ]),
+        handAlignment: al(sw / 2, sh / 2),
+        handOffset: offset,
+        onDismiss: resetIdleTimer,
+      );
+    }
+
+    // ── Batch 4: tap a sauce, then draw ──
+    if (currentBatch == 4) {
+      if (activeSauceId == null) {
+        final b = plate * 0.8;
+        final bx = sw * 0.78, by = sh * 0.45;
+        return HowToPlayOverlay(
+          previewChild: Stack(children: [
+            bg,
+            box,
+            Positioned(
+              left: bx - b / 2,
+              top: by - b / 2,
+              child: Image.asset(getSauceAsset('ketchup'), width: b, height: b, fit: BoxFit.contain),
+            ),
+          ]),
+          handAlignment: al(bx, by),
+          handOffset: offset,
+          onDismiss: resetIdleTimer,
+        );
+      }
+      return HowToPlayOverlay(
+        previewChild: Stack(children: [bg, box]),
+        handAlignment: al(sw * 0.40, sh * 0.45),
+        handEndAlignment: al(sw * 0.58, sh * 0.55),
+        handOffset: offset,
+        onDismiss: resetIdleTimer,
+      );
+    }
+
+    // ── Batches 1-3: drag a food into the compartment ──
+    final px = sw * 0.12, py = sh * 0.5;
+    final tx = currentBatch == 1 ? sw * 0.40 : sw * 0.59;
+    final ty = currentBatch == 1
+        ? sh * 0.50
+        : currentBatch == 2
+        ? sh * 0.38
+        : sh * 0.62;
+
+    return HowToPlayOverlay(
+      previewChild: Stack(children: [
+        bg,
+        box,
+        Positioned(
+          left: px - plate / 2,
+          top: py - plate / 2,
+          width: plate,
+          height: plate,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Image.asset('assets/images/objects/lagoon/plate_top.png',
+                  width: plate, height: plate, fit: BoxFit.contain),
+              Image.asset(getFoodAsset('banana'),
+                  width: plate * 0.9, height: plate * 0.9, fit: BoxFit.contain),
+            ],
+          ),
+        ),
+      ]),
+      handAlignment: al(px, py),
+      handEndAlignment: al(tx, ty),
+      handOffset: offset,
+      onDismiss: resetIdleTimer,
     );
   }
 }

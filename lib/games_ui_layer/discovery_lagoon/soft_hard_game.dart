@@ -14,6 +14,8 @@ import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -34,7 +36,12 @@ class SoftHardGameScreen extends StatefulWidget {
 }
 
 class _SoftHardGameScreenState extends State<SoftHardGameScreen>
-    with TickerProviderStateMixin, KikiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<SoftHardGameScreen> {
+    with
+        TickerProviderStateMixin,
+        KikiReactionMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<SoftHardGameScreen>,
+        IdleHintMixin {
 
   late List<SortableItem> _remainingItems;
   SortableItem? _currentItem;
@@ -106,6 +113,8 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
         setState(() {
           _isIntroPlaying = false;
         });
+        showHowToPlay = false;
+        startIdleTimer();
       }
     });
 
@@ -163,6 +172,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
       } else {
         _currentItem = null;
         _isGameWon = true;
+        cancelIdleTimer();
         LagoonProgressService.instance.markLevelComplete(widget.level);
         _triggerVictoryOverlay();
       }
@@ -209,6 +219,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
 
   Future<void> _onPanEnd(DragEndDetails details, double screenWidth) async {
     if (_currentItem == null) return;
+    startIdleTimer();
 
     setState(() {
       _isDragging = false;
@@ -249,6 +260,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _kikiPlayer.dispose();
     OrientationService.setLandscape();
@@ -262,7 +274,11 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
     final double sh = MediaQuery.of(context).size.height;
     final double itemSize = sh * 0.38;
 
-    return Scaffold(
+    return Listener(
+        onPointerDown: (_) {
+          if (!_isIntroPlaying && _currentItem != null) resetIdleTimer();
+        },
+        child: Scaffold(
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -322,7 +338,10 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
               left: (sw / 2) - (itemSize / 2) + _dragOffset.dx,
               top: (sh / 2) - (itemSize / 2) + _dragOffset.dy + (sh * 0.10),
               child: GestureDetector(
-                onPanStart: (_) => setState(() => _isDragging = true),
+                onPanStart: (_) {
+                  cancelIdleTimer(); 
+                  setState(() => _isDragging = true);
+                },
                 onPanUpdate: (details) {
                   setState(() {
                     _dragOffset += details.delta;
@@ -367,6 +386,13 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
             child: LagoonLevelBadge(level: widget.level),
           ),
 
+          if (showHowToPlay &&
+              !_isIntroPlaying &&
+              !_isDragging &&
+              !_showVictoryOverlay &&
+              _currentItem != null)
+            Positioned.fill(child: _buildHowToPlayOverlay(sw, sh)),
+
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {
@@ -403,6 +429,53 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
             ),
         ],
       ),
+        ),
+    );
+  }
+  Widget _buildHowToPlayOverlay(double sw, double sh) {
+    final itemSize = sh * 0.38;
+    final itemCy = sh / 2 + sh * 0.10; // same as the real item position
+
+    Alignment al(double cx, double cy) =>
+        Alignment(2 * cx / sw - 1, 2 * cy / sh - 1);
+
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Positioned(
+          top: sh * 0.03,
+          left: sw * 0.5 - (sw * 0.34),
+          child: Image.asset(_softCloudImage, height: sw * 0.11, fit: BoxFit.contain),
+        ),
+        Positioned(
+          top: sh * 0.03,
+          right: sw * 0.5 - (sw * 0.34),
+          child: Image.asset(_hardRockImage, height: sw * 0.11, fit: BoxFit.contain),
+        ),
+        Positioned(
+          top: 0,
+          bottom: 0,
+          left: sw / 2 - 1,
+          child: CustomPaint(
+            size: Size(2, sh),
+            painter: _DashedLinePainter(topPadding: sh * 0.15, bottomPadding: sh * 0.08),
+          ),
+        ),
+        Positioned(
+          left: sw / 2 - itemSize / 2,
+          top: itemCy - itemSize / 2,
+          child: Image.asset(_pillowImage, width: itemSize, height: itemSize, fit: BoxFit.contain),
+        ),
+      ],
+    );
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: al(sw / 2, itemCy),
+      handEndAlignment: al(sw * 0.25, itemCy), // inside the soft (left) side
+      handOffset: const Offset(0.05, 0.46),
+      onDismiss: resetIdleTimer,
     );
   }
 }

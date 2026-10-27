@@ -13,6 +13,8 @@ import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/clothes_game.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -22,11 +24,12 @@ class WeatherGame extends StatefulWidget {
   const WeatherGame({super.key, required this.level});
 
   @override
-  _WeatherGameState createState() => _WeatherGameState();
+  State<WeatherGame> createState() => _WeatherGameState();
 }
 
 class _WeatherGameState extends State<WeatherGame>
-    with AiCameraMixin, KikiReactionMixin, AppAudioLifecycleMixin<WeatherGame> {
+    with AiCameraMixin, KikiReactionMixin, AppAudioLifecycleMixin<WeatherGame>, IdleHintMixin  {
+
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer = AudioPlayer();
 
@@ -81,6 +84,7 @@ class _WeatherGameState extends State<WeatherGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _kikiPlayer.dispose();
     OrientationService.setLandscape();
@@ -88,11 +92,15 @@ class _WeatherGameState extends State<WeatherGame>
   }
 
   Future<void> _playIntroPrompt() async {
+    cancelIdleTimer();
     setState(() {
       _isPromptPlaying = true;
     });
 
     await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/discovery_lagoon/weather_game_intro.wav');
+    if (!mounted) return;
+    showHowToPlay = false;
+    startIdleTimer();
   }
 
   Future<void> _playCorrectWeatherAudio(String weather) async {
@@ -142,6 +150,10 @@ class _WeatherGameState extends State<WeatherGame>
           _saveDataAndShowGoodJob();
         }
       });
+      if (!_isGameComplete) {   
+        showHowToPlay = false;  
+        startIdleTimer();       
+      }
     } else {
       _tapTracker.recordMistake();
 
@@ -155,6 +167,7 @@ class _WeatherGameState extends State<WeatherGame>
       setState(() {
         _isPromptPlaying = false;
       });
+      startIdleTimer();
     }
   }
 
@@ -215,7 +228,11 @@ class _WeatherGameState extends State<WeatherGame>
     final screenSize = MediaQuery.of(context).size;
     final double buttonSize = screenSize.width * 0.12;
 
-    return Scaffold(
+    return Listener(
+        onPointerDown: (_) {
+          if (!_isPromptPlaying && !_isGameComplete) resetIdleTimer();
+        },
+        child:  Scaffold(
       body: Stack(
         children: [
           Positioned.fill(
@@ -270,6 +287,12 @@ class _WeatherGameState extends State<WeatherGame>
 
           buildKiki(context, heightFactor: 0.9),
 
+          if (showHowToPlay &&
+              !_isPromptPlaying &&
+              !_isGameComplete &&
+              kikiState == KikiState.normal)
+            Positioned.fill(child: _buildHowToPlayOverlay(screenSize, buttonSize)),
+
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {
@@ -311,6 +334,73 @@ class _WeatherGameState extends State<WeatherGame>
             ),
         ],
       ),
+        ),
+    );
+  }
+
+  Widget _buildHowToPlayOverlay(Size sz, double btn) {
+    final sw = sz.width, sh = sz.height;
+    const order = ['rainy', 'sunny', 'windy', 'cloudy'];
+    const icons = {
+      'rainy': 'assets/images/objects/lagoon/raincloud.png',
+      'sunny': 'assets/images/objects/lagoon/sun.png',
+      'windy': 'assets/images/objects/lagoon/windy.png',
+      'cloudy': 'assets/images/objects/lagoon/cloudy.png',
+    };
+    const sampleBg = 'assets/images/backgrounds/bg_park_sunny.png';
+    const sampleIndex = 1;
+
+    final gap = sw * 0.02;
+    final left = sw * 0.05;
+    final bottom = sh * 0.08;
+
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(sampleBg, fit: BoxFit.cover),
+        Positioned(
+          right: 0,
+          bottom: -30,
+          child: SizedBox(
+            height: sh * 0.9,
+            child: Image.asset('assets/images/characters/kiki_standing.png', fit: BoxFit.contain),
+          ),
+        ),
+        Positioned(
+          bottom: bottom,
+          left: left,
+          child: Row(
+            children: [
+              for (int i = 0; i < order.length; i++) ...[
+                if (i > 0) SizedBox(width: gap),
+                Container(
+                  width: btn,
+                  height: btn,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(btn * 0.15),
+                    border: Border.all(color: const Color(0xFF2C4463), width: btn * 0.04),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(btn * 0.15),
+                    child: Image.asset(icons[order[i]]!, fit: BoxFit.contain),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final cx = left + sampleIndex * (btn + gap) + btn / 2;
+    final cy = sh - bottom - btn / 2;
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: Alignment(2 * cx / sw - 1, 2 * cy / sh - 1),
+      handOffset: const Offset(0.15, 0.55),
+      onDismiss: resetIdleTimer,
     );
   }
 

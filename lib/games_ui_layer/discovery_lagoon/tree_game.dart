@@ -11,6 +11,8 @@ import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_audio_path.dart';
 import 'lagoon_game_ui.dart';
@@ -47,7 +49,7 @@ class _TreePart {
 }
 
 class _TreeGameScreenState extends State<TreeGameScreen>
-    with AppAudioLifecycleMixin<TreeGameScreen>, AiCameraMixin<TreeGameScreen>, KikiReactionMixin {
+    with AppAudioLifecycleMixin<TreeGameScreen>, AiCameraMixin<TreeGameScreen>, KikiReactionMixin, IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer= AudioPlayer();
@@ -155,6 +157,7 @@ class _TreeGameScreenState extends State<TreeGameScreen>
         setState(() {
           _showIntro = false;
         });
+        if (!isCompleted) startIdleTimer();
       }
     });
 
@@ -172,6 +175,7 @@ class _TreeGameScreenState extends State<TreeGameScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _kikiPlayer.dispose();
     OrientationService.setLandscape();
@@ -181,6 +185,7 @@ class _TreeGameScreenState extends State<TreeGameScreen>
   Future<void> _saveDataAndShowGoodJob() async {
     if (_hasSavedResult) return;
     _hasSavedResult = true;
+    cancelIdleTimer();
     List<String> finalEmotions = stopAiCamera();
 
     LagoonDatabaseService.saveGameData(
@@ -206,7 +211,12 @@ class _TreeGameScreenState extends State<TreeGameScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Listener(
+        onPointerDown: (_) {
+          _tapTracker.recordGenericTap();
+          if (!_showIntro && !_showOverlay && !isCompleted) resetIdleTimer();
+        },
+        child:  Scaffold(
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
@@ -256,6 +266,30 @@ class _TreeGameScreenState extends State<TreeGameScreen>
               child: LagoonLevelBadge(level: widget.level),
             ),
 
+            if (showHowToPlay &&
+                !_showIntro &&
+                !_showOverlay &&
+                !isCompleted)
+              Positioned.fill(
+                child: Builder(
+                  builder: (context) {
+                    final sz = MediaQuery.of(context).size;
+                    final g = _hintGeometry();
+                    Alignment toAlign(Offset p) => Alignment(
+                      p.dx / sz.width * 2 - 1,
+                      p.dy / sz.height * 2 - 1,
+                    );
+                    return HowToPlayOverlay(
+                      previewChild: _buildHowToPreview(),
+                      handAlignment: toAlign(g.piece),
+                      handEndAlignment: toAlign(g.target),
+                      handOffset: const Offset(0.15, 0.46),
+                      onDismiss: resetIdleTimer,
+                    );
+                  },
+                ),
+              ),
+
             if (_showOverlay)
               GoodJobOverlay(
                 characterImage:
@@ -279,6 +313,7 @@ class _TreeGameScreenState extends State<TreeGameScreen>
                     _hasSavedResult = false;
                     _tapTracker.startSession();
                   });
+                  startIdleTimer();
                 },
                 onBack: () => Navigator.of(context).pop(),
               ),
@@ -293,6 +328,69 @@ class _TreeGameScreenState extends State<TreeGameScreen>
           ],
         ),
       ),
+        ),
+    );
+  }
+
+  _TreePart get _samplePart => _parts.firstWhere((p) => p.id == 'leaves');
+
+  ({Offset piece, Offset target}) _hintGeometry() {
+    final mq = MediaQuery.of(context);
+    final sz = mq.size;
+    final pad = mq.padding;
+    final areaW = sz.width - pad.left - pad.right;
+    final areaH = sz.height - pad.top - pad.bottom;
+    final part = _samplePart;
+    final pw = part.width * _canvasWidth;
+    final ph = part.height * _canvasHeight;
+
+    final a = part.scatterPosition;
+    final piece = Offset(
+      pad.left + (a.x + 1) / 2 * (areaW - pw) + pw / 2,
+      pad.top + (a.y + 1) / 2 * (areaH - ph) + ph / 2,
+    );
+
+    final canvasLeft = pad.left + (areaW - _canvasWidth) / 2;
+    final canvasTop = pad.top + (areaH - _canvasHeight) / 2;
+    final target = Offset(
+      canvasLeft + part.targetLeft * _canvasWidth + pw / 2,
+      canvasTop + part.targetTop * _canvasHeight + ph / 2,
+    );
+    return (piece: piece, target: target);
+  }
+
+  Widget _buildHowToPreview() {
+    final part = _samplePart;
+    final pw = part.width * _canvasWidth;
+    final ph = part.height * _canvasHeight;
+    final g = _hintGeometry();
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/backgrounds/bg_lagoon_fields.png',
+            fit: BoxFit.cover,
+          ),
+        ),
+        Positioned(
+          left: g.target.dx - pw / 2,
+          top: g.target.dy - ph / 2,
+          width: pw,
+          height: ph,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        Positioned(
+          left: g.piece.dx - pw / 2,
+          top: g.piece.dy - ph / 2,
+          child: _piece(part),
+        ),
+      ],
     );
   }
 
@@ -344,8 +442,10 @@ class _TreeGameScreenState extends State<TreeGameScreen>
   Widget _buildDraggable(_TreePart part) {
     return Draggable<String>(
       data: part.id,
+      onDragStarted: cancelIdleTimer,
       onDragEnd: (details) {
         if (!details.wasAccepted) {
+          startIdleTimer();
           _tapTracker.recordMistake();
         }
       },

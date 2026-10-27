@@ -14,7 +14,9 @@
   import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
   import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
-  import 'lagoon_audio_path.dart';
+  import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
+import 'lagoon_audio_path.dart';
   import 'intro_phase.dart';
   import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
@@ -47,7 +49,8 @@ import 'lagoon_game_ui.dart';
         KikiReactionMixin,
         AiCameraMixin<WeatherSceneBuilderScreen>,
         AppAudioLifecycleMixin<WeatherSceneBuilderScreen>,
-        LagoonIntroMixin<WeatherSceneBuilderScreen> {
+        LagoonIntroMixin<WeatherSceneBuilderScreen>,
+        IdleHintMixin {
 
     final AudioPlayer _audioPlayer = AudioPlayer();
     final AudioPlayer _kikiPlayer= AudioPlayer();
@@ -59,6 +62,7 @@ import 'lagoon_game_ui.dart';
     AudioPlayer get kikiPlayer => _kikiPlayer;
 
     final GameTapTracker _tapTracker = GameTapTracker();
+    final GlobalKey _choiceKey = GlobalKey();
 
     LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
@@ -195,6 +199,7 @@ import 'lagoon_game_ui.dart';
     @override
     void dispose() {
       disposeAiCamera();
+      disposeIdleTimer();
       _popCtrl.dispose();
       for (final c in _itemCtrls.values) {
         c.dispose();
@@ -217,7 +222,10 @@ import 'lagoon_game_ui.dart';
       } catch (e) {
         debugPrint('Prompt audio error: $e');
       } finally {
-        if (mounted) setState(() => _inputEnabled = true);
+        if (mounted) {
+          setState(() => _inputEnabled = true);
+          startIdleTimer();
+        }
       }
     }
 
@@ -248,6 +256,7 @@ import 'lagoon_game_ui.dart';
 
     Future<void> _onTap(WeatherElement el) async {
       if (!_inputEnabled || _roundLocked || _placed.contains(el.id)) return;
+      cancelIdleTimer();
 
       if (el.weatherId == _currentWeather['id']) {
         _tapTracker.recordCorrectTap();
@@ -256,6 +265,8 @@ import 'lagoon_game_ui.dart';
 
         setState(() => _placed.add(el.id));
         _itemCtrls[el.id]?.forward(from: 0);
+
+        if (_placed.length < _currentElements.length) startIdleTimer();
 
         if (_placed.length == _currentElements.length) {
           _roundLocked = true;
@@ -284,12 +295,14 @@ import 'lagoon_game_ui.dart';
         await Future.delayed(const Duration(milliseconds: 300));
         if (!mounted) return;
         _itemCtrls[el.id]?.reverse();
+        startIdleTimer();
       }
     }
 
     Future<void> _saveDataAndShowSuccessDialog() async {
       if (_hasSavedResult) return;
       _hasSavedResult = true;
+      cancelIdleTimer();
       List<String> finalEmotions = stopAiCamera();
 
       LagoonDatabaseService.saveGameData(
@@ -355,7 +368,16 @@ import 'lagoon_game_ui.dart';
 
     @override
     Widget build(BuildContext context) {
-      return Scaffold(
+      return Listener(
+          onPointerDown: (_) {
+            _tapTracker.recordGenericTap();
+            if (_screenPhase == LagoonScreenPhase.game &&
+                _inputEnabled &&
+                !_roundLocked) {
+              resetIdleTimer();
+            }
+          },
+          child: Scaffold(
         body: Stack(
           children: [
             Positioned.fill(
@@ -398,6 +420,19 @@ import 'lagoon_game_ui.dart';
               child: LagoonLevelBadge(level: widget.level),
             ),
 
+            if (showHowToPlay &&
+                _screenPhase == LagoonScreenPhase.game &&
+                _inputEnabled &&
+                !_roundLocked)
+              Positioned.fill(
+                child: HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(),
+                  handAlignment: _alignmentOf(_choiceKey),
+                  handOffset: const Offset(0.15, 0.55),
+                  onDismiss: resetIdleTimer,
+                ),
+              ),
+
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
                 onClose: () {
@@ -407,6 +442,69 @@ import 'lagoon_game_ui.dart';
               ),
           ],
         ),
+          ),
+      );
+    }
+
+    Alignment _alignmentOf(GlobalKey key) {
+      final box = key.currentContext?.findRenderObject() as RenderBox?;
+      final root = context.findRenderObject() as RenderBox?;
+      if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+      final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+      return Alignment(
+        center.dx / root.size.width * 2 - 1,
+        center.dy / root.size.height * 2 - 1,
+      );
+    }
+
+    Widget _buildHowToPreview() {
+      const demoIds = ['sun', 'raincloud', 'rainbow', 'strong_wind'];
+      final demo = demoIds
+          .map((id) => _allElements.firstWhere((e) => e.id == id))
+          .toList();
+
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/objects/lagoon/sunny_day_phase2.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+            ),
+          ),
+          Column(
+            children: [
+              const Spacer(),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: demo.map((el) {
+                    return Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(10),
+                      child: Image.asset(el.imagePath, fit: BoxFit.contain),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 22),
+            ],
+          ),
+        ],
       );
     }
 
@@ -416,8 +514,8 @@ import 'lagoon_game_ui.dart';
       );
     }
 
-  Widget _buildGameContent() {
-    return Column(
+    Widget _buildGameContent() {
+      return Column(
       children: [
         const Spacer(),
         Opacity(
@@ -426,9 +524,11 @@ import 'lagoon_game_ui.dart';
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: _choices.map((el) {
+              children: _choices.asMap().entries.map((entry) {
+                final el = entry.value;
                 final isPlaced = _placed.contains(el.id);
                 return GestureDetector(
+                  key: entry.key == 2 ? _choiceKey : null,
                   onTap: () => _onTap(el),
                   child: AnimatedOpacity(
                     duration: const Duration(milliseconds: 300),
