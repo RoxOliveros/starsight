@@ -15,6 +15,8 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
 import 'forest_game_berry_bush_harvest.dart';
@@ -38,10 +40,14 @@ class AlphabetFindScreen extends StatefulWidget {
 }
 
 class _AlphabetFindScreenState extends State<AlphabetFindScreen>
-    with TickerProviderStateMixin, TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetFindScreen> {
-
+    with
+        TickerProviderStateMixin,
+        TofiReactionMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<AlphabetFindScreen>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -54,7 +60,8 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
 
   static const String _vaseAsset = 'assets/images/objects/forest/vase.png';
   static const String _hammerAsset = 'assets/images/objects/forest/hammer.png';
-  static const String _findInstructionAudio = 'assets/audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
+  static const String _findInstructionAudio =
+      'assets/audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
 
   static const int _totalRounds = 3;
 
@@ -164,6 +171,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     if (_isPlayingJarSequence) return;
     _isPlayingJarSequence = true;
 
+    cancelIdleTimer();
     if (mounted) setState(() => _inputEnabled = false);
 
     try {
@@ -188,7 +196,10 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
       debugPrint('Vase sound error: $e');
     } finally {
       _isPlayingJarSequence = false;
-      if (mounted) setState(() => _inputEnabled = true);
+      if (mounted) {
+        setState(() => _inputEnabled = true);
+        startIdleTimer();
+      }
     }
   }
 
@@ -208,6 +219,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     _audioPlayer.stop();
 
     if (index == _correctIndex) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       _choicesLocked = true;
       setState(() => _revealedIndex = index);
@@ -273,12 +285,11 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   }
 
   Future<void> _saveDataAndShowApplause() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
-    // 1. Stop the camera and get the emotions
     List<String> finalEmotions = stopAiCamera();
 
-    // 2. Save raw data silently
     ForestDatabaseService.saveGameData(
       gameId: 'letter_find_${widget.letter.toLowerCase()}',
       activityName: "Alphabet Find (${widget.letter.toUpperCase()})",
@@ -450,6 +461,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
 
   @override
   void dispose() {
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _tofiPlayer.dispose();
     disposeAiCamera();
@@ -460,112 +472,191 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/backgrounds/bg_game_forest.png',
-              fit: BoxFit.cover,
-            ),
-          ),
-          Stack(
-            children: [
-              const Positioned(top: 25, left: 25, child: ForestXButton()),
+    final Size size = MediaQuery.of(context).size;
 
-              Positioned(
-                top: 25,
-                right: 20,
-                child: ForestLevelBadge(
-                  level:
-                  ForestProgressService.levelNumberForLetter(
-                    widget.letter.toUpperCase(),
-                  ) ??
-                      1,
-                ),
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_hasSavedResult) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/backgrounds/bg_game_forest.png',
+                fit: BoxFit.cover,
               ),
+            ),
+            Stack(
+              children: [
+                const Positioned(top: 25, left: 25, child: ForestXButton()),
 
-              buildTofi(context),
+                Positioned(
+                  top: 25,
+                  right: 20,
+                  child: ForestLevelBadge(
+                    level:
+                        ForestProgressService.levelNumberForLetter(
+                          widget.letter.toUpperCase(),
+                        ) ??
+                        1,
+                  ),
+                ),
 
-              Align(
-                alignment: const Alignment(0, -0.45),
-                child: Container(
-                  width: 110,
-                  height: 110,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: ForestColorTheme.darkseagreen,
-                      width: 5,
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 8,
-                        offset: Offset(0, 4),
+                buildTofi(context),
+
+                Align(
+                  alignment: const Alignment(0, -0.45),
+                  child: Container(
+                    width: 110,
+                    height: 110,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: ForestColorTheme.darkseagreen,
+                        width: 5,
                       ),
-                    ],
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    widget.letter.toUpperCase(),
-                    style: TextStyle(
-                      fontFamily: ForestAppTextStyles.fredoka,
-                      fontSize: 64,
-                      height: 1,
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFF3C5729),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 8,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      widget.letter.toUpperCase(),
+                      style: TextStyle(
+                        fontFamily: ForestAppTextStyles.fredoka,
+                        fontSize: 64,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF3C5729),
+                      ),
                     ),
                   ),
                 ),
-              ),
 
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 40),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(_vaseLetters.length, (i) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: _buildVase(i),
-                      );
-                    }),
-                  ),
-                ),
-              ),
-
-              // --- REPLAY SOUND BUTTON ---
-              Positioned(
-                bottom: 0,
-                right: 20,
-                child: GestureDetector(
-                  onTap: _inputEnabled ? _playVaseSounds : null,
-                  child: Opacity(
-                    opacity: _inputEnabled ? 1.0 : 0.5,
-                    child: Image.asset(
-                      'assets/images/icons/speaker.png',
-                      width: 90,
-                      height: 90,
-                      fit: BoxFit.contain,
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 40),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(_vaseLetters.length, (i) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _buildVase(i),
+                        );
+                      }),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
 
-          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-            LightingPromptCard(
-              onClose: () {
-                setState(() => _hideLightingCard = true);
-                releaseFaceGate();
-              },
+                // --- REPLAY SOUND BUTTON ---
+                Positioned(
+                  bottom: 0,
+                  right: 20,
+                  child: GestureDetector(
+                    onTap: _inputEnabled ? _playVaseSounds : null,
+                    child: Opacity(
+                      opacity: _inputEnabled ? 1.0 : 0.5,
+                      child: Image.asset(
+                        'assets/images/icons/speaker.png',
+                        width: 90,
+                        height: 90,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-        ],
+
+            if (showHowToPlay &&
+                _inputEnabled &&
+                !_choicesLocked &&
+                _revealedIndex == null &&
+                !_hasSavedResult)
+              Positioned.fill(
+                child: HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(),
+                  handAlignment: Alignment(0, 1 - 2 * 110 / size.height),
+                  handOffset: const Offset(0.15, 0.4),
+                  onDismiss: resetIdleTimer,
+                ),
+              ),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildHowToPreview() {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/backgrounds/bg_game_forest.png',
+          fit: BoxFit.cover,
+        ),
+        Align(
+          alignment: const Alignment(0, -0.45),
+          child: Container(
+            width: 110,
+            height: 110,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: ForestColorTheme.darkseagreen,
+                width: 5,
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              widget.letter.toUpperCase(),
+              style: TextStyle(
+                fontFamily: ForestAppTextStyles.fredoka,
+                fontSize: 64,
+                height: 1,
+                fontWeight: FontWeight.w900,
+                color: const Color(0xFF3C5729),
+              ),
+            ),
+          ),
+        ),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 40),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(3, (_) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Image.asset(
+                    _vaseAsset,
+                    width: 120,
+                    height: 140,
+                    fit: BoxFit.contain,
+                  ),
+                );
+              }),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -575,114 +666,124 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     final shaking = _shakingIndex == index;
 
     return Opacity(
-        opacity: _inputEnabled ? 1.0 : 0.75,
-        child: GestureDetector(
-      onTap: () => _onVaseTapped(index),
-      child: AnimatedBuilder(
-        animation: _wiggle,
-        builder: (_, child) =>
-            Transform.rotate(angle: shaking ? _wiggle.value : 0, child: child),
-        child: SizedBox(
-          width: 120,
-          height: 140,
-          child: Stack(
-            alignment: Alignment.center,
-            clipBehavior: Clip.none,
-            children: [
-              AnimatedOpacity(
-                opacity: revealed ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                child: Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: ForestColorTheme.darkseagreen,
-                      width: 4,
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 6,
-                        offset: Offset(0, 3),
+      opacity: _inputEnabled ? 1.0 : 0.75,
+      child: GestureDetector(
+        onTap: () => _onVaseTapped(index),
+        child: AnimatedBuilder(
+          animation: _wiggle,
+          builder: (_, child) => Transform.rotate(
+            angle: shaking ? _wiggle.value : 0,
+            child: child,
+          ),
+          child: SizedBox(
+            width: 120,
+            height: 140,
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                AnimatedOpacity(
+                  opacity: revealed ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: ForestColorTheme.darkseagreen,
+                        width: 4,
                       ),
-                    ],
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 6,
+                          offset: Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: Center(
+                      child: Text(
+                        letter,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: ForestAppTextStyles.fredoka,
+                          fontSize: 50,
+                          height: 1,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF3C5729),
+                        ),
+                      ),
+                    ),
                   ),
-                  alignment: Alignment.center,
-                  child: Center(
-                    child: Text(
-                      letter,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: ForestAppTextStyles.fredoka,
-                        fontSize: 50,
-                        height: 1,
-                        fontWeight: FontWeight.w900,
+                ),
+                if (revealed)
+                  Positioned(
+                    top: -30,
+                    right: -25,
+                    child: TweenAnimationBuilder<double>(
+                      key: ValueKey('hammer_${index}_$_tapToken'),
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 700),
+                      builder: (_, t, child) {
+                        final swing = Curves.easeIn.transform(
+                          (t / 0.4).clamp(0.0, 1.0),
+                        );
+                        final angle = 0.4 - 1.3 * swing;
+                        final opacity = t < 0.7
+                            ? 1.0
+                            : ((1 - t) / 0.3).clamp(0.0, 1.0);
+                        return Opacity(
+                          opacity: opacity,
+                          child: Transform.rotate(
+                            angle: angle,
+                            alignment: Alignment.bottomRight,
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: Image.asset(
+                        _hammerAsset,
+                        width: 80,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+
+                AnimatedOpacity(
+                  opacity: revealed ? 0.0 : 1.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: Image.asset(
+                    _vaseAsset,
+                    width: 120,
+                    height: 140,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 120,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4DEB3),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: ForestColorTheme.darkseagreen,
+                          width: 4,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.science_outlined,
+                        size: 40,
                         color: Color(0xFF3C5729),
                       ),
                     ),
                   ),
                 ),
-              ),
-              if (revealed)
-                Positioned(
-                  top: -30,
-                  right: -25,
-                  child: TweenAnimationBuilder<double>(
-                    key: ValueKey('hammer_${index}_$_tapToken'),
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    duration: const Duration(milliseconds: 700),
-                    builder: (_, t, child) {
-                      final swing = Curves.easeIn.transform((t / 0.4).clamp(0.0, 1.0));
-                      final angle = 0.4 - 1.3 * swing;
-                      final opacity = t < 0.7 ? 1.0 : ((1 - t) / 0.3).clamp(0.0, 1.0);
-                      return Opacity(
-                        opacity: opacity,
-                        child: Transform.rotate(
-                          angle: angle,
-                          alignment: Alignment.bottomRight,
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: Image.asset(_hammerAsset, width: 80, fit: BoxFit.contain),
-                  ),
-                ),
-
-              AnimatedOpacity(
-                opacity: revealed ? 0.0 : 1.0,
-                duration: const Duration(milliseconds: 300),
-                child: Image.asset(
-                  _vaseAsset,
-                  width: 120,
-                  height: 140,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 120,
-                    height: 140,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF4DEB3),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: ForestColorTheme.darkseagreen,
-                        width: 4,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.science_outlined,
-                      size: 40,
-                      color: Color(0xFF3C5729),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-        ),
     );
   }
 }

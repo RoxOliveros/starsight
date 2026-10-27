@@ -15,6 +15,8 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'forest_audio_path.dart';
@@ -31,6 +33,7 @@ class BerryBush {
 
 class BerryBushHarvestGame extends StatefulWidget {
   final int level;
+
   const BerryBushHarvestGame({super.key, required this.level});
 
   @override
@@ -38,10 +41,15 @@ class BerryBushHarvestGame extends StatefulWidget {
 }
 
 class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
-    with TickerProviderStateMixin, GameLoadingMixin<BerryBushHarvestGame>, TofiReactionMixin<BerryBushHarvestGame>, AiCameraMixin, AppAudioLifecycleMixin<BerryBushHarvestGame> {
-
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin<BerryBushHarvestGame>,
+        TofiReactionMixin<BerryBushHarvestGame>,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<BerryBushHarvestGame>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -53,15 +61,21 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _bgImage = 'assets/images/backgrounds/bg_game_forest.png';
-  static const String _bushFullAsset = 'assets/images/objects/forest/berry_bush_full.png';
-  static const String _bushEmptyAsset = 'assets/images/objects/forest/berry_bush_empty.png';
+  static const String _bushFullAsset =
+      'assets/images/objects/forest/berry_bush_full.png';
+  static const String _bushEmptyAsset =
+      'assets/images/objects/forest/berry_bush_empty.png';
   static const String _basketAsset = 'assets/images/objects/puzzle/basket.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static String _basketBerryAsset(int count) => 'assets/images/objects/forest/berries_state$count.png';
+
+  static String _basketBerryAsset(int count) =>
+      'assets/images/objects/forest/berries_state$count.png';
 
   static const String _audioBase = ForestAudioAssets.base;
-  static const String _audioIntro = 'assets/audio/alphabet_forest/berry_bush_intro.wav';
-  static const String _audioInstruction = '$_audioBase/berry_bush_instruction.wav';
+  static const String _audioIntro =
+      'assets/audio/alphabet_forest/berry_bush_intro.wav';
+  static const String _audioInstruction =
+      '$_audioBase/berry_bush_instruction.wav';
   static const String _audioWin = '$_audioBase/berry_bush_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -243,7 +257,10 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
         ForestAudioAssets.forLetter(_targetLetter.toUpperCase()),
       );
     } finally {
-      if (mounted) _inputEnabled = true;
+      if (mounted) {
+        _inputEnabled = true;
+        startIdleTimer();
+      }
     }
   }
 
@@ -251,6 +268,8 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     _roundLocked = false;
     _inputEnabled = !playInstruction;
     _shakingWrongIndex = null;
+    cancelIdleTimer();
+    showHowToPlay = false;
 
     _instructionCtrl.forward(from: 0);
 
@@ -269,6 +288,7 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     final isMatch = bush.letter.toLowerCase() == _targetLetter.toLowerCase();
 
     if (isMatch) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       _roundLocked = true;
       HapticFeedback.mediumImpact();
@@ -293,6 +313,7 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
 
       await _advanceRound();
     } else {
+      resetIdleTimer();
       _tapTracker.recordMistake();
       HapticFeedback.heavyImpact();
       setState(() => _shakingWrongIndex = index);
@@ -313,9 +334,7 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
     if (!mounted) return;
 
     if (_currentRoundIndex >= _roundOrder.length - 1) {
-      await playVoiceRestartingOnFaceLoss(
-        _audioPlayer, _audioWin
-      );
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -334,6 +353,7 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -392,6 +412,7 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _tofiFloatCtrl.dispose();
     _swayCtrl.dispose();
     _instructionCtrl.dispose();
@@ -411,23 +432,81 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.alphabetForest(),
-        gameBuilder: () => Stack(
-          children: [
-            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
-            if (!_introPlaying) buildTofi(context),
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
-          ],
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_roundLocked && !_hasSavedResult) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.alphabetForest(),
+          gameBuilder: () => Stack(
+            children: [
+              if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+              if (!_introPlaying) buildTofi(context),
+              if (showHowToPlay &&
+                  !_introPlaying &&
+                  _inputEnabled &&
+                  !_roundLocked &&
+                  !_hasSavedResult)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: _toAlignment(
+                      _demoBushCenter(screenSize),
+                      screenSize,
+                    ),
+                    handOffset: const Offset(0.15, 0.55),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  double _gardenH(Size s) => s.height - 90 - 26;
+
+  Offset _demoBushCenter(Size s) {
+    final p = _bushSlots[1];
+    return Offset(p.dx * s.width, 90 + p.dy * _gardenH(s));
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final gardenH = _gardenH(s);
+    final bushSize = (gardenH * 0.3).clamp(100.0, 165.0);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        for (final p in _bushSlots)
+          Positioned(
+            left: p.dx * s.width - bushSize / 2,
+            top: 90 + p.dy * gardenH - bushSize / 2,
+            width: bushSize,
+            height: bushSize,
+            child: Image.asset(_bushFullAsset, fit: BoxFit.contain),
+          ),
+      ],
     );
   }
 

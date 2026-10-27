@@ -15,6 +15,8 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'forest_audio_path.dart';
@@ -43,6 +45,7 @@ class ButterflyOption {
 
 class ButterflyLetterMatchGame extends StatefulWidget {
   final int level;
+
   const ButterflyLetterMatchGame({super.key, required this.level});
 
   @override
@@ -56,10 +59,10 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
         GameLoadingMixin<ButterflyLetterMatchGame>,
         TofiReactionMixin<ButterflyLetterMatchGame>,
         AiCameraMixin,
-        AppAudioLifecycleMixin<ButterflyLetterMatchGame> {
-
+        AppAudioLifecycleMixin<ButterflyLetterMatchGame>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -70,15 +73,21 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset paths ──────────────────────────────────────────────────────────
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_garden.png';
-  static const String _butterflyImage = 'assets/images/objects/forest/butterfly.png';
-  static const String _flowerAsset = 'assets/images/objects/forest/flower_not_bloom.png';
-  static const String _flowerBloomAsset = 'assets/images/objects/forest/flower_bloom.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_forest_garden.png';
+  static const String _butterflyImage =
+      'assets/images/objects/forest/butterfly.png';
+  static const String _flowerAsset =
+      'assets/images/objects/forest/flower_not_bloom.png';
+  static const String _flowerBloomAsset =
+      'assets/images/objects/forest/flower_bloom.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
 
   static const String _audioBase = ForestAudioAssets.base;
-  static const String _audioIntro = '$_audioBase/butterfly_letter_match_intro.wav';
-  static const String _audioInstruction = '$_audioBase/butterfly_letter_match_instruction.wav';
+  static const String _audioIntro =
+      '$_audioBase/butterfly_letter_match_intro.wav';
+  static const String _audioInstruction =
+      '$_audioBase/butterfly_letter_match_instruction.wav';
   static const String _audioWin = '$_audioBase/butterfly_letter_match_win.wav';
 
   // ── Game structure ───────────────────────────────────────────────────────
@@ -205,7 +214,10 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
 
   Future<void> _announceRound() async {
     if (_currentRound != 0) {
-      if (mounted) setState(() => _inputEnabled = true);
+      if (mounted) {
+        setState(() => _inputEnabled = true);
+        startIdleTimer();
+      }
       return;
     }
     if (mounted) setState(() => _inputEnabled = false);
@@ -215,7 +227,10 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
     } catch (e) {
       debugPrint('Instruction audio error: $e');
     } finally {
-      if (mounted) setState(() => _inputEnabled = true);
+      if (mounted) {
+        setState(() => _inputEnabled = true);
+        startIdleTimer();
+      }
     }
   }
 
@@ -243,6 +258,8 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
     );
 
     _wrongButterfly = null;
+    cancelIdleTimer();
+    showHowToPlay = false;
     _sceneEnterCtrl.forward(from: 0);
     _instructionCtrl.forward(from: 0);
 
@@ -283,8 +300,6 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
         ForestAudioAssets.forLetter(flower.letter),
       );
 
-
-
       if (_matchedCount >= _letters.length) {
         _roundCompleted = true;
         await _advanceRound();
@@ -308,7 +323,7 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
     _solvedRounds++;
 
     if (_solvedRounds >= _totalRounds) {
-      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -329,6 +344,7 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -386,6 +402,7 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _tofiFloatCtrl.dispose();
     _butterflyFloatCtrl.dispose();
     _instructionCtrl.dispose();
@@ -401,23 +418,126 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.alphabetForest(),
-        gameBuilder: () => Stack(
-          children: [
-            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
-            if (!_introPlaying) buildTofi(context),
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
-          ],
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_roundCompleted && !_hasSavedResult) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.alphabetForest(),
+          gameBuilder: () => Stack(
+            children: [
+              if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+              if (!_introPlaying) buildTofi(context),
+              if (showHowToPlay &&
+                  !_introPlaying &&
+                  _inputEnabled &&
+                  !_roundCompleted &&
+                  !_hasSavedResult)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: _toAlignment(
+                      _demoButterflyCenter(screenSize),
+                      screenSize,
+                    ),
+                    handEndAlignment: _toAlignment(
+                      _demoFlowerCenter(screenSize),
+                      screenSize,
+                    ),
+                    handOffset: const Offset(0.15, 0.4),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  void _restartIdleAfterDrag() {
+    if (_inputEnabled && !_roundCompleted && !_hasSavedResult) {
+      startIdleTimer();
+    }
+  }
+
+  double _gardenH(Size s) => s.height - 90 - 26;
+
+  Offset _demoButterflyCenter(Size s) {
+    final p = _butterflySlots[0];
+    return Offset(p.dx * s.width, 90 + p.dy * _gardenH(s));
+  }
+
+  Offset _demoFlowerCenter(Size s) {
+    final p = _flowerSlots[0];
+    return Offset(p.dx * s.width, 90 + p.dy * _gardenH(s));
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final gardenH = _gardenH(s);
+    final flowerSize = (gardenH * 0.32).clamp(100.0, 180.0);
+    final butterflySize = gardenH * 0.35;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        for (int i = 0; i < _flowerSlots.length; i++)
+          Positioned(
+            left: _flowerSlots[i].dx * s.width - flowerSize / 2,
+            top: 90 + _flowerSlots[i].dy * gardenH - flowerSize / 2,
+            width: flowerSize,
+            height: flowerSize,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Image.asset(
+                  _flowerAsset,
+                  width: flowerSize,
+                  fit: BoxFit.contain,
+                ),
+                Positioned(
+                  top: flowerSize * 0.56,
+                  child: _outlinedLetter(
+                    _letters[i],
+                    fontSize: flowerSize * 0.32,
+                    fillColor: ForestColorTheme.darkseagreen,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        for (int i = 0; i < _butterflySlots.length; i++)
+          Positioned(
+            left: _butterflySlots[i].dx * s.width - butterflySize / 2,
+            top: 90 + _butterflySlots[i].dy * gardenH - butterflySize / 2,
+            width: butterflySize,
+            height: butterflySize,
+            child: _butterflyVisual(
+              _letters[i].toLowerCase(),
+              butterflySize,
+              wrong: false,
+            ),
+          ),
+      ],
     );
   }
 
@@ -627,6 +747,9 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
         child: Draggable<ButterflyOption>(
           data: butterfly,
           maxSimultaneousDrags: _inputEnabled ? 1 : 0,
+          onDragStarted: cancelIdleTimer,
+          onDraggableCanceled: (_, __) => _restartIdleAfterDrag(),
+          onDragCompleted: _restartIdleAfterDrag,
           feedback: Material(
             color: Colors.transparent,
             child: _butterflyVisual(butterfly.letter, size, wrong: false),

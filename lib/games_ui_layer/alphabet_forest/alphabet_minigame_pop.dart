@@ -15,6 +15,8 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
 import 'forest_game_berry_bush_harvest.dart';
@@ -38,10 +40,13 @@ class AlphabetPopScreen extends StatefulWidget {
 }
 
 class _AlphabetPopScreenState extends State<AlphabetPopScreen>
-    with TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetPopScreen> {
-
+    with
+        TofiReactionMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<AlphabetPopScreen>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -64,7 +69,8 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
   late List<double> _availableLanes;
 
-  static const String _popInstructionWav = 'assets/audio/alphabet_forest/alphabet_minigame_pop_instruction.wav';
+  static const String _popInstructionWav =
+      'assets/audio/alphabet_forest/alphabet_minigame_pop_instruction.wav';
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -97,7 +103,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
     List<String> distractors = _getDistractorLetters(widget.letter);
     for (int i = 0; i < 5; i++) {
       String randomDistractor =
-      distractors[_random.nextInt(distractors.length)];
+          distractors[_random.nextInt(distractors.length)];
       _activeBalls.add(_createBall(randomDistractor));
     }
 
@@ -116,13 +122,11 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
   }
 
   BouncingBall _createBall(String letter) {
-    // use one lane per ball
     double x;
 
     if (_availableLanes.isNotEmpty) {
       x = _availableLanes.removeLast();
     } else {
-      // fallback if you ever have more balls than lanes
       x = 0.30 + _random.nextDouble() * 0.64;
     }
 
@@ -150,17 +154,14 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
           ball.dy += 0.00015;
 
-          // MOVE THE BALL
           ball.yPos += ball.dy;
           ball.xPos += ball.dx;
 
-          //  THE HIGH BOUNCE
           if (ball.yPos >= 1.0) {
             ball.yPos = 1.0;
             ball.dy = -(0.014 + _random.nextDouble() * 0.005);
           }
 
-          // 4. THE CEILING CHECK
           if (ball.yPos <= 0.0) {
             ball.yPos = 0.0;
             ball.dy = ball.dy.abs();
@@ -175,11 +176,10 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
     if (ball.letter == widget.letter.toUpperCase()) {
       _tapTracker.recordCorrectTap();
-      String audioFile = 'assets/audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav';
+      String audioFile =
+          'assets/audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav';
 
-      await playVoiceRestartingOnFaceLoss(
-        _audioPlayer, audioFile
-      );
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, audioFile);
 
       showTofiReaction(TofiState.correct);
 
@@ -193,7 +193,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
           setState(() {
             _activeBalls.removeWhere((item) => item.id == ball.id);
             if (_correctCount >= _winCondition) {
-              _gameTimer?.cancel(); // Safe cancel
+              _gameTimer?.cancel();
               _saveDataAndShowApplause();
             }
           });
@@ -204,7 +204,6 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showTofiReaction(TofiState.wrong);
 
-      // --- WRONG MATCH ---
       final double tapX = ball.xPos;
       final double tapY = ball.yPos;
 
@@ -216,7 +215,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
         if (mounted) {
           setState(() {
             _wrongEffects.removeWhere(
-                  (effect) => effect['x'] == tapX && effect['y'] == tapY,
+              (effect) => effect['x'] == tapX && effect['y'] == tapY,
             );
           });
         }
@@ -239,16 +238,18 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
     } catch (e) {
       debugPrint('Instruction audio error: $e');
     }
-    if (mounted) setState(() => _inputEnabled = true);
+    if (mounted) {
+      setState(() => _inputEnabled = true);
+      startIdleTimer();
+    }
   }
 
   Future<void> _saveDataAndShowApplause() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
-    // 1. Stop the camera and get the emotions
     List<String> finalEmotions = stopAiCamera();
 
-    // 2. Save raw data silently
     ForestDatabaseService.saveGameData(
       gameId: 'letter_pop_${widget.letter.toLowerCase()}',
       activityName: "Alphabet Pop (${widget.letter.toUpperCase()})",
@@ -260,7 +261,6 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
       debugPrint("Database Error saving metrics: $e");
     });
 
-    // 3. Now show the normal win dialog
     _showApplause();
   }
 
@@ -299,7 +299,6 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
       return;
     }
 
-    // mark level complete for some letters
     const completeLevelsLetters = {'C', 'F', 'I', 'L', 'O', 'R', 'U', 'X', 'Z'};
 
     if (completeLevelsLetters.contains(currentLetter)) {
@@ -344,7 +343,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                  const ButterflyFlowerGardenGame(level: 6),
+                      const ButterflyFlowerGardenGame(level: 6),
                 ),
               );
             } else if (currentLetter == 'L') {
@@ -352,7 +351,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                  const ButterflyLetterMatchGame(level: 8),
+                      const ButterflyLetterMatchGame(level: 8),
                 ),
               );
             } else if (currentLetter == 'O') {
@@ -360,7 +359,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                  const MushroomHideAndSeekGame(level: 10),
+                      const MushroomHideAndSeekGame(level: 10),
                 ),
               );
             } else if (currentLetter == 'R') {
@@ -382,7 +381,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                  const FallenStickLetterBuilderGame(level: 16),
+                      const FallenStickLetterBuilderGame(level: 16),
                 ),
               );
             } else if (currentLetter == 'Z') {
@@ -444,6 +443,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
     _audioPlayer.dispose();
     _tofiPlayer.dispose();
     disposeAiCamera();
+    disposeIdleTimer();
     OrientationService.setLandscape();
     super.dispose();
   }
@@ -454,16 +454,20 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
     final double ballSize = (screenSize.height * 0.22).clamp(80.0, 150.0);
     final double letterFontSize = ballSize * 0.55;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-      Positioned.fill(
-      child: Image.asset(
-        'assets/images/backgrounds/bg_game_forest.png',
-        fit: BoxFit.cover,
-      ),
-    ),
-    Stack(
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_hasSavedResult) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/backgrounds/bg_game_forest.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+            Stack(
               children: [
                 buildTofi(context),
 
@@ -474,9 +478,9 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                   right: 20,
                   child: ForestLevelBadge(
                     level:
-                    ForestProgressService.levelNumberForLetter(
-                      widget.letter.toUpperCase(),
-                    ) ??
+                        ForestProgressService.levelNumberForLetter(
+                          widget.letter.toUpperCase(),
+                        ) ??
                         1,
                   ),
                 ),
@@ -490,13 +494,12 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                     builder: (context, constraints) {
                       return Stack(
                         children: [
-                          // 1. Draw the balls
                           ..._activeBalls.map((ball) {
                             return Positioned(
                               left:
-                              ball.xPos * (constraints.maxWidth - ballSize),
+                                  ball.xPos * (constraints.maxWidth - ballSize),
                               top:
-                              ball.yPos *
+                                  ball.yPos *
                                   (constraints.maxHeight - ballSize),
                               child: GestureDetector(
                                 key: ball.key,
@@ -524,7 +527,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                                             ),
                                             style: TextStyle(
                                               fontFamily:
-                                              ForestAppTextStyles.fredoka,
+                                                  ForestAppTextStyles.fredoka,
                                               fontSize: letterFontSize,
                                               fontWeight: FontWeight.w900,
                                               color: Colors.white,
@@ -552,16 +555,119 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
               ],
             ),
 
-          // 2. The Lighting Prompt Card Overlay
-          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-            LightingPromptCard(
-              onClose: () {
-                setState(() => _hideLightingCard = true);
-                releaseFaceGate(); // don't leave the tutorial audio waiting
-              },
-            ),
-        ],
+            if (showHowToPlay &&
+                _inputEnabled &&
+                !_hasSavedResult &&
+                _firstTargetBall() != null)
+              Positioned.fill(
+                child: HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(
+                    screenSize,
+                    ballSize,
+                    letterFontSize,
+                  ),
+                  handAlignment: _handAlignmentForBall(screenSize, ballSize),
+                  handOffset: const Offset(0.15, 0.60),
+                  onDismiss: resetIdleTimer,
+                ),
+              ),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+          ],
+        ),
       ),
+    );
+  }
+
+  BouncingBall? _firstTargetBall() {
+    final String target = widget.letter.toUpperCase();
+    for (final b in _activeBalls) {
+      if (!b.isPopped && b.letter == target) return b;
+    }
+    return null;
+  }
+
+  Alignment _handAlignmentForBall(Size s, double ballSize) {
+    final BouncingBall? ball = _firstTargetBall();
+    if (ball == null) return Alignment.center;
+
+    final double areaW = s.width - 40;
+    final double areaH = s.height * 0.70 - 20;
+
+    final double cx = 20 + ball.xPos * (areaW - ballSize) + ballSize / 2;
+    final double cy =
+        s.height * 0.30 + ball.yPos * (areaH - ballSize) + ballSize / 2;
+
+    return Alignment((2 * cx / s.width) - 1, (2 * cy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(
+    Size screenSize,
+    double ballSize,
+    double letterFontSize,
+  ) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/backgrounds/bg_game_forest.png',
+          fit: BoxFit.cover,
+        ),
+        Positioned(
+          top: screenSize.height * 0.30,
+          bottom: 20,
+          left: 20,
+          right: 20,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Stack(
+                children: _activeBalls.where((b) => !b.isPopped).map((ball) {
+                  return Positioned(
+                    left: ball.xPos * (constraints.maxWidth - ballSize),
+                    top: ball.yPos * (constraints.maxHeight - ballSize),
+                    child: SizedBox(
+                      width: ballSize,
+                      height: ballSize,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/images/objects/forest/ball.png',
+                            fit: BoxFit.contain,
+                          ),
+                          Text(
+                            ball.letter,
+                            textScaler: const TextScaler.linear(1.0),
+                            style: TextStyle(
+                              fontFamily: ForestAppTextStyles.fredoka,
+                              fontSize: letterFontSize,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              shadows: const [
+                                Shadow(
+                                  blurRadius: 6,
+                                  color: Colors.black87,
+                                  offset: Offset(2, 2),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

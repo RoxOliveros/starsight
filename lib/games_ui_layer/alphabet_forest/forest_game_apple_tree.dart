@@ -15,6 +15,8 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_audio_path.dart';
 import 'forest_game_letter_fireflies.dart';
@@ -23,6 +25,7 @@ import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
 class AlphabetAppleTreeGame extends StatefulWidget {
   final int level;
+
   const AlphabetAppleTreeGame({super.key, required this.level});
 
   @override
@@ -35,10 +38,10 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
         GameLoadingMixin<AlphabetAppleTreeGame>,
         TofiReactionMixin<AlphabetAppleTreeGame>,
         AiCameraMixin,
-        AppAudioLifecycleMixin<AlphabetAppleTreeGame> {
-
+        AppAudioLifecycleMixin<AlphabetAppleTreeGame>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -56,7 +59,8 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
 
   static const String _audioBase = ForestAudioAssets.base;
   static const String _audioIntro = '$_audioBase/apple_tree_intro.wav';
-  static const String _audioInstruction = '$_audioBase/apple_tree_instruction.wav';
+  static const String _audioInstruction =
+      '$_audioBase/apple_tree_instruction.wav';
   static const String _audioWin = '$_audioBase/apple_tree_win.wav';
 
   static const List<Offset> _baseAppleSlots = [
@@ -77,7 +81,6 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
   late List<Offset> _applePositions;
   late String _targetLetter;
   String? _previousTarget;
-
 
   int? _fallingIndex;
   int? _wrongIndex;
@@ -188,11 +191,16 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
     } catch (e) {
       debugPrint('Instruction audio error: $e');
     } finally {
-      if (mounted) setState(() => _inputEnabled = true);
+      if (mounted) {
+        setState(() => _inputEnabled = true);
+        startIdleTimer();
+      }
     }
   }
 
   void _setupRound() {
+    cancelIdleTimer();
+    showHowToPlay = false;
     final rng = Random();
 
     String target;
@@ -243,6 +251,8 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
       _tapTracker.recordCorrectTap();
       _resolving = true;
       _foundThisRound = true;
+      cancelIdleTimer();
+      showHowToPlay = false;
       HapticFeedback.mediumImpact();
       setState(() => _fallingIndex = index);
       _fallCtrl.forward(from: 0);
@@ -275,9 +285,7 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
 
-      await playVoiceRestartingOnFaceLoss(
-        _audioPlayer, _audioWin
-      );
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -305,11 +313,15 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
     } catch (e) {
       debugPrint('Round audio error: $e');
     } finally {
-      if (mounted) setState(() => _inputEnabled = true);
+      if (mounted) {
+        setState(() => _inputEnabled = true);
+        startIdleTimer();
+      }
     }
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -367,6 +379,7 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _tofiFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -382,23 +395,105 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.alphabetForest(),
-        gameBuilder: () => Stack(
-          children: [
-            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
-            if (!_introPlaying) buildTofi(context),
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
-          ],
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_resolving && !_hasSavedResult) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.alphabetForest(),
+          gameBuilder: () => Stack(
+            children: [
+              if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+              if (!_introPlaying) buildTofi(context),
+              if (showHowToPlay &&
+                  !_introPlaying &&
+                  _inputEnabled &&
+                  !_resolving &&
+                  !_hasSavedResult)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: _toAlignment(
+                      _demoAppleCenter(screenSize, _demoTapIndex),
+                      screenSize,
+                    ),
+                    handOffset: const Offset(0.15, 0.65),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  static const int _demoTapIndex = 1;
+
+  Offset _demoAppleCenter(Size s, int index) {
+    final p = _baseAppleSlots[index];
+    return Offset(p.dx * s.width, p.dy * s.height);
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final treeHeight = s.height * 0.9;
+    final appleSize = s.height * 0.14;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          _bgImage,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              Container(color: ForestColorTheme.lightgrayishgreen),
+        ),
+        Center(
+          child: Image.asset(
+            _treeAsset,
+            height: treeHeight,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) =>
+                Text('🌳', style: TextStyle(fontSize: treeHeight * 0.45)),
+          ),
+        ),
+        for (final p in _baseAppleSlots)
+          Positioned(
+            left: p.dx * s.width - appleSize / 2,
+            top: p.dy * s.height - appleSize / 2,
+            width: appleSize,
+            height: appleSize,
+            child: Image.asset(
+              _appleAsset,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.red.shade400,
+                  border: Border.all(color: Colors.white, width: 3),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -477,9 +572,12 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
       scale: _sceneEnter,
       child: Stack(
         children: [
-
           Positioned(top: 25, left: 25, child: ForestXButton()),
-          Positioned(top: 25, right: 25, child: ForestLevelBadge(level: widget.level)),
+          Positioned(
+            top: 25,
+            right: 25,
+            child: ForestLevelBadge(level: widget.level),
+          ),
 
           Positioned.fill(
             child: LayoutBuilder(
@@ -488,7 +586,12 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
             ),
           ),
 
-          Positioned(bottom: 8, left: 0, right: 0, child: Center(child: _buildProgressDots())),
+          Positioned(
+            bottom: 8,
+            left: 0,
+            right: 0,
+            child: Center(child: _buildProgressDots()),
+          ),
         ],
       ),
     );

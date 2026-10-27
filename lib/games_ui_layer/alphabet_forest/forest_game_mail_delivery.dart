@@ -13,6 +13,8 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
@@ -35,10 +37,10 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
         GameLoadingMixin,
         TofiReactionMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<ForestMailDeliveryGame> {
-
+        AppAudioLifecycleMixin<ForestMailDeliveryGame>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -69,11 +71,15 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
 
   // ── Asset paths ──────────────────────────────────────────────────────────
   static const String _dogImage = 'assets/images/characters/dog.png';
-  static const String _bgImage = 'assets/images/backgrounds/bg_forest_3houses.png';
-  static const String _envelopImage = 'assets/images/objects/forest/envelope.png';
-  static const String _mailboxImage = 'assets/images/objects/forest/mailbox.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_forest_3houses.png';
+  static const String _envelopImage =
+      'assets/images/objects/forest/envelope.png';
+  static const String _mailboxImage =
+      'assets/images/objects/forest/mailbox.png';
 
   static const String _audioBase = ForestAudioAssets.base;
+
   // Tagalog
   static const String _audioIntro = '$_audioBase/mail_intro.wav';
   static const String _audioInstruction = '$_audioBase/mail_instruction.wav';
@@ -125,6 +131,7 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _tofiFloatCtrl.dispose();
     _mailboxBounceController.dispose();
     _mailboxShakeController.dispose();
@@ -156,7 +163,10 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
     } catch (e) {
       debugPrint('Intro audio error: $e');
     } finally {
-      if (mounted) setState(() => _inputEnabled = true);
+      if (mounted) {
+        setState(() => _inputEnabled = true);
+        startIdleTimer();
+      }
     }
   }
 
@@ -248,8 +258,8 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
   }
 
   // ── COMPLETION ───────────────────────────────────────────────────────
-
   Future<void> _completeGame() async {
+    cancelIdleTimer();
     ForestProgressService.instance.markLevelComplete(widget.level).catchError((
       e,
     ) {
@@ -257,7 +267,7 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
     });
     if (!mounted) return;
 
-    await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
     if (!mounted) return;
 
     await _saveDataAndShowGoodJob();
@@ -322,25 +332,97 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.alphabetForest(),
-        gameBuilder: () => Stack(
-          children: [
-            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+    final Size screenSize = MediaQuery.of(context).size;
 
-            if (!_introPlaying) buildTofi(context),
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_hasSavedResult) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.alphabetForest(),
+          gameBuilder: () => Stack(
+            children: [
+              if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate(); // don't leave the tutorial audio waiting
-                },
-              ),
-          ],
+              if (!_introPlaying) buildTofi(context),
+
+              if (showHowToPlay &&
+                  !_introPlaying &&
+                  _inputEnabled &&
+                  _canDrag &&
+                  !_parcelDelivered &&
+                  !_hasSavedResult)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: _toAlignment(
+                      screenSize.width / 2,
+                      _letterCenterY(screenSize),
+                      screenSize,
+                    ),
+                    handEndAlignment: _toAlignment(
+                      screenSize.width / 2,
+                      _mailboxCenterY(screenSize),
+                      screenSize,
+                    ),
+                    handOffset: const Offset(0.15, 0.4),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  double _mailboxCenterY(Size s) {
+    final double h = s.height - 100;
+    return 50 + (h * 5 / 7) / 2;
+  }
+
+  double _letterCenterY(Size s) {
+    final double h = s.height - 100;
+    return 50 + (h * 5 / 7) + (h * 2 / 7) / 2;
+  }
+
+  Alignment _toAlignment(double cx, double cy, Size s) {
+    return Alignment((2 * cx / s.width) - 1, (2 * cy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+
+        Positioned(
+          left: s.width / 2 - 70,
+          top: _mailboxCenterY(s) - 80,
+          child: _MailboxWidget(
+            letter: 'A',
+            imagePath: _mailboxImage,
+            highlighted: false,
+          ),
+        ),
+
+        Positioned(
+          left: s.width / 2 - 75,
+          top: _letterCenterY(s) - 75,
+          child: _ParcelCard(letter: 'A', imagePath: _envelopImage),
+        ),
+      ],
     );
   }
 
@@ -442,24 +524,30 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
     );
 
     return Opacity(
-        opacity: _inputEnabled ? 1.0 : 0.75,
-        child: Draggable<String>(
-      data: _displayLetter,
-      maxSimultaneousDrags: (_canDrag && _inputEnabled) ? 1 : 0,
-      feedback: Transform.scale(
-        scale: 1.15,
-        child: Material(
-          color: Colors.transparent,
-          child: _ParcelCard(
-            letter: _displayLetter,
-            imagePath: _envelopImage,
-            elevated: true,
+      opacity: _inputEnabled ? 1.0 : 0.75,
+      child: Draggable<String>(
+        data: _displayLetter,
+        maxSimultaneousDrags: (_canDrag && _inputEnabled) ? 1 : 0,
+        onDragStarted: cancelIdleTimer,
+        onDragEnd: (_) {
+          if (!_hasSavedResult && _currentRound < _totalRounds) {
+            startIdleTimer();
+          }
+        },
+        feedback: Transform.scale(
+          scale: 1.15,
+          child: Material(
+            color: Colors.transparent,
+            child: _ParcelCard(
+              letter: _displayLetter,
+              imagePath: _envelopImage,
+              elevated: true,
+            ),
           ),
         ),
+        childWhenDragging: Opacity(opacity: 0.3, child: parcelCard),
+        child: parcelCard,
       ),
-      childWhenDragging: Opacity(opacity: 0.3, child: parcelCard),
-      child: parcelCard,
-        ),
     );
   }
 
@@ -534,10 +622,6 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
   }
 }
 
-/// ─────────────────────────────────────────────────────────────────────────
-/// _ParcelCard — the draggable letter parcel, rendered on top of the
-/// envelope artwork (assets/images/objects/forest/envelop.png).
-/// ─────────────────────────────────────────────────────────────────────────
 class _ParcelCard extends StatelessWidget {
   final String letter;
   final String imagePath;

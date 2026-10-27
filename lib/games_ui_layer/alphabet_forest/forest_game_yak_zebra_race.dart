@@ -16,6 +16,8 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_audio_path.dart';
 import 'forest_game_catterpillar_letter_match.dart';
@@ -67,6 +69,7 @@ class _DashedPathPainter extends CustomPainter {
 
 class YakZebraRaceGame extends StatefulWidget {
   final int level;
+
   const YakZebraRaceGame({super.key, required this.level});
 
   @override
@@ -74,10 +77,15 @@ class YakZebraRaceGame extends StatefulWidget {
 }
 
 class _YakZebraRaceGameState extends State<YakZebraRaceGame>
-    with TickerProviderStateMixin, GameLoadingMixin<YakZebraRaceGame>, TofiReactionMixin<YakZebraRaceGame>, AiCameraMixin, AppAudioLifecycleMixin<YakZebraRaceGame> {
-
+    with
+        TickerProviderStateMixin,
+        GameLoadingMixin<YakZebraRaceGame>,
+        TofiReactionMixin<YakZebraRaceGame>,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<YakZebraRaceGame>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -91,7 +99,8 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   // ASSET PATHS
   // ═════════════════════════════════════════════════════════════════════
 
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_grassland.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_forest_grassland.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
   static const String _yakImage = 'assets/images/objects/forest/yak.png';
   static const String _zebraImage = 'assets/images/objects/forest/zebra.png';
@@ -300,7 +309,10 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     } catch (e) {
       debugPrint('Prompt audio error: $e');
     }
-    if (mounted) setState(() => _inputEnabled = true);
+    if (mounted) {
+      setState(() => _inputEnabled = true);
+      startIdleTimer();
+    }
   }
 
   List<String> _generateChoices(String target) {
@@ -317,6 +329,8 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     _correctSlotIndex = null;
     _wrongSlotIndex = null;
     _resolving = false;
+    cancelIdleTimer();
+    showHowToPlay = false;
 
     _pulseCtrl.reset();
     _shakeCtrl.reset();
@@ -333,7 +347,10 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
         } catch (e) {
           debugPrint('Prompt audio error: $e');
         }
-        if (mounted) setState(() => _inputEnabled = true);
+        if (mounted) {
+          setState(() => _inputEnabled = true);
+          startIdleTimer();
+        }
       });
     }
 
@@ -350,6 +367,8 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     if (letter == _targetLetter) {
       _tapTracker.recordCorrectTap();
       _resolving = true;
+      cancelIdleTimer();
+      showHowToPlay = false;
       HapticFeedback.mediumImpact();
       setState(() => _correctSlotIndex = slotIndex);
       _pulseCtrl.forward(from: 0);
@@ -405,10 +424,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
       if (_yakWillWin) {
         await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioYIsForYak);
       } else {
-        await playVoiceRestartingOnFaceLoss(
-          _audioPlayer,
-          _audioZIsForZebra,
-        );
+        await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioZIsForZebra);
       }
       if (!mounted) return;
 
@@ -435,6 +451,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -492,6 +509,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _tofiFloatCtrl.dispose();
     _instructionCtrl.dispose();
     _sceneEnterCtrl.dispose();
@@ -508,22 +526,82 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.alphabetForest(),
-        gameBuilder: () => Stack(
-          children: [
-            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
-          ],
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_resolving && !_hasSavedResult) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.alphabetForest(),
+          gameBuilder: () => Stack(
+            children: [
+              if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+              if (showHowToPlay &&
+                  !_introPlaying &&
+                  _inputEnabled &&
+                  !_resolving &&
+                  !_hasSavedResult)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: _toAlignment(
+                      _demoStoneCenter(screenSize),
+                      screenSize,
+                    ),
+                    handOffset: const Offset(0.15, 0.65),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  static const double _areaTop = 90.0;
+  static const double _areaBottom = 26.0;
+
+  Offset _demoStoneCenter(Size s) {
+    final correct = _choices.indexOf(_targetLetter);
+    final index = correct == 0 ? 1 : 0;
+    final areaH = s.height - _areaTop - _areaBottom;
+    final raceH = areaH * 3 / 5;
+    final stonesH = areaH * 2 / 5;
+    final pos = _stoneSlots[index % _stoneSlots.length];
+
+    return Offset(pos.dx * s.width, _areaTop + raceH + pos.dy * stonesH);
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          _bgImage,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) =>
+              Container(color: ForestColorTheme.lightgrayishgreen),
+        ),
+        _buildGameUI(s.width, s.height, hideLetters: true),
+      ],
     );
   }
 
@@ -553,7 +631,10 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
               offset: Offset(
                 0,
                 Tween<double>(begin: -6, end: 6).evaluate(
-                  CurvedAnimation(parent: _tofiFloatCtrl, curve: Curves.easeInOut),
+                  CurvedAnimation(
+                    parent: _tofiFloatCtrl,
+                    curve: Curves.easeInOut,
+                  ),
                 ),
               ),
               child: child,
@@ -562,20 +643,28 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
               duration: const Duration(milliseconds: 250),
               child: _introStage == 2
                   ? Row(
-                key: const ValueKey('both'),
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset(_yakImage, height: screenH * 0.5, fit: BoxFit.contain),
-                  const SizedBox(width: 60),
-                  Image.asset(_zebraImage, height: screenH * 0.5, fit: BoxFit.contain),
-                ],
-              )
+                      key: const ValueKey('both'),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          _yakImage,
+                          height: screenH * 0.5,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(width: 60),
+                        Image.asset(
+                          _zebraImage,
+                          height: screenH * 0.5,
+                          fit: BoxFit.contain,
+                        ),
+                      ],
+                    )
                   : Image.asset(
-                _introStage == 0 ? _yakImage : _zebraImage,
-                key: ValueKey(_introStage),
-                height: screenH * 0.6,
-                fit: BoxFit.contain,
-              ),
+                      _introStage == 0 ? _yakImage : _zebraImage,
+                      key: ValueKey(_introStage),
+                      height: screenH * 0.6,
+                      fit: BoxFit.contain,
+                    ),
             ),
           ),
         ),
@@ -607,7 +696,7 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     );
   }
 
-  Widget _buildGameUI(double w, double h) {
+  Widget _buildGameUI(double w, double h, {bool hideLetters = false}) {
     return ScaleTransition(
       scale: _sceneEnter,
       child: Stack(
@@ -632,8 +721,11 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
                 Expanded(
                   flex: 2,
                   child: LayoutBuilder(
-                      builder: (context, inner) =>
-                          _buildStonesArea(inner.maxWidth, inner.maxHeight),
+                    builder: (context, inner) => _buildStonesArea(
+                      inner.maxWidth,
+                      inner.maxHeight,
+                      hideLetters: hideLetters,
+                    ),
                   ),
                 ),
                 Padding(
@@ -751,17 +843,21 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
     );
   }
 
-  Widget _buildStonesArea(double w, double h) {
+  Widget _buildStonesArea(double w, double h, {bool hideLetters = false}) {
     return SizedBox(
       width: w,
       height: h,
       child: Stack(
-        children: List.generate(_choices.length, (i) => _buildStone(i, w, h)),
+        children: List.generate(
+          _choices.length,
+              (i) => _buildStone(i, w, h, hideLetters: hideLetters),
+        ),
       ),
     );
   }
 
-  Widget _buildStone(int index, double w, double h) {
+  Widget _buildStone(int index, double w, double h,
+      {bool hideLetters = false}) {
     final letter = _choices[index];
     final pos = _stoneSlots[index % _stoneSlots.length];
     final size = (h * 0.42).clamp(60.0, 110.0);
@@ -828,16 +924,17 @@ class _YakZebraRaceGameState extends State<YakZebraRaceGame>
                   ),
                 ),
               ),
-              Transform.translate(
-                offset: const Offset(2, 0),
-                child: _outlinedLetter(
-                  letter,
-                  fontSize: size * 0.42,
-                  fillColor: wrong
-                      ? Colors.red.shade400
-                      : ForestColorTheme.darkseagreen,
+              if (!hideLetters)
+                Transform.translate(
+                  offset: const Offset(2, 0),
+                  child: _outlinedLetter(
+                    letter,
+                    fontSize: size * 0.42,
+                    fillColor: wrong
+                        ? Colors.red.shade400
+                        : ForestColorTheme.darkseagreen,
+                  ),
                 ),
-              ),
             ],
           ),
         ),

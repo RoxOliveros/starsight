@@ -12,6 +12,8 @@ import '../../business_layer/forest_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_puzzle.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_hunt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_minigame_fall.dart';
 import 'alphabet_minigame_find.dart';
@@ -41,7 +43,7 @@ class AlphabetTraceScreen extends StatefulWidget {
 }
 
 class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
-    with TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetTraceScreen> {
+    with TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetTraceScreen>, IdleHintMixin  {
 
   final GameTapTracker _tapTracker = GameTapTracker();
   final GlobalKey _canvasKey = GlobalKey();
@@ -83,6 +85,14 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
   bool _audioFinished = false;
   bool _isDotStroke(List<Offset> stroke) => stroke.length <= 3;
 
+  bool get _hintActive =>
+      _audioFinished &&
+          !_hasSavedResult &&
+          _denseStrokes.isNotEmpty &&
+          _currentStrokeIndex < _denseStrokes.length;
+
+  bool get _hintAllowed => showHowToPlay && _hintActive;
+
   Size _lastCanvasSize = Size.zero;
 
   @override
@@ -121,13 +131,17 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
         'assets/audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
       );
     } finally {
-      if (mounted) setState(() => _audioFinished = true);
+      if (mounted) {
+        setState(() => _audioFinished = true);
+        startIdleTimer();
+      }
     }
   }
 
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     OrientationService.setLandscape();
     _audioPlayer.dispose();
     _tofiPlayer.dispose();
@@ -1142,6 +1156,8 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
   }
 
   Future<void> _showSuccessDialog() async {
+    cancelIdleTimer();
+    if (showHowToPlay) setState(() => showHowToPlay = false);
     await showTofiReaction(TofiState.correct);
 
     bool isLastSubLevel = _currentLevelIndex == _levels.length - 1;
@@ -1154,6 +1170,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
         _currentLevelIndex++;
       });
       _generateDensePaths(_lastCanvasSize);
+      startIdleTimer();
       return;
     }
 
@@ -1196,111 +1213,173 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/backgrounds/bg_game_forest.png',
-              fit: BoxFit.cover,
-            ),
-          ),
+    return Listener(
+      onPointerDown: (_) {
+        if (!_hintActive) return;
+        if (showHowToPlay) setState(() => showHowToPlay = false);
+        cancelIdleTimer();
+      },
+      onPointerUp: (_) {
+        if (_hintActive) startIdleTimer();
+      },
+      onPointerCancel: (_) {
+        if (_hintActive) startIdleTimer();
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            _buildScene(),
 
-          Stack(
+            if (_hintAllowed) Positioned.fill(child: _buildHowToPlay()),
+
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScene({bool preview = false}) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/backgrounds/bg_game_forest.png',
+            fit: BoxFit.cover,
+          ),
+        ),
+
+        Stack(
+          children: [
+            Column(
               children: [
-                Column(
-                  children: [
-                    SizedBox(
-                      height: 80,
-                      child: Stack(
-                        children: [
-                          const Positioned(
-                            top: 25,
-                            left: 25,
-                            child: ForestXButton(),
-                          ),
-                          Positioned(
-                            top: 25,
-                            right: 20,
-                            child: ForestLevelBadge(
-                              level:
-                                  ForestProgressService.levelNumberForLetter(
-                                    widget.letter,
-                                  ) ??
-                                  1,
-                            ),
-                          ),
-                        ],
+                SizedBox(
+                  height: 80,
+                  child: Stack(
+                    children: [
+                      const Positioned(
+                        top: 25,
+                        left: 25,
+                        child: ForestXButton(),
                       ),
-                    ),
-                    Expanded(
-                      child: Center(
-                        child: AspectRatio(
-                          aspectRatio: 1.0,
-                          child: Padding(
-                            padding: const EdgeInsets.all(18.0),
-                            child: Container(
-                              key: _canvasKey,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                  color: ForestColorTheme.lightgreen,
-                                  width: 4,
-                                ),
-                              ),
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final size = constraints.biggest;
-                                  if (size != _lastCanvasSize) {
-                                    _lastCanvasSize = size;
-                                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                                      if (mounted) _generateDensePaths(size);
-                                    });
-                                  }
-                                  return Stack(
-                                    children: [
-                                      GestureDetector(
-                                        onTapDown: _onTapDown,
-                                        onPanStart: _onPanStart,
-                                        onPanUpdate: _onPanUpdate,
-                                        onPanEnd: _onPanEnd,
-                                        onPanCancel: _onPanCancel,
-                                        child: CustomPaint(
-                                          painter: GuidedTracePainter(
-                                            denseStrokes: _denseStrokes,
-                                            currentStrokeIndex: _currentStrokeIndex,
-                                            currentPointIndex: _currentPointIndex,
-                                          ),
-                                          size: Size.infinite,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
+                      Positioned(
+                        top: 25,
+                        right: 20,
+                        child: ForestLevelBadge(
+                          level:
+                          ForestProgressService.levelNumberForLetter(
+                            widget.letter,
+                          ) ??
+                              1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: AspectRatio(
+                      aspectRatio: 1.0,
+                      child: Padding(
+                        padding: const EdgeInsets.all(18.0),
+                        child: Container(
+                          key: preview ? null : _canvasKey,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: ForestColorTheme.lightgreen,
+                              width: 4,
                             ),
+                          ),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final size = constraints.biggest;
+                              if (!preview && size != _lastCanvasSize) {
+                                _lastCanvasSize = size;
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  if (mounted) _generateDensePaths(size);
+                                });
+                              }
+                              return Stack(
+                                children: [
+                                  GestureDetector(
+                                    onTapDown: _onTapDown,
+                                    onPanStart: _onPanStart,
+                                    onPanUpdate: _onPanUpdate,
+                                    onPanEnd: _onPanEnd,
+                                    onPanCancel: _onPanCancel,
+                                    child: CustomPaint(
+                                      painter: GuidedTracePainter(
+                                        denseStrokes: _denseStrokes,
+                                        currentStrokeIndex: _currentStrokeIndex,
+                                        currentPointIndex: _currentPointIndex,
+                                      ),
+                                      size: Size.infinite,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                  ],
+                  ),
                 ),
-                buildTofi(context),
+                const SizedBox(height: 20),
               ],
             ),
+            buildTofi(context),
+          ],
+        ),
+      ],
+    );
+  }
 
-          // 2. The Lighting Prompt Card (Valid here because it's inside the outer Stack's children list)
-          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-            LightingPromptCard(
-              onClose: () {
-                setState(() => _hideLightingCard = true);
-                releaseFaceGate(); // don't leave the tutorial audio waiting
-              },
-            ),
-        ],
-      ),
+  List<Alignment> _canvasPath(List<Offset> points) {
+    final box = _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return [];
+
+    return points.map((p) {
+      final g = box.localToGlobal(p + const Offset(4, 4), ancestor: root);
+      return Alignment(
+        g.dx / root.size.width * 2 - 1,
+        g.dy / root.size.height * 2 - 1,
+      );
+    }).toList();
+  }
+
+  Widget _buildHowToPlay() {
+    final stroke = _denseStrokes[_currentStrokeIndex];
+    final from = min(_currentPointIndex, stroke.length - 1);
+
+    List<Alignment> path;
+    if (_isDotStroke(stroke)) {
+      path = _canvasPath([stroke[from]]);
+    } else {
+      final to = min(stroke.length - 1, from + 60);
+      final pts = <Offset>[];
+      for (int i = from; i <= to; i += 3) {
+        pts.add(stroke[i]);
+      }
+      if ((to - from) % 3 != 0) pts.add(stroke[to]);
+      path = _canvasPath(pts);
+    }
+
+    return HowToPlayOverlay(
+      handAlignment: path.isNotEmpty ? path.first : Alignment.center,
+      handPath: path.length >= 2 ? path : null,
+      handOffset: const Offset(0.15, 0.45),
+      onDismiss: startIdleTimer,
+      previewChild: _buildScene(preview: true),
     );
   }
 }

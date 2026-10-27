@@ -15,6 +15,8 @@ import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_audio_path.dart';
 import 'forest_game_train.dart';
@@ -104,10 +106,10 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
         GameLoadingMixin<AlphabetFishingGame>,
         TofiReactionMixin<AlphabetFishingGame>,
         AiCameraMixin,
-        AppAudioLifecycleMixin<AlphabetFishingGame> {
-
+        AppAudioLifecycleMixin<AlphabetFishingGame>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -125,7 +127,8 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
   static const String _dogImage = 'assets/images/characters/dog.png';
   static const String _rodImage = 'assets/images/objects/forest/rod.png';
   static const String _fishImage = 'assets/images/objects/forest/fish.png';
-  static const String _rodFishImage = 'assets/images/objects/forest/rod_fish.png';
+  static const String _rodFishImage =
+      'assets/images/objects/forest/rod_fish.png';
 
   static const String _audioBase = ForestAudioAssets.base;
 
@@ -144,6 +147,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     _RoundConfig(fishCount: 5, swimDurationMs: 1500, sizeFactor: 0.24),
     _RoundConfig(fishCount: 6, swimDurationMs: 1200, sizeFactor: 0.22),
   ];
+
   static int get _totalRounds => _roundConfigs.length;
   static const int _maxFish = 6;
 
@@ -278,6 +282,8 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
 
   Future<void> _announceInstruction() async {
     _inputEnabled = false;
+    cancelIdleTimer();      
+    showHowToPlay = false;
     try {
       await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioCatch);
       if (!mounted) return;
@@ -288,7 +294,10 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     } catch (e) {
       debugPrint('Instruction audio error: $e');
     } finally {
-      if (mounted) _inputEnabled = true;
+      if (mounted) {
+        _inputEnabled = true;
+        startIdleTimer();   
+      }
     }
   }
 
@@ -375,6 +384,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
   }
 
   Future<void> _handleCorrectAnswer(_FishData fish, int index) async {
+    cancelIdleTimer();
     _tapTracker.recordCorrectTap();
 
     showTofiReaction(TofiState.correct);
@@ -406,6 +416,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     await Future.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
     setState(() => fish.wrong = false);
+    startIdleTimer(); 
   }
 
   Future<void> _advanceRound() async {
@@ -413,7 +424,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
     if (!mounted) return;
 
     if (_currentRound >= _totalRounds - 1) {
-      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -500,6 +511,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
 
   void _moveRod(Offset delta, double w, double h) {
     if (_interactionLocked || !_inputEnabled) return;
+    resetIdleTimer();
 
     final newX = (_rodPosition.dx + delta.dx).clamp(
       -_rodSize * 0.85,
@@ -558,6 +570,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _tofiFloatCtrl.dispose();
     _bobCtrl.dispose();
     _instructionCtrl.dispose();
@@ -578,23 +591,86 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.alphabetForest(),
-        gameBuilder: () => Stack(
-          children: [
-            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
-            if (!_introPlaying) buildTofi(context),
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
-          ],
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_interactionLocked) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.alphabetForest(),
+          gameBuilder: () => Stack(
+            children: [
+              if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+              if (!_introPlaying) buildTofi(context),
+              if (showHowToPlay &&
+                  !_introPlaying &&
+                  _inputEnabled &&
+                  !_interactionLocked)
+                Positioned.fill(child: _buildHowToPlayOverlay()),
+              if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHowToPlayOverlay() {
+    final sz = MediaQuery.of(context).size;
+    final sw = sz.width, sh = sz.height;
+
+    final pondH = (sh - _pondTopOffset - 26).clamp(0.0, double.infinity);
+    final rodSize = min(sh * 0.58, 260.0);
+
+    final fishSize = (pondH * 0.30).clamp(56.0, 130.0).toDouble();
+    final fishCx = sw * 0.5;
+    final fishCy = _pondTopOffset + pondH * 0.5;
+    final sampleLetter = _targetLetter == 'A' ? 'B' : 'A';
+
+    final rodStart = Offset(sw - rodSize * 1.2, 10);
+    final rodEnd = Offset(fishCx - rodSize * 0.05, fishCy - rodSize * 0.91);
+
+    const gripFx = 0.84, gripFy = 0.09;
+    final startPt = rodStart + Offset(rodSize * gripFx, rodSize * gripFy);
+    final endPt = rodEnd + Offset(rodSize * gripFx, rodSize * gripFy);
+
+    Alignment al(Offset p) => Alignment(2 * p.dx / sw - 1, 2 * p.dy / sh - 1);
+
+    return HowToPlayOverlay(
+      previewBuilder: (t) {
+        final rodPos = Offset.lerp(rodStart, rodEnd, t)!;
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(_bgImage, fit: BoxFit.cover),
+            Positioned(
+              left: fishCx - fishSize / 2,
+              top: fishCy - fishSize * 0.35,
+              width: fishSize,
+              height: fishSize,
+              child: _fishVisual(sampleLetter, fishSize,
+                  wrong: false, flip: 1.0),
+            ),
+            Positioned(
+              left: rodPos.dx,
+              top: rodPos.dy,
+              width: rodSize,
+              height: rodSize,
+              child: Image.asset(_rodImage, fit: BoxFit.contain),
+            ),
+          ],
+        );
+      },
+      handAlignment: al(startPt),
+      handEndAlignment: al(endPt),
+      handOffset: const Offset(0.17, 0.46),
+      onDismiss: resetIdleTimer,
     );
   }
 

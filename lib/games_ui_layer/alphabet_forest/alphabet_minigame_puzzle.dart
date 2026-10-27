@@ -13,6 +13,8 @@ import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_game_acorn_basket.dart';
 import 'forest_game_berry_bush_harvest.dart';
@@ -42,10 +44,14 @@ class AlphabetPuzzleScreen extends StatefulWidget {
 }
 
 class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
-    with TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetPuzzleScreen> {
+    with
+        TofiReactionMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<AlphabetPuzzleScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -61,7 +67,8 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   late List<PuzzlePiece> _allPieces;
   late String _fullImagePath;
 
-  static const String _puzzleInstructionWav = 'assets/audio/alphabet_forest/alphabet_minigame_puzzle_instruction.wav';
+  static const String _puzzleInstructionWav =
+      'assets/audio/alphabet_forest/alphabet_minigame_puzzle_instruction.wav';
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -89,6 +96,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     OrientationService.setLandscape();
     _audioPlayer.dispose();
     _tofiPlayer.dispose();
@@ -96,17 +104,42 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   }
 
   static const Map<String, String> _objectMap = {
-    'A': 'apple', 'B': 'ball', 'C': 'car', 'D': 'duck', 'E': 'egg',
-    'F': 'feet', 'G': 'glass', 'H': 'hat', 'I': 'igloo', 'J': 'jar',
-    'K': 'key', 'L': 'lamp', 'M': 'milk', 'N': 'nose', 'O': 'oil',
-    'P': 'pan', 'Q': 'queen', 'R': 'rain', 'S': 'sun', 'T': 'tree',
-    'U': 'umbrella', 'V': 'vase', 'W': 'window', 'X': 'xylophone',
-    'Y': 'yarn', 'Z': 'zero',
+    'A': 'apple',
+    'B': 'ball',
+    'C': 'car',
+    'D': 'duck',
+    'E': 'egg',
+    'F': 'feet',
+    'G': 'glass',
+    'H': 'hat',
+    'I': 'igloo',
+    'J': 'jar',
+    'K': 'key',
+    'L': 'lamp',
+    'M': 'milk',
+    'N': 'nose',
+    'O': 'oil',
+    'P': 'pan',
+    'Q': 'queen',
+    'R': 'rain',
+    'S': 'sun',
+    'T': 'tree',
+    'U': 'umbrella',
+    'V': 'vase',
+    'W': 'window',
+    'X': 'xylophone',
+    'Y': 'yarn',
+    'Z': 'zero',
   };
 
-  String _objectName(String letter) => _objectMap[letter.toUpperCase()] ?? 'apple';
-  String _getObjectImage(String letter) => 'assets/images/objects/forest/${_objectName(letter)}.png';
-  String _getObjectAudio(String letter) => 'assets/audio/alphabet_forest/${_objectName(letter)}.wav';
+  String _objectName(String letter) =>
+      _objectMap[letter.toUpperCase()] ?? 'apple';
+
+  String _getObjectImage(String letter) =>
+      'assets/images/objects/forest/${_objectName(letter)}.png';
+
+  String _getObjectAudio(String letter) =>
+      'assets/audio/alphabet_forest/${_objectName(letter)}.wav';
 
   void _resetGame() {
     setState(() {
@@ -130,17 +163,19 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     } catch (e) {
       debugPrint('Instruction audio error: $e');
     } finally {
-      if (mounted) setState(() => _inputEnabled = true);
+      if (mounted) {
+        setState(() => _inputEnabled = true);
+        startIdleTimer();
+      }
     }
   }
 
   Future<void> _saveDataAndShowSuccessDialog() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
-    // 1. Stop the camera and get the emotions
     List<String> finalEmotions = stopAiCamera();
 
-    // 2. Save raw data silently using the centralized service
     ForestDatabaseService.saveGameData(
       gameId: 'letter_puzzle_${widget.letter.toLowerCase()}',
       activityName: "Alphabet Puzzle (${widget.letter.toUpperCase()})",
@@ -355,16 +390,20 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     final double boardSize = screenSize.height * 0.65;
     final double pieceSize = boardSize / 2;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-      Positioned.fill(
-      child: Image.asset(
-        'assets/images/backgrounds/bg_game_forest.png',
-        fit: BoxFit.cover,
-      ),
-    ),
-    Stack(
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_hasSavedResult) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/backgrounds/bg_game_forest.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+            Stack(
               children: [
                 buildTofi(context),
 
@@ -449,22 +488,37 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
                             itemBuilder: (context, index) {
                               final piece = _availablePieces[index];
 
-                              return
-                                Opacity(
-                                    opacity: _inputEnabled ? 1.0 : 0.75,
-                                    child: Draggable<PuzzlePiece>(
-                                data: piece,
-                                maxSimultaneousDrags: _inputEnabled ? 1 : 0,
-                                feedback: _PuzzlePieceWidget(imagePath: _fullImagePath, pieceId: piece.id, size: pieceSize)
-                                      ,
-                                childWhenDragging: Opacity(
-                                  opacity: 0.2,
-                                  child: _PuzzlePieceWidget(imagePath: _fullImagePath, pieceId: piece.id, size: pieceSize)
-                                  ,
-                                ),
-                                child: _PuzzlePieceWidget(imagePath: _fullImagePath, pieceId: piece.id, size: pieceSize)
-                                      ,
+                              return Opacity(
+                                opacity: _inputEnabled ? 1.0 : 0.75,
+                                child: Draggable<PuzzlePiece>(
+                                  data: piece,
+                                  maxSimultaneousDrags: _inputEnabled ? 1 : 0,
+                                  onDragStarted: cancelIdleTimer,
+                                  onDragEnd: (_) {
+                                    if (!_hasSavedResult &&
+                                        _placedPieces.length < 4) {
+                                      startIdleTimer();
+                                    }
+                                  },
+                                  feedback: _PuzzlePieceWidget(
+                                    imagePath: _fullImagePath,
+                                    pieceId: piece.id,
+                                    size: pieceSize,
+                                  ),
+                                  childWhenDragging: Opacity(
+                                    opacity: 0.2,
+                                    child: _PuzzlePieceWidget(
+                                      imagePath: _fullImagePath,
+                                      pieceId: piece.id,
+                                      size: pieceSize,
                                     ),
+                                  ),
+                                  child: _PuzzlePieceWidget(
+                                    imagePath: _fullImagePath,
+                                    pieceId: piece.id,
+                                    size: pieceSize,
+                                  ),
+                                ),
                               );
                             },
                           ),
@@ -476,16 +530,140 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
               ],
             ),
 
-          // 2. The Lighting Prompt Card Overlay
-          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-            LightingPromptCard(
-              onClose: () {
-                setState(() => _hideLightingCard = true);
-                releaseFaceGate(); // don't leave the tutorial audio waiting
-              },
-            ),
-        ],
+            if (showHowToPlay &&
+                _inputEnabled &&
+                !_hasSavedResult &&
+                _availablePieces.isNotEmpty)
+              Positioned.fill(
+                child: HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(screenSize, boardSize),
+                  handAlignment: _handStartAlignment(screenSize),
+                  handEndAlignment: _handEndAlignment(screenSize, boardSize),
+                  handOffset: const Offset(0.15, 0.4),
+                  onDismiss: resetIdleTimer,
+                ),
+              ),
+
+            // 2. The Lighting Prompt Card Overlay
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate(); // don't leave the tutorial audio waiting
+                },
+              ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Alignment _toAlignment(double cx, double cy, Size s) {
+    return Alignment((2 * cx / s.width) - 1, (2 * cy / s.height) - 1);
+  }
+
+  // Centre of the first piece in the tray.
+  Alignment _handStartAlignment(Size s) {
+    final double inner = s.width * 0.28 - 40;
+    final double cell = (inner - 16) / 2;
+    final double gridLeft = s.width - s.width * 0.28;
+    const double gridTop = 100;
+
+    const int index = 0;
+    final double cx = gridLeft + (index % 2) * (cell + 16) + cell / 2;
+    final double cy = gridTop + (index ~/ 2) * (cell + 16) + cell / 2;
+    return _toAlignment(cx, cy, s);
+  }
+
+  // Centre of the board slot that the first tray piece belongs in.
+  Alignment _handEndAlignment(Size s, double boardSize) {
+    if (_availablePieces.isEmpty) return Alignment.center;
+    final int slot = _availablePieces.first.id;
+
+    final double boardLeft = (s.width - boardSize) / 2;
+    final double boardTop = 70 + (s.height - 70 - boardSize) / 2;
+    final double slotSize = (boardSize - 8) / 2; // 4px border on each side
+
+    final double cx = boardLeft + 4 + (slot % 2) * slotSize + slotSize / 2;
+    final double cy = boardTop + 4 + (slot ~/ 2) * slotSize + slotSize / 2;
+    return _toAlignment(cx, cy, s);
+  }
+
+  Widget _buildHowToPreview(Size s, double boardSize) {
+    final double slotSize = (boardSize - 8) / 2;
+    final double traySize = s.width * 0.28 - 40;
+    final double cell = (traySize - 16) / 2;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/backgrounds/bg_game_forest.png',
+          fit: BoxFit.cover,
+        ),
+        Positioned(
+          left: (s.width - boardSize) / 2,
+          top: 70 + (s.height - 70 - boardSize) / 2,
+          width: boardSize,
+          height: boardSize,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: ForestColorTheme.lightgreen, width: 4),
+              borderRadius: BorderRadius.circular(12),
+              image: DecorationImage(
+                image: AssetImage(_fullImagePath),
+                fit: BoxFit.contain,
+                opacity: 0.65,
+              ),
+            ),
+            child: GridView.count(
+              padding: EdgeInsets.zero,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              children: List.generate(4, (i) {
+                final placed = _placedPieces[i];
+                return Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: ForestColorTheme.darkseagreen.withValues(
+                        alpha: 0.1,
+                      ),
+                    ),
+                  ),
+                  child: placed == null
+                      ? null
+                      : _PuzzlePieceWidget(
+                          imagePath: _fullImagePath,
+                          pieceId: placed.id,
+                          size: slotSize,
+                        ),
+                );
+              }),
+            ),
+          ),
+        ),
+        Positioned(
+          left: s.width - s.width * 0.28,
+          top: 100,
+          width: traySize,
+          child: GridView.count(
+            padding: EdgeInsets.zero,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            children: _availablePieces.map((p) {
+              return _PuzzlePieceWidget(
+                imagePath: _fullImagePath,
+                pieceId: p.id,
+                size: cell,
+              );
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -541,7 +719,11 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
                 : Colors.transparent,
           ),
           child: isFilled
-              ? _PuzzlePieceWidget(imagePath: _fullImagePath, pieceId: placedPiece!.id, size: size)
+              ? _PuzzlePieceWidget(
+                  imagePath: _fullImagePath,
+                  pieceId: placedPiece!.id,
+                  size: size,
+                )
               : null,
         );
       },

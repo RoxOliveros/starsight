@@ -13,6 +13,8 @@ import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'alphabet_intro.dart';
 import 'forest_audio_path.dart';
@@ -55,10 +57,10 @@ class _AcornBasketGameState extends State<AcornBasketGame>
         GameLoadingMixin,
         TofiReactionMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<AcornBasketGame> {
-
+        AppAudioLifecycleMixin<AcornBasketGame>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -190,13 +192,16 @@ class _AcornBasketGameState extends State<AcornBasketGame>
     } catch (e) {
       debugPrint('Intro audio error: $e');
     } finally {
-      if (mounted) setState(() => _inputEnabled = true);
+      if (mounted) {
+        setState(() => _inputEnabled = true);
+        startIdleTimer();
+      }
     }
   }
 
   String _pickLetterForLane(_FallingLane lane) {
     final othersHaveTarget = _lanes.any(
-          (l) => l != lane && l.letter == _targetLetter,
+      (l) => l != lane && l.letter == _targetLetter,
     );
     if (!othersHaveTarget) return _targetLetter;
 
@@ -235,7 +240,10 @@ class _AcornBasketGameState extends State<AcornBasketGame>
     }
 
     if (!_lanes.any((l) => l.letter == _targetLetter)) {
-      final free = _lanes.firstWhere((l) => !l.isBusy, orElse: () => _lanes.first);
+      final free = _lanes.firstWhere(
+        (l) => !l.isBusy,
+        orElse: () => _lanes.first,
+      );
       free.letter = _targetLetter;
     }
 
@@ -245,6 +253,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _basketPulseController.dispose();
     _wrongShakeController.dispose();
     for (final lane in _lanes) {
@@ -283,6 +292,7 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
     if (_catchesThisRound >= _catchesPerRound) {
       _roundLocked = true;
+      cancelIdleTimer();
 
       _currentRound++;
 
@@ -318,7 +328,10 @@ class _AcornBasketGameState extends State<AcornBasketGame>
           } catch (e) {
             debugPrint('Round audio error: $e');
           } finally {
-            if (mounted) setState(() => _inputEnabled = true);
+            if (mounted) {
+              setState(() => _inputEnabled = true);
+              startIdleTimer();
+            }
           }
         });
       }
@@ -352,12 +365,11 @@ class _AcornBasketGameState extends State<AcornBasketGame>
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
-    // 1. Stop the camera and get the emotions
     List<String> finalEmotions = stopAiCamera();
 
-    // 2. Save raw data silently using the service
     ForestDatabaseService.saveGameData(
       gameId: 'forest_acorn_basket',
       activityName: "Acorn Basket",
@@ -415,21 +427,53 @@ class _AcornBasketGameState extends State<AcornBasketGame>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.alphabetForest(),
-        gameBuilder: () => Stack(
-          children: [
-            if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+    final Size screenSize = MediaQuery.of(context).size;
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate(); // don't leave the tutorial audio waiting
-                },
-              ),
-          ],
+    return Listener(
+      onPointerDown: (_) {
+        if (_inputEnabled && !_roundLocked && !_hasSavedResult) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.alphabetForest(),
+          gameBuilder: () => Stack(
+            children: [
+              if (_introPlaying) _buildIntroLayer() else _buildGameContent(),
+
+              if (showHowToPlay &&
+                  !_introPlaying &&
+                  _inputEnabled &&
+                  !_roundLocked &&
+                  !_hasSavedResult)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: _toAlignment(
+                      _sampleAcornCenter(screenSize),
+                      screenSize,
+                    ),
+                    handEndAlignment: _toAlignment(
+                      _basketCenter(screenSize),
+                      screenSize,
+                    ),
+                    handOffset: const Offset(0.15, 0.4),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate(); // don't leave the tutorial audio waiting
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -560,15 +604,9 @@ class _AcornBasketGameState extends State<AcornBasketGame>
                     animation: lane.controller,
                     builder: (context, child) {
                       final t = lane.controller.value;
-
                       final top = (-acornSize) + (zoneH + acornSize * 2) * t;
-
                       final left = zoneW * lane.xFraction - acornSize / 2;
-
-                      // Gentle left-right sway
                       final sway = sin(t * pi * 2 + i) * 12;
-
-                      // Slight rotation
                       final rotation = sin(t * pi * 2 + i) * 0.10;
 
                       return Positioned(
@@ -581,14 +619,77 @@ class _AcornBasketGameState extends State<AcornBasketGame>
                       laneIndex: i,
                       letter: lane.letter,
                       size: acornSize,
-                      onDragStarted: () => lane.isBusy = true,
-                      onDragEnd: () => lane.isBusy = false,
+                      onDragStarted: () {
+                        lane.isBusy = true;
+                        cancelIdleTimer();
+                      },
+                      onDragEnd: () {
+                        lane.isBusy = false;
+                        if (_inputEnabled &&
+                            !_roundLocked &&
+                            !_hasSavedResult) {
+                          startIdleTimer();
+                        }
+                      },
                       enabled: _inputEnabled,
                     ),
                   );
                 }),
               );
             },
+          ),
+        ),
+      ],
+    );
+  }
+
+  static const double _sampleAcornSize = 92.0;
+  static const double _basketHeight = 170.0;
+
+  // Sample acorn position (upper-middle of the rain zone).
+  Offset _sampleAcornCenter(Size s) => Offset(s.width * 0.38, s.height * 0.35);
+
+  // Basket centre: bottom: 20, right: 20, height 170.
+  Offset _basketCenter(Size s) => Offset(
+    s.width - 20 - _basketHeight / 2,
+    s.height - 20 - _basketHeight / 2,
+  );
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final Offset acorn = _sampleAcornCenter(s);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/backgrounds/bg_game_forest.png',
+          fit: BoxFit.cover,
+        ),
+
+        Positioned(
+          bottom: 20,
+          right: 20,
+          child: Image.asset(
+            'assets/images/objects/puzzle/basket.png',
+            height: _basketHeight,
+            fit: BoxFit.contain,
+          ),
+        ),
+
+        Positioned(
+          left: acorn.dx - _sampleAcornSize / 2,
+          top: acorn.dy - _sampleAcornSize / 2,
+          child: _FallingAcorn(
+            laneIndex: 0,
+            letter: 'D',
+            size: _sampleAcornSize,
+            onDragStarted: () {},
+            onDragEnd: () {},
+            enabled: false,
           ),
         ),
       ],
