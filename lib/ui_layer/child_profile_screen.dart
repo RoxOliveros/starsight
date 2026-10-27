@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lottie/lottie.dart';
 import 'parents_area_screen.dart';
-import 'avatar_picker_dialog.dart'; // for kDefaultAvatarPath, AvatarStorage
+import 'avatar_picker_dialog.dart';
 import '../business_layer/orientation_service.dart';
 import '../business_layer/database_service.dart';
 import 'category_report_screen.dart';
@@ -13,7 +13,6 @@ import '../business_layer/lagoon_progress_service.dart';
 import '../business_layer/puzzle_progress_service.dart';
 import 'edit_child_screen.dart';
 
-/// The four constructs every subject is analyzed on.
 enum LearningConstruct { engagement, attention, focus, learning }
 
 extension LearningConstructX on LearningConstruct {
@@ -472,17 +471,6 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
     );
   }
 
-  String _formatDate(DateTime d) => '${d.month}/${d.day}/${d.year}';
-
-  // ── Birthday + gender (read from the child's Firestore document) ─────
-
-  /// Reads the child's raw document and fills [_birthdayText] and
-  /// [_genderText]. Sign-up saves the birthdate as "M/D/YYYY" and the
-  /// gender as "Boy" / "Girl".
-  ///
-  /// The exact Firestore key names live in DatabaseService, which I can't
-  /// see, so the likely names are tried in order. Once you confirm the
-  /// real ones in the Firestore console, you can delete the others.
   Future<void> _loadBirthdayAndGender(String childId) async {
     try {
       final rawChildren = await DatabaseService().getChildren();
@@ -504,8 +492,9 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
         birthdayDate = rawBirthday.toDate();
       } else if (rawBirthday is String && rawBirthday.trim().isNotEmpty) {
         birthdayDate = _parseBirthdate(rawBirthday.trim());
-        if (birthdayDate == null)
-          birthday = rawBirthday; // unparseable: show as-is
+        if (birthdayDate == null) {
+          birthday = rawBirthday;
+        }
       }
       if (birthdayDate != null) birthday = _formatBirthday(birthdayDate);
 
@@ -519,12 +508,9 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
       _birthdayDate = birthdayDate;
       _genderText = gender;
     } catch (_) {
-      // Leave both as null -> the UI shows "—".
     }
   }
 
-  /// Parses the "M/D/YYYY" string saved at sign-up. Falls back to ISO
-  /// formats (e.g. "2004-03-17") via DateTime.tryParse.
   DateTime? _parseBirthdate(String value) {
     final parts = value.split('/');
     if (parts.length == 3) {
@@ -711,20 +697,6 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
     );
   }
 
-  Widget _buildInfoButton(ChildAge age) {
-    return GestureDetector(
-      onTap: () => _showAgeExpectationDialog(age),
-      child: const Padding(
-        padding: EdgeInsets.all(4),
-        child: Icon(
-          Icons.info_outline_rounded,
-          size: 25,
-          color: ColorTheme.teal,
-        ),
-      ),
-    );
-  }
-
   String _ageExpectationNote(double age) {
     if (age < 3.5) {
       return 'At this age, it\'s completely normal for focus to come in '
@@ -742,80 +714,6 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
         'themselves more clearly — though impulse control and patience '
         'are still very much developing. That\'s all part of healthy '
         'growth.';
-  }
-
-  void _showAgeExpectationDialog(ChildAge age) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        backgroundColor: ColorTheme.cream,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.favorite_rounded,
-                    color: ColorTheme.orange,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      "What's typical at this age?",
-                      style: TextStyle(
-                        fontFamily: AppTextStyles.fredoka,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: ColorTheme.deepNavyBlue,
-                      ),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(dialogContext),
-                    child: const Icon(
-                      Icons.close_rounded,
-                      color: ColorTheme.mutedGrey,
-                      size: 20,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Text(
-                _ageExpectationNote(age.inYears),
-                style: const TextStyle(
-                  fontFamily: 'Nunito',
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                  height: 1.5,
-                  color: ColorTheme.brown,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text(
-                    'Got it',
-                    style: TextStyle(
-                      fontFamily: AppTextStyles.fredoka,
-                      fontWeight: FontWeight.w700,
-                      color: ColorTheme.teal,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   Widget _buildMessageState({required IconData icon, required String message}) {
@@ -914,11 +812,11 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
             child: _buildStatCard(
               color: const Color(0xFFEE8A23),
               value: topSubjectName,
-              label: 'MOST PLAYED SUBJECT',
+              label: 'MOST PLAYED CATEGORY',
               valueFontSize: 18,
-              infoTitle: 'Most Played Subject',
+              infoTitle: 'Most Played Category',
               infoMessage:
-                  'This shows the subject where your child has finished the '
+                  'This shows the category where your child has finished the '
                   'most games so far.',
             ),
           ),
@@ -1002,8 +900,8 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
         SizedBox(
           width: 58,
           height: 58,
-          child: Lottie.asset(
-            'assets/animations/movie_clapperboard.json',
+          child: Image.asset(
+            'assets/animations/movie_clapperboard.webp',
             fit: BoxFit.contain,
             errorBuilder: (context, error, stack) => const Icon(
               Icons.movie_creation_outlined,
@@ -1091,7 +989,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Container(
+                SizedBox(
                   width: 52,
                   height: 52,
                   child: Lottie.asset(
@@ -1182,13 +1080,8 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   static int get _totalLevelsAllCategories =>
       _categoryTotalLevels.values.fold<int>(0, (a, b) => a + b);
 
-  /// Keep in sync with _maxStoredCycles in CategoryReportScreen.
   static const int _maxStoredCycles = 2;
 
-  /// Distinct games this child has finished per category, read from the
-  /// same `games_played` docs the category report uses. Replays of the
-  /// same game don't add to the count, and each category is capped at its
-  /// total number of levels.
   Future<Map<String, int>> _loadCompletedGames(String childId) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return {};
@@ -1330,24 +1223,5 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
       case LearningConstruct.learning:
         return 'Showing gradual improvement, with performance still varying session to session.';
     }
-  }
-}
-
-// ── Shared small decorative widget ──────────────────────────────────────
-
-class _StarDecor extends StatelessWidget {
-  final double size;
-
-  const _StarDecor({required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/images/night_star.png',
-      width: size,
-      height: size,
-      errorBuilder: (context, error, stack) =>
-          Icon(Icons.star_rounded, size: size, color: ColorTheme.titleGold),
-    );
   }
 }
