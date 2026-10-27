@@ -2,7 +2,6 @@ import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:lottie/lottie.dart';
 import '../business_layer/CategorySummaryService.dart';
 import '../business_layer/child_name_lookup.dart';
 import '../business_layer/forest_progress_service.dart';
@@ -38,7 +37,6 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
   bool _errorCanRetry = false;
 
   String _cycleDateText = "";
-  int _latestCycle = 1;
   int _selectedCycle = 1;
   List<int> _availableCycles = [1];
 
@@ -184,7 +182,6 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
       final trackerDoc = await categoryRef.get();
 
       if (trackerDoc.exists && trackerDoc.data()!.containsKey('currentCycle')) {
-        _latestCycle = trackerDoc.data()!['currentCycle'];
       }
 
       // Only cycle_1..cycle_[_maxStoredCycles] ever get written to (the
@@ -397,7 +394,6 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print("Report load error: $e");
       if (!mounted) return;
       final failure = e is ReportGenerationException
           ? e
@@ -729,7 +725,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
   //           border: Border.all(color: Colors.grey.shade500, width: 2.5),
   //           boxShadow: [
   //             BoxShadow(
-  //               color: Colors.grey.withOpacity(0.25),
+  //               color: Colors.grey.withValues(alpha: 0.25),
   //               blurRadius: 14,
   //               offset: const Offset(0, 6),
   //             ),
@@ -742,7 +738,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
   //               width: 56,
   //               height: 56,
   //               decoration: BoxDecoration(
-  //                 color: Colors.grey.withOpacity(0.15),
+  //                 color: Colors.grey.withValues(alpha: 0.15),
   //                 shape: BoxShape.circle,
   //               ),
   //               child: Icon(
@@ -868,7 +864,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: color, size: 28),
@@ -966,7 +962,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
+                          color: color.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Column(
@@ -1100,7 +1096,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: accent.withOpacity(0.15),
+                  color: accent.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -1305,7 +1301,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         color: const Color(0xFFFFFDF5),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: const Color(0xFF6fd3e3).withOpacity(0.5),
+          color: const Color(0xFF6fd3e3).withValues(alpha: 0.5),
           width: 3,
         ),
       ),
@@ -1402,7 +1398,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                 border: Border(
                   bottom: BorderSide(
                     color: _scrolled
-                        ? ColorTheme.brown.withOpacity(0.2)
+                        ? ColorTheme.brown.withValues(alpha: 0.2)
                         : Colors.transparent,
                     width: 1,
                   ),
@@ -1583,8 +1579,8 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                         children: [
                           SizedBox(
                             width: 120,
-                            child: Lottie.asset(
-                              'assets/animations/movie_clapperboard.json',
+                            child: Image.asset(
+                              'assets/animations/movie_clapperboard.webp',
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -1615,7 +1611,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                               color: const Color(0xFFFFFDF5),
                               borderRadius: BorderRadius.circular(18),
                               border: Border.all(
-                                color: const Color(0xFFF7D070).withOpacity(0.5),
+                                color: const Color(0xFFF7D070).withValues(alpha: 0.5),
                                 width: 3,
                               ),
                             ),
