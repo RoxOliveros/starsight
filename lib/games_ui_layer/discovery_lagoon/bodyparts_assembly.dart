@@ -11,6 +11,8 @@ import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'lagoon_audio_path.dart';
 import 'intro_phase.dart';
 import 'kiki_reaction.dart';
@@ -39,7 +41,8 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
         AiCameraMixin<BodyPartsAssemblyScreen>,
         AppAudioLifecycleMixin<BodyPartsAssemblyScreen>,
         LagoonIntroMixin<BodyPartsAssemblyScreen>,
-        KikiReactionMixin {
+        KikiReactionMixin,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer= AudioPlayer();
@@ -113,7 +116,10 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
     startLagoonIntro(
       introAudioAsset: _introAudio,
       onGameStart: () {
-        if (mounted) setState(() => _screenPhase = LagoonScreenPhase.game);
+        if (mounted) {
+          setState(() => _screenPhase = LagoonScreenPhase.game);
+          startIdleTimer();
+        }
       },
     );
   }
@@ -122,6 +128,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   void dispose() {
     disposeAiCamera();
     disposeLagoonIntro();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _kikiPlayer.dispose();
     OrientationService.setLandscape();
@@ -140,6 +147,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   Future<void> _saveDataAndShowSuccessDialog() async {
     if (_hasSavedResult) return;
     _hasSavedResult = true;
+    cancelIdleTimer();
     List<String> finalEmotions = stopAiCamera();
 
     LagoonDatabaseService.saveGameData(
@@ -165,7 +173,14 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Listener(
+        onPointerDown: (_) {
+          _tapTracker.recordGenericTap();
+          if (_screenPhase == LagoonScreenPhase.game && !_showOverlay) {
+            resetIdleTimer();
+          }
+        },
+        child:  Scaffold(
       body: Stack(
         children: [
           Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
@@ -184,6 +199,28 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
                 : _buildGameContent(),
           ),
 
+          if (showHowToPlay &&
+              _screenPhase == LagoonScreenPhase.game &&
+              !_showOverlay &&
+              _matchedParts.length < _allParts.length)
+            Positioned.fill(
+              child: Builder(
+                builder: (context) {
+                  final sz = MediaQuery.of(context).size;
+                  final g = _hintGeometry();
+                  Alignment toAlign(Offset p) =>
+                      Alignment(p.dx / sz.width * 2 - 1, p.dy / sz.height * 2 - 1);
+                  return HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(),
+                    handAlignment: toAlign(g.card),
+                    handEndAlignment: toAlign(g.box),
+                    handOffset: const Offset(0.15, 0.46),
+                    onDismiss: resetIdleTimer,
+                  );
+                },
+              ),
+            ),
+          
           if (_showOverlay)
             GoodJobOverlay(
               characterImage: _kikiFishboneImage,
@@ -204,11 +241,92 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
                   _screenPhase = LagoonScreenPhase.game;
                   _resetGame();
                 });
+                startIdleTimer();
               },
               onBack: () => Navigator.of(context).pop(),
             ),
         ],
       ),
+        ),
+    );
+  }
+
+  ({Offset card, Offset box}) _hintGeometry() {
+    final sz = MediaQuery.of(context).size;
+    final h = sz.height - 50; // game area sits 50px below the top
+    final dw = sz.width * 0.62;
+    final ow = sz.width * 0.38;
+    return (
+    card: Offset(dw + ow / 2, 50 + h / 2),
+    box: Offset(dw / 2 - h * 0.32, 50 + h / 2 - h * 0.25),
+    );
+  }
+
+  Widget _buildHowToPreview() {
+    final sz = MediaQuery.of(context).size;
+    final h = sz.height - 50;
+    final dw = sz.width * 0.62;
+    final cx = dw / 2;
+    final cy = h / 2;
+    final boxSize = h * 0.20;
+
+    final boyHeight = h * 0.95;
+    final boyWidth = boyHeight * 0.6;
+    final boyLeft = cx - boyWidth / 2;
+    final boyTop = cy - boyHeight / 2;
+
+    final headTarget = Offset(
+      boyLeft + boyWidth * 0.20,
+      boyTop + boyHeight * 0.15,
+    );
+    final headBox = Offset(cx - h * 0.32, cy - h * 0.25);
+    final g = _hintGeometry();
+
+    return Stack(
+      children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+        Positioned(
+          left: 0,
+          top: 50,
+          width: dw,
+          height: h,
+          child: Stack(
+            children: [
+              Center(
+                child: Image.asset(
+                  _boyImage,
+                  height: boyHeight,
+                  fit: BoxFit.contain,
+                ),
+              ),
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _SampleLinePainter(headBox, headTarget),
+                ),
+              ),
+              Positioned(
+                left: headBox.dx - boxSize / 2,
+                top: headBox.dy - boxSize / 2,
+                child: Container(
+                  width: boxSize,
+                  height: boxSize,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    border: Border.all(color: Colors.black87, width: 4),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: g.card.dx - 50,
+          top: g.card.dy - 50,
+          child: const _DraggableImage(
+            imagePath: 'assets/images/objects/lagoon/head.png',
+          ),
+        ),
+      ],
     );
   }
 
@@ -379,8 +497,10 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
                       return Center(
                         child: Draggable<String>(
                           data: part.id,
+                          onDragStarted: cancelIdleTimer,
                           onDragEnd: (details) {
                             if (!details.wasAccepted) {
+                              startIdleTimer();
                               _tapTracker.recordMistake();
                               GamesSfxPlayer.instance.play(GameSfx.bubblePop);
                               showKikiReaction(KikiState.wrong);
@@ -438,6 +558,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
           }
         } else {
           await playVoiceRestartingOnFaceLoss(_audioPlayer, _partAudio[targetId]!);
+          if (mounted) startIdleTimer();
         }
       },
       builder: (context, candidateData, rejectedData) {
@@ -509,6 +630,24 @@ class _DraggableImage extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SampleLinePainter extends CustomPainter {
+  final Offset box, target;
+  _SampleLinePainter(this.box, this.target);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.black87
+      ..strokeWidth = 4.0
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(box, target, paint);
+    canvas.drawCircle(target, 6.0, Paint()..color = Colors.black87);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class ConnectingLinesPainter extends CustomPainter {

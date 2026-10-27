@@ -14,6 +14,8 @@ import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_tap_sort_screen.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -38,7 +40,8 @@ class _ColdHotGameState extends State<ColdHotGame>
         TickerProviderStateMixin,
         KikiReactionMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<ColdHotGame> {
+        AppAudioLifecycleMixin<ColdHotGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer= AudioPlayer();
@@ -107,6 +110,7 @@ class _ColdHotGameState extends State<ColdHotGame>
         setState(() {
           _isIntroPlaying = false;
         });
+        startIdleTimer();
       }
     });
 
@@ -121,6 +125,7 @@ class _ColdHotGameState extends State<ColdHotGame>
       debugPrint("Error playing intro audio: $e");
       if (mounted) {
         setState(() => _isIntroPlaying = false);
+        startIdleTimer();
       }
     }
   }
@@ -167,6 +172,7 @@ class _ColdHotGameState extends State<ColdHotGame>
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -231,11 +237,13 @@ class _ColdHotGameState extends State<ColdHotGame>
         _dragOffset = Offset.zero;
       });
     }
+    if (!_isGameWon) startIdleTimer();
   }
 
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _kikiPlayer.dispose();
     OrientationService.setLandscape();
@@ -249,7 +257,14 @@ class _ColdHotGameState extends State<ColdHotGame>
     final double sh = MediaQuery.of(context).size.height;
     final double itemSize = sh * 0.38;
 
-    return Scaffold(
+    return Listener(
+        onPointerDown: (_) {
+          _tapTracker.recordGenericTap();
+          if (!_isIntroPlaying && !_isGameWon && !_showVictoryOverlay) {
+            resetIdleTimer();
+          }
+        },
+        child: Scaffold(
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -309,7 +324,10 @@ class _ColdHotGameState extends State<ColdHotGame>
               left: (sw / 2) - (itemSize / 2) + _dragOffset.dx,
               top: (sh / 2) - (itemSize / 2) + _dragOffset.dy + (sh * 0.10),
               child: GestureDetector(
-                onPanStart: (_) => setState(() => _isDragging = true),
+                onPanStart: (_) {
+                  cancelIdleTimer();
+                  setState(() => _isDragging = true);
+                },
                 onPanUpdate: (details) {
                   setState(() {
                     _dragOffset += details.delta;
@@ -354,6 +372,22 @@ class _ColdHotGameState extends State<ColdHotGame>
             child: LagoonLevelBadge(level: widget.level),
           ),
 
+          if (showHowToPlay &&
+              !_isIntroPlaying &&
+              !_isDragging &&
+              !_isGameWon &&
+              !_showVictoryOverlay &&
+              _currentItem != null)
+            Positioned.fill(
+              child: HowToPlayOverlay(
+                previewChild: _buildHowToPreview(sw, sh, itemSize),
+                handAlignment: const Alignment(0.0, 0.2),
+                handEndAlignment: const Alignment(-0.5, 0.2),
+                handOffset: const Offset(0.15, 0.4),
+                onDismiss: resetIdleTimer,
+              ),
+            ),
+
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {
@@ -384,14 +418,57 @@ class _ColdHotGameState extends State<ColdHotGame>
                   _tapTracker.startSession();
                   _initGame();
                 });
+                startIdleTimer();
               },
               onBack: () => Navigator.of(context).pop(),
             ),
         ],
       ),
+        ),
+    );
+  }
+  Widget _buildHowToPreview(double sw, double sh, double itemSize) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Positioned(
+          top: 25,
+          left: sw * 0.5 - (sw * 0.34),
+          child: Image.asset(_coldBadgeImage, width: sw * 0.3, fit: BoxFit.contain),
+        ),
+        Positioned(
+          top: 25,
+          right: sw * 0.5 - (sw * 0.34),
+          child: Image.asset(_hotBadgeImage, width: sw * 0.3, fit: BoxFit.contain),
+        ),
+        Positioned(
+          top: 0,
+          bottom: 0,
+          left: sw / 2 - 1,
+          child: CustomPaint(
+            size: Size(2, sh),
+            painter: _DashedLinePainter(
+              topPadding: sh * 0.15,
+              bottomPadding: sh * 0.08,
+            ),
+          ),
+        ),
+        Positioned(
+          left: (sw / 2) - (itemSize / 2),
+          top: (sh / 2) - (itemSize / 2) + (sh * 0.10),
+          child: Image.asset(
+            _snowmanImage,
+            width: itemSize,
+            height: itemSize,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ],
     );
   }
 }
+
 
 Widget _buildSortedItemsArea({
   required List<SortableItem> items,

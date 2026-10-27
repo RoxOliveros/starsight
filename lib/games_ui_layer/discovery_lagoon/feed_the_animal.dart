@@ -16,6 +16,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -56,7 +58,7 @@ class FeedTheAnimalGame extends StatefulWidget {
 }
 
 class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
-    with AiCameraMixin, AppAudioLifecycleMixin<FeedTheAnimalGame>, KikiReactionMixin {
+    with AiCameraMixin, AppAudioLifecycleMixin<FeedTheAnimalGame>, KikiReactionMixin, IdleHintMixin  {
 
   StreamSubscription? _audioSub;
   final GameTapTracker _tapTracker = GameTapTracker();
@@ -71,6 +73,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
   AudioPlayer get kikiPlayer => _kikiPlayer;
 
   int _currentLevelIndex = 0;
+
   bool _isHappy = false;
   bool _showSuccessUI = false;
   bool _readyForEntrance = false;
@@ -240,6 +243,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioSub?.cancel();
     _audioPlayer.dispose();
     _kikiPlayer.dispose();
@@ -274,6 +278,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
     final currentLevel = _levels[_currentLevelIndex];
 
     if (foodId == currentLevel.correctFood) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       setState(() {
         _isHappy = true;
@@ -309,6 +314,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
       _tapTracker.recordMistake();
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showKikiReaction(KikiState.wrong);
+      startIdleTimer();
     }
   }
 
@@ -330,6 +336,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
     setState(() {
       _canDragFood = true;
     });
+    showHowToPlay = false;
+    startIdleTimer();
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
@@ -433,7 +441,11 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
 
     final currentLevel = _levels[_currentLevelIndex];
 
-    return Scaffold(
+    return Listener(
+        onPointerDown: (_) {
+          if (_canDragFood) resetIdleTimer();
+        },
+        child:  Scaffold(
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -573,6 +585,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
                                 )
                               : Draggable<String>(
                                   data: food.id,
+                                  onDragStarted: cancelIdleTimer,                  
+                                  onDraggableCanceled: (_, __) => startIdleTimer(),
                                   feedback: Material(
                                     color: Colors.transparent,
                                     child: Transform.scale(
@@ -587,7 +601,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
                                   child: foodWidget,
                                 ),
                         ),
-                      ),
+                        ),
                     ],
                   ),
                 );
@@ -595,6 +609,12 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
             ).animate().fadeIn(duration: 500.ms),
           ),
           Positioned(top: 25, left: 25, child: const LagoonXButton()),
+
+          if (showHowToPlay &&
+              _canDragFood &&
+              !_isHappy &&
+              !_showSuccessUI)
+            Positioned.fill(child: _buildHowToPlayOverlay(sw, sh)),
 
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
@@ -632,6 +652,7 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
                   });
                   Future.delayed(const Duration(milliseconds: 200), () {
                     if (mounted) setState(() => _readyForEntrance = true);
+                    _playQuestionAudioForCurrentLevel();
                   });
                 },
                 onBack: () => Navigator.of(context).pop(),
@@ -639,6 +660,80 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
             ),
         ],
       ),
+        ),
+    );
+  }
+
+  Widget _buildHowToPlayOverlay(double sw, double sh) {
+    final sample = _levels[(_currentLevelIndex + 1) % _levels.length];
+    final sampleFood =
+    sample.tableFoods.firstWhere((f) => f.id == sample.correctFood);
+
+    final animalH = sh * 0.95;
+    final plateW = sw * 0.20;
+    final foodW = sw * 0.14;
+    final foodBottom = sh * 0.055;
+
+    Alignment al(double cx, double cy) =>
+        Alignment(2 * cx / sw - 1, 2 * cy / sh - 1);
+
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset('assets/images/backgrounds/bg_rainbow_lagoon.png', fit: BoxFit.cover),
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Image.asset(sample.animalImagePath, height: animalH, fit: BoxFit.contain),
+          ),
+        ),
+        Positioned(
+          bottom: -sh * 0.60,
+          left: 0,
+          right: 0,
+          child: Image.asset('assets/images/objects/lumi/table.png', width: sw, fit: BoxFit.contain),
+        ),
+        Positioned(
+          bottom: foodBottom,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: SizedBox(
+              width: plateW,
+              height: plateW,
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Image.asset('assets/images/objects/lumi/plate.png', width: plateW),
+                  ),
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: plateW * 0.04),
+                      child: Image.asset(sampleFood.imagePath,
+                          width: foodW, height: foodW, fit: BoxFit.contain),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    final foodCy = sh - foodBottom - plateW * 0.04 - foodW / 2;
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: al(sw / 2, foodCy),      
+      handEndAlignment: al(sw / 2, sh * 0.45), 
+      handOffset: const Offset(0.05, 0.46),
+      onDismiss: resetIdleTimer,
     );
   }
 }

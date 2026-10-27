@@ -12,6 +12,8 @@ import 'package:StarSight/games_ui_layer/discovery_lagoon/habitant_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -21,11 +23,11 @@ class ClothesGame extends StatefulWidget {
   const ClothesGame({super.key, required this.level});
 
   @override
-  _ClothesGameState createState() => _ClothesGameState();
+  State<ClothesGame> createState() => _ClothesGameState();
 }
 
 class _ClothesGameState extends State<ClothesGame>
-    with AiCameraMixin, KikiReactionMixin, AppAudioLifecycleMixin<ClothesGame> {
+    with AiCameraMixin, KikiReactionMixin, AppAudioLifecycleMixin<ClothesGame>, IdleHintMixin  {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer= AudioPlayer();
@@ -67,6 +69,8 @@ class _ClothesGameState extends State<ClothesGame>
         setState(() {
           showIntro = false;
         });
+        showHowToPlay = false;
+        startIdleTimer();
       }
     });
 
@@ -80,6 +84,7 @@ class _ClothesGameState extends State<ClothesGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _kikiPlayer.dispose();
     OrientationService.setLandscape();
@@ -92,6 +97,7 @@ class _ClothesGameState extends State<ClothesGame>
     final String currentWeather = weathers[currentWeatherIndex];
 
     if (draggedClothes == currentWeather) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
 
       setState(() {
@@ -112,15 +118,17 @@ class _ClothesGameState extends State<ClothesGame>
         setState(() {
           currentWeatherIndex++;
           isDressed = false;
-
           _canDragClothes = true;
         });
+        showHowToPlay = false; 
+        startIdleTimer();
       }
     } else {
       _tapTracker.recordMistake();
 
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showKikiReaction(KikiState.wrong);
+      startIdleTimer();
     }
   }
 
@@ -251,7 +259,6 @@ class _ClothesGameState extends State<ClothesGame>
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
@@ -309,7 +316,11 @@ class _ClothesGameState extends State<ClothesGame>
       }
     }
 
-    return Scaffold(
+    return Listener(
+        onPointerDown: (_) {
+          if (!showIntro && _canDragClothes && !isDressed) resetIdleTimer();
+        },
+        child:  Scaffold(
       body: Stack(
         children: [
           // =========================
@@ -410,6 +421,13 @@ class _ClothesGameState extends State<ClothesGame>
             child: LagoonLevelBadge(level: widget.level),
           ),
 
+          if (showHowToPlay &&
+              !showIntro &&
+              _canDragClothes &&
+              !isDressed &&
+              !showGoodJobOverlay)
+            Positioned.fill(child: _buildHowToPlayOverlay(size, sidebarWidth)),
+
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {
@@ -448,6 +466,63 @@ class _ClothesGameState extends State<ClothesGame>
             ),
         ],
       ),
+        ),
+    );
+  }
+
+  Widget _buildHowToPlayOverlay(Size size, double sidebarWidth) {
+    final sw = size.width, sh = size.height;
+
+    // sample room: never the current round's weather
+    const room = 'assets/images/objects/lagoon/room_winter.png';
+    const item = 'assets/images/objects/lagoon/clothes_winter.png';
+    final bearW = sw * 0.28;
+    final bearBottom = sh * -0.08;
+    final itemW = sw * 0.16;
+
+    final bearLeft = (sw - sidebarWidth) / 2 - bearW / 2;
+    final bearCx = bearLeft + bearW / 2;
+    final bearCy = sh - bearBottom - bearW * 0.5; // rough center of the bear
+
+    final sideCx = sw - sidebarWidth / 2;
+    final sideCy = sh / 2;
+
+    Alignment al(double cx, double cy) =>
+        Alignment(2 * cx / sw - 1, 2 * cy / sh - 1);
+
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(room, fit: BoxFit.cover),
+        Positioned(
+          left: bearLeft,
+          bottom: bearBottom,
+          child: Image.asset('assets/images/characters/little_bear.png',
+              width: bearW, fit: BoxFit.contain),
+        ),
+        Positioned(
+          right: 0,
+          top: 0,
+          bottom: 0,
+          child: Container(
+            width: sidebarWidth,
+            decoration: const BoxDecoration(
+              color: Color(0xFFE5E7EB),
+              border: Border(left: BorderSide(color: Colors.grey, width: 4)),
+            ),
+            alignment: Alignment.center,
+            child: Image.asset(item, width: itemW, fit: BoxFit.contain),
+          ),
+        ),
+      ],
+    );
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: al(sideCx, sideCy),
+      handEndAlignment: al(bearCx, bearCy),
+      handOffset: const Offset(0.05, 0.46),
+      onDismiss: resetIdleTimer,
     );
   }
 
@@ -455,6 +530,8 @@ class _ClothesGameState extends State<ClothesGame>
     return Draggable<String>(
       data: type,
       maxSimultaneousDrags: _canDragClothes ? 1 : 0,
+      onDragStarted: cancelIdleTimer,                   
+      onDraggableCanceled: (_, __) => startIdleTimer(),
       feedback: Material(
         color: Colors.transparent,
         child: Image.asset(

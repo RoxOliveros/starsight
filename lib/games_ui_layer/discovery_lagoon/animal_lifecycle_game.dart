@@ -12,7 +12,9 @@
   import 'package:StarSight/business_layer/orientation_service.dart';
   import '../games_audio_helper.dart';
   import '../goodjob_prompt.dart';
-  import 'kiki_reaction.dart';
+  import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
+import 'kiki_reaction.dart';
   import 'lagoon_game_ui.dart';
 
   class AnimalLifecycleGame extends StatefulWidget {
@@ -25,7 +27,7 @@
   }
 
   class _AnimalLifecycleGameState extends State<AnimalLifecycleGame>
-      with AiCameraMixin, AppAudioLifecycleMixin<AnimalLifecycleGame>, KikiReactionMixin {
+      with AiCameraMixin, AppAudioLifecycleMixin<AnimalLifecycleGame>, KikiReactionMixin, IdleHintMixin {
 
     final AudioPlayer _audioPlayer = AudioPlayer();
     final AudioPlayer _kikiPlayer= AudioPlayer();
@@ -37,6 +39,15 @@
     AudioPlayer get kikiPlayer => _kikiPlayer;
 
     final GameTapTracker _tapTracker = GameTapTracker();
+    final List<GlobalKey> _slotKeys = List.generate(4, (_) => GlobalKey());
+
+    final double kikiHorizontalOffset = 0.0;
+    final double kikiVerticalOffset = 40.0;
+    final double kikiSizeFactor = 1.20;
+
+    late List<String> currentSequence;
+
+    int currentLevelIndex = 0;
 
     bool showIntro = true;
     bool showGoodJob = false;
@@ -44,13 +55,7 @@
     bool _hideLightingCard = false;
     bool _hasSavedResult = false;
 
-    final double kikiHorizontalOffset = 0.0;
-    final double kikiVerticalOffset = 40.0;
-    final double kikiSizeFactor = 1.20;
-
-    int currentLevelIndex = 0;
     bool isCorrect = false;
-    late List<String> currentSequence;
 
     final List<List<String>> allCorrectSequences = [
       [
@@ -130,11 +135,13 @@
       );
       if (!mounted) return;
       setState(() => showIntro = false);
+      startIdleTimer();
     }
 
     @override
     void dispose() {
       disposeAiCamera();
+      disposeIdleTimer();
       _audioPlayer.dispose();
       _kikiPlayer.dispose();
       OrientationService.setLandscape();
@@ -167,6 +174,7 @@
       });
 
       if (isCorrect) {
+        cancelIdleTimer();
         _tapTracker.recordCorrectTap();
         await GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
         if (!mounted) return;
@@ -175,12 +183,12 @@
         if (currentLevelIndex < allCorrectSequences.length - 1) {
           Future.delayed(const Duration(seconds: 2), () {
             if (!mounted) return;
-
             setState(() {
               currentLevelIndex++;
               currentSequence = List.from(allInitialSequences[currentLevelIndex]);
               isCorrect = false;
             });
+            startIdleTimer();
           });
         } else {
           Future.delayed(const Duration(seconds: 2), () {
@@ -189,6 +197,7 @@
           });
         }
       } else {
+        startIdleTimer();
         _tapTracker.recordMistake();
         GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
       }
@@ -196,6 +205,7 @@
 
     Future<void> _saveDataAndShowGoodJob() async {
       if (_hasSavedResult) return;
+      cancelIdleTimer();
       _hasSavedResult = true;
       List<String> finalEmotions = stopAiCamera();
 
@@ -224,7 +234,12 @@
 
     @override
     Widget build(BuildContext context) {
-      return Scaffold(
+      return Listener(
+          onPointerDown: (_) {
+            _tapTracker.recordGenericTap();
+            if (!showIntro && !isCorrect && !showGoodJob) resetIdleTimer();
+          },
+          child: Scaffold(
         body: Stack(
           children: [
             Positioned.fill(
@@ -255,38 +270,16 @@
                 ),
               )
             else
-              SafeArea(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    double maxByHeight = constraints.maxHeight * 0.45;
-                    double maxByWidth = constraints.maxWidth / 5.5;
+              SafeArea(child: _buildCardsRow(currentSequence)),
 
-                    double universalCardSize = maxByHeight < maxByWidth
-                        ? maxByHeight
-                        : maxByWidth;
-
-                    return Center(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: SizedBox(
-                          height: universalCardSize,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(7, (index) {
-                              if (index % 2 == 1) {
-                                return _buildArrow(universalCardSize);
-                              }
-                              int cardIndex = index ~/ 2;
-                              return _buildDraggableSlot(
-                                cardIndex,
-                                universalCardSize,
-                              );
-                            }),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+            if (showHowToPlay && !showIntro && !isCorrect && !showGoodJob)
+              Positioned.fill(
+                child: HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(),
+                  handAlignment: _alignmentOf(_slotKeys[2]),
+                  handEndAlignment: _alignmentOf(_slotKeys[0]),
+                  handOffset: const Offset(0.15, 0.4),
+                  onDismiss: resetIdleTimer,
                 ),
               ),
 
@@ -319,6 +312,7 @@
                     _hasSavedResult = false;
                     _tapTracker.startSession();
                   });
+                  startIdleTimer();
                 },
                 onBack: () {
                   Navigator.pop(context);
@@ -326,6 +320,64 @@
               ),
           ],
         ),
+          ),
+      );
+    }
+
+    Widget _buildCardsRow(List<String> sequence, {bool preview = false}) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final maxByHeight = constraints.maxHeight * 0.45;
+          final maxByWidth = constraints.maxWidth / 5.5;
+          final size = maxByHeight < maxByWidth ? maxByHeight : maxByWidth;
+
+          return Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: SizedBox(
+                height: size,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(7, (index) {
+                    if (index % 2 == 1) return _buildArrow(size);
+                    final cardIndex = index ~/ 2;
+                    if (preview) {
+                      return _buildCardUI(sequence[cardIndex], false, size);
+                    }
+                    return _buildDraggableSlot(cardIndex, size);
+                  }),
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    Widget _buildHowToPreview() {
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/backgrounds/bg_rainbow_closeup2.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+          SafeArea(
+            child: _buildCardsRow(allInitialSequences[0], preview: true),
+          ),
+        ],
+      );
+    }
+
+    Alignment _alignmentOf(GlobalKey key) {
+      final box = key.currentContext?.findRenderObject() as RenderBox?;
+      final root = context.findRenderObject() as RenderBox?;
+      if (box == null || root == null || !box.hasSize) return Alignment.center;
+      final c = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+      return Alignment(
+        c.dx / root.size.width * 2 - 1,
+        c.dy / root.size.height * 2 - 1,
       );
     }
 
@@ -351,6 +403,7 @@
         onAcceptWithDetails: (details) => _onItemDropped(details.data, index),
         builder: (context, candidateData, rejectedData) {
           return Draggable<int>(
+            key: _slotKeys[index],
             data: index,
             maxSimultaneousDrags: isCorrect || showGoodJob ? 0 : 1,
             feedback: Material(

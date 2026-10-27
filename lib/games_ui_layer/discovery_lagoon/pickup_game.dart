@@ -13,6 +13,8 @@ import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_scene_builder_
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -64,7 +66,7 @@ class PickupGame extends StatefulWidget {
 }
 
 class _PickupGameState extends State<PickupGame>
-    with AiCameraMixin, AppAudioLifecycleMixin<PickupGame>, KikiReactionMixin {
+    with AiCameraMixin, AppAudioLifecycleMixin<PickupGame>, KikiReactionMixin, IdleHintMixin  {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer= AudioPlayer();
@@ -341,6 +343,8 @@ class _PickupGameState extends State<PickupGame>
           setState(() {
             _isChildrenEntering = false;
           });
+          showHowToPlay = false; 
+          startIdleTimer();      
         }
       });
     });
@@ -367,6 +371,7 @@ class _PickupGameState extends State<PickupGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _kikiPlayer.dispose();
     OrientationService.setLandscape();
@@ -381,6 +386,7 @@ class _PickupGameState extends State<PickupGame>
         _isIntro) {
       return;
     }
+    cancelIdleTimer();
 
     _tapTracker.recordCorrectTap();
     showKikiReaction(KikiState.correct);
@@ -533,6 +539,7 @@ class _PickupGameState extends State<PickupGame>
               _tapTracker.recordMistake();
               GamesSfxPlayer.instance.play(GameSfx.bubblePop);
               showKikiReaction(KikiState.wrong);
+              startIdleTimer();
             }
           },
           child: AnimatedContainer(
@@ -560,7 +567,13 @@ class _PickupGameState extends State<PickupGame>
     final Size screenSize = MediaQuery.of(context).size;
     final currentLevel = _levels[_currentLevelIndex];
 
-    return Scaffold(
+    return Listener(
+        onPointerDown: (_) {
+          if (!_isIntro && !_isChildrenEntering && !_isTargetMoving && !_isWalkingAway) {
+            resetIdleTimer();
+          }
+        },
+        child: Scaffold(
       body: Stack(
         children: [
           Positioned.fill(
@@ -611,6 +624,7 @@ class _PickupGameState extends State<PickupGame>
                         !_isChildrenEntering) {
                       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
                       showKikiReaction(KikiState.wrong);
+                      startIdleTimer();
                     }
                   },
                   child: _WalkingAnimalEntrance(
@@ -645,6 +659,15 @@ class _PickupGameState extends State<PickupGame>
               screenSize: screenSize,
               choiceLeftOffset: _targetChoiceLeft,
             ),
+
+          if (showHowToPlay &&
+              !_isIntro &&
+              !_showSuccessUI &&
+              !_isChildrenEntering &&
+              !_forceEntrancePositions &&
+              !_isTargetMoving &&
+              !_isWalkingAway)
+            Positioned.fill(child: _buildHowToPlayOverlay(screenSize)),
 
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
@@ -689,6 +712,52 @@ class _PickupGameState extends State<PickupGame>
             ),
         ],
       ),
+        ),
+    );
+  }
+
+  Widget _buildHowToPlayOverlay(Size sz) {
+    final sw = sz.width, sh = sz.height;
+
+    // sample = a 3-child round that is never the current one
+    final sample = _levels[(_currentLevelIndex + 1) % 5];
+    final target = sample.targetChild;
+    final wrong1 = sample.wrongChild1!;
+    final wrong2 = sample.wrongChild2!;
+
+    Widget child(CharacterConfig c, double left) => Positioned(
+      left: sw * left,
+      bottom: sh * c.bottomOffset,
+      height: sh * c.startHeight,
+      child: Image.asset(c.imagePath),
+    );
+
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset('assets/images/backgrounds/bg_school.png', fit: BoxFit.cover),
+        Positioned(
+          bottom: 0,
+          left: sw * 0.15,
+          height: sh * 0.65,
+          child: Image.asset(sample.parentImage),
+        ),
+        child(wrong1, 0.35),
+        child(wrong2, 0.61),
+        child(target, 0.48), // the one the hand taps
+      ],
+    );
+
+    // approximate center of the tapped child (width is estimated from its height)
+    final h = sh * target.startHeight;
+    final cx = sw * 0.48 + h * 0.25;
+    final cy = sh - sh * target.bottomOffset - h / 2;
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: Alignment(2 * cx / sw - 1, 2 * cy / sh - 1),
+      handOffset: const Offset(0.05, 0.46),
+      onDismiss: resetIdleTimer,
     );
   }
 }

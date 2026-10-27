@@ -13,6 +13,8 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -26,7 +28,10 @@ class PerfumeGame extends StatefulWidget {
 }
 
 class _PerfumeGameState extends State<PerfumeGame>
-    with AiCameraMixin, KikiReactionMixin, AppAudioLifecycleMixin<PerfumeGame> {
+    with AiCameraMixin,
+        KikiReactionMixin,
+        AppAudioLifecycleMixin<PerfumeGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer= AudioPlayer();
@@ -106,11 +111,13 @@ class _PerfumeGameState extends State<PerfumeGame>
     if (!mounted || _disposed) return;
 
     setState(() => _canTap = true);
+    startIdleTimer();
   }
 
   Future<void> _handleCorrectPick() async {
     if (!_canTap || _actionTaken) return;
     _actionTaken = true;
+    cancelIdleTimer();
     _tapTracker.recordCorrectTap();
 
     setState(() {
@@ -153,6 +160,8 @@ class _PerfumeGameState extends State<PerfumeGame>
       _showOptions = true;
       _canTap = true;
     });
+    showHowToPlay = false;
+    startIdleTimer();
   }
 
   void _transitionToStage3() {
@@ -163,6 +172,8 @@ class _PerfumeGameState extends State<PerfumeGame>
       _showOptions = true;
       _canTap = true;
     });
+    showHowToPlay = false;
+    startIdleTimer();
   }
 
   void _transitionToStage4() {
@@ -173,6 +184,8 @@ class _PerfumeGameState extends State<PerfumeGame>
       _showOptions = true;
       _canTap = true;
     });
+    showHowToPlay = false;
+    startIdleTimer();
   }
 
   Future<void> _transitionToStage5() async {
@@ -190,6 +203,8 @@ class _PerfumeGameState extends State<PerfumeGame>
       setState(() {
         _canDragIngredients = true;
       });
+      showHowToPlay = false;
+      startIdleTimer();
     }
   }
 
@@ -215,6 +230,8 @@ class _PerfumeGameState extends State<PerfumeGame>
         _currentStage = 6;
       }
     });
+    showHowToPlay = false;
+    startIdleTimer();
   }
 
   Future<void> _handleMixerDropped() async {
@@ -225,6 +242,9 @@ class _PerfumeGameState extends State<PerfumeGame>
       _isMixing = true;
       _canMix = false;
     });
+    showHowToPlay = false;
+    startIdleTimer();
+    cancelIdleTimer();
 
     await Future.delayed(const Duration(milliseconds: 1500));
     if (!mounted || _disposed) return;
@@ -269,6 +289,8 @@ class _PerfumeGameState extends State<PerfumeGame>
     if (mounted) {
       setState(() {
         _canTap = true;
+        showHowToPlay = false;
+        startIdleTimer();
       });
     }
   }
@@ -283,6 +305,8 @@ class _PerfumeGameState extends State<PerfumeGame>
       _showOptions = false;
       _showKikiCheering = true;
     });
+
+    cancelIdleTimer();
 
     showKikiReaction(KikiState.correct);
 
@@ -311,6 +335,7 @@ class _PerfumeGameState extends State<PerfumeGame>
     setState(() {
       _canTap = true;
     });
+    startIdleTimer();
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
@@ -345,6 +370,7 @@ class _PerfumeGameState extends State<PerfumeGame>
   void dispose() {
     _disposed = true;
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _kikiPlayer.dispose();
     super.dispose();
@@ -366,9 +392,13 @@ class _PerfumeGameState extends State<PerfumeGame>
     final double cardSize = sw * 0.18;
     final double cardTop = sh * 0.22;
 
-    return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
+    return Listener(
+      onPointerDown: (_) {
+        if (_canTap || _canDragIngredients || _canMix) resetIdleTimer();
+      },
+        child: Scaffold(
+          body: Stack(
+            fit: StackFit.expand,
         children: [
           Image.asset(
             'assets/images/backgrounds/bg_rainbow_lagoon.png',
@@ -867,6 +897,13 @@ class _PerfumeGameState extends State<PerfumeGame>
             child: LagoonLevelBadge(level: widget.level),
           ),
 
+          if (showHowToPlay &&
+              !_showGoodJob &&
+              !_isMixing &&
+              ((_showOptions && _canTap && !_actionTaken) ||
+                  (_canDragIngredients && _currentStage < 7)))
+            Positioned.fill(child: _buildHowToPlayOverlay()),
+
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {
@@ -900,6 +937,144 @@ class _PerfumeGameState extends State<PerfumeGame>
             ),
         ],
       ),
+        ),
+    );
+  }
+
+  Alignment _al(double cx, double cy, double w, double h) =>
+      Alignment(2 * cx / w - 1, 2 * cy / h - 1);
+
+  Widget _sampleCard(double size) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(size * 0.22),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.2),
+          blurRadius: 10,
+          offset: const Offset(0, 6),
+        ),
+      ],
+    ),
+  );
+
+  List<Widget> _sceneBase({bool bowl = true, bool mixer = true}) {
+    final sz = MediaQuery.of(context).size;
+    final sw = sz.width, sh = sz.height;
+
+    return [
+      Positioned.fill(
+        child: Image.asset('assets/images/backgrounds/bg_rainbow_lagoon.png', fit: BoxFit.cover),
+      ),
+      Positioned(
+        bottom: sh * 0.05,
+        left: 0,
+        right: 0,
+        child: Center(
+          child: Image.asset(
+            'assets/images/characters/kiki_the_cat.png',
+            height: sh * 0.85,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+      Positioned(
+        bottom: -sh * 0.58,
+        left: 0,
+        right: 0,
+        child: Image.asset('assets/images/objects/lumi/table.png', width: sw, fit: BoxFit.contain),
+      ),
+      if (bowl)
+        Positioned(
+          bottom: sh * 0.10,
+          left: sw * 0.43,
+          child: Image.asset('assets/images/objects/lagoon/bowl.png', width: sw * 0.14, fit: BoxFit.contain),
+        ),
+      if (mixer)
+        Positioned(
+          bottom: sh * 0.07,
+          left: sw * 0.53,
+          child: Image.asset('assets/images/objects/lagoon/mixer.png', width: sw * 0.11, fit: BoxFit.contain),
+        ),
+    ];
+  }
+
+  Widget _buildHowToPlayOverlay() {
+    final sz = MediaQuery.of(context).size;
+    final sw = sz.width, sh = sz.height;
+
+    // ── TAP phase (stages 1-4, 8) ──
+    if (_currentStage <= 4 || _currentStage == 8) {
+      final cs = sw * 0.18;
+
+      if (_currentStage == 8) {
+        final s = cs * 0.8;
+        return HowToPlayOverlay(
+          previewChild: Stack(children: [
+            ..._sceneBase(bowl: false, mixer: false), // real game hides both at stage 8
+            Positioned(
+              bottom: sh * 0.15,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _sampleCard(s),
+                  SizedBox(width: sw * 0.05),
+                  _sampleCard(s),
+                  SizedBox(width: sw * 0.05),
+                  _sampleCard(s),
+                ],
+              ),
+            ),
+          ]),
+          handAlignment: _al(sw / 2, sh - sh * 0.15 - s / 2, sw, sh),
+          handOffset: const Offset(0.05, 0.46),
+          onDismiss: resetIdleTimer,
+        );
+      }
+
+      final top = sh * 0.22;
+      return HowToPlayOverlay(
+        previewChild: Stack(children: [
+          ..._sceneBase(),
+          Positioned(top: top, left: sw * 0.15, child: _sampleCard(cs)),
+          Positioned(top: top, right: sw * 0.15, child: _sampleCard(cs)),
+        ]),
+        handAlignment: _al(sw - sw * 0.15 - cs / 2, top + cs / 2, sw, sh),
+        handOffset: const Offset(0.05, 0.46),
+        onDismiss: resetIdleTimer,
+      );
+    }
+
+    // ── DRAG phases (ingredient → bowl, mixer → bowl) ──
+    final bowlW = sw * 0.14;
+    final bowlCx = sw * 0.43 + bowlW / 2;
+    final bowlCy = sh - sh * 0.10 - bowlW * 0.4;
+
+    final mixing = _canMix;
+    final itemW = sw * 0.11;
+    final itemLeft = mixing ? sw * 0.53 : sw * 0.09;
+    final itemBottom = mixing ? sh * 0.07 : sh * 0.10 * 0.75;
+    final itemCx = itemLeft + itemW / 2;
+    final itemCy = sh - itemBottom - itemW * 0.4;
+
+    return HowToPlayOverlay(
+      previewChild: Stack(children: [
+        ..._sceneBase(),
+        if (!mixing)
+          Positioned(
+            bottom: itemBottom,
+            left: itemLeft,
+            child: Image.asset('assets/images/objects/lagoon/honey.png', width: itemW, fit: BoxFit.contain),
+          ),
+      ]),
+      handAlignment: _al(itemCx, itemCy, sw, sh),
+      handEndAlignment: _al(bowlCx, bowlCy, sw, sh),
+      handOffset: const Offset(0.05, 0.46),
+      onDismiss: resetIdleTimer,
     );
   }
 
@@ -922,6 +1097,8 @@ class _PerfumeGameState extends State<PerfumeGame>
     if (!_canMix) return image;
 
     return Draggable<String>(
+      onDragStarted: cancelIdleTimer,
+      onDraggableCanceled: (_, __) => startIdleTimer(),
       data: 'mixer',
       feedback: Material(
         color: Colors.transparent,
@@ -958,6 +1135,8 @@ class _PerfumeGameState extends State<PerfumeGame>
     if (!_canDragIngredients) return image;
 
     return Draggable<String>(
+      onDragStarted: cancelIdleTimer,
+      onDraggableCanceled: (_, __) => startIdleTimer(),
       data: id,
       feedback: Material(
         color: Colors.transparent,

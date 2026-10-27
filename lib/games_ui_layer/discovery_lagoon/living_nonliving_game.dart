@@ -13,6 +13,8 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -75,7 +77,8 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
     with
         AiCameraMixin,
         KikiReactionMixin,
-        AppAudioLifecycleMixin<LivingNonLivingGame> {
+        AppAudioLifecycleMixin<LivingNonLivingGame>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer= AudioPlayer();
@@ -139,6 +142,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _kikiPlayer.dispose();
     super.dispose();
@@ -155,14 +159,20 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
       if (!mounted) return;
       if (_phase == GamePhase.intro1) {
         setState(() => _phase = GamePhase.playLiving);
+        startIdleTimer();
       } else if (_phase == GamePhase.intro2) {
         setState(() => _phase = GamePhase.playNonLiving);
+        startIdleTimer();
       }
     });
   }
 
   void _startPhase2() async {
-    setState(() => _phase = GamePhase.intro2);
+    cancelIdleTimer();
+    setState(() {
+      showHowToPlay = false;
+      _phase = GamePhase.intro2;
+    });
     await _audioPlayer.play(
       AssetSource('audio/discovery_lagoon/living_nonliving_game_part2.wav'),
     );
@@ -195,6 +205,7 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
 
   Future<void> _saveDataAndShowGoodJob() async {
     if (_hasSavedResult) return;
+    cancelIdleTimer();
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
@@ -376,8 +387,12 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
     heightOffset: 0.6,
   );
 
-  Widget _buildAsset(AssetConfig config, Size size) {
-    bool isTapped = _tappedAssets.contains(config);
+  List<Widget> _allAssets(Size size, {bool preview = false}) => [
+    for (final a in _gameItems) _buildAsset(a, size, preview: preview),
+  ];
+
+  Widget _buildAsset(AssetConfig config, Size size, {bool preview = false}) {
+    bool isTapped = !preview && _tappedAssets.contains(config);
     String currentImagePath = isTapped
         ? config.coloredImagePath
         : config.imagePath;
@@ -428,16 +443,22 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
         }
 
         _tapTracker.recordCorrectTap();
+        cancelIdleTimer();
         setState(() => _tappedAssets.add(config));
 
         final sound = config.soundAsset;
         if (sound != null) {
           showKikiReaction(KikiState.correct);
-          await Future.delayed(Duration(milliseconds: 800));
+          await Future.delayed(const Duration(milliseconds: 800));
           await playVoiceRestartingOnFaceLoss(_audioPlayer, sound);
         }
         if (!mounted) return;
-        _checkProgress();
+        await _checkProgress();
+        if (!mounted) return;
+        if ((_phase == GamePhase.playLiving || _phase == GamePhase.playNonLiving) &&
+            !_isTransitioning) {
+          startIdleTimer();
+        }
       },
       behavior: HitTestBehavior.deferToChild,
       child: Image.asset(
@@ -472,7 +493,16 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
     bool isIntro = _phase == GamePhase.intro1 || _phase == GamePhase.intro2;
     bool isFinished = _phase == GamePhase.finished;
 
-    return Scaffold(
+    return Listener(
+        onPointerDown: (_) {
+          _tapTracker.recordGenericTap();
+          if ((_phase == GamePhase.playLiving ||
+              _phase == GamePhase.playNonLiving) &&
+              !_isTransitioning) {
+            resetIdleTimer();
+          }
+        },
+        child: Scaffold(
       body: Stack(
         children: [
           Container(
@@ -522,6 +552,20 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
               ),
             ),
 
+          if (showHowToPlay &&
+              (_phase == GamePhase.playLiving || _phase == GamePhase.playNonLiving) &&
+              !_isTransitioning)
+            Positioned.fill(
+              child: HowToPlayOverlay(
+                previewChild: _buildHowToPreview(size),
+                handAlignment: _phase == GamePhase.playLiving
+                    ? const Alignment(-0.22, -0.58)
+                    : const Alignment(0.22, -0.56),
+                handOffset: const Offset(0.15, 0.55),
+                onDismiss: resetIdleTimer,
+              ),
+            ),
+
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {
@@ -555,6 +599,19 @@ class _LivingNonLivingGameState extends State<LivingNonLivingGame>
             ),
         ],
       ),
+        ),
+    );
+  }
+
+  Widget _buildHowToPreview(Size size) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          child: Image.asset(_bgFieldImage, fit: BoxFit.cover),
+        ),
+        ..._allAssets(size, preview: true),
+      ],
     );
   }
 }

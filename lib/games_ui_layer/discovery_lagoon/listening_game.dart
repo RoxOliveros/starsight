@@ -14,6 +14,8 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -38,7 +40,7 @@ class ListeningGame extends StatefulWidget {
 }
 
 class _ListeningGameState extends State<ListeningGame>
-    with AiCameraMixin, AppAudioLifecycleMixin<ListeningGame>, KikiReactionMixin {
+    with AiCameraMixin, AppAudioLifecycleMixin<ListeningGame>, KikiReactionMixin, IdleHintMixin  {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer= AudioPlayer();
@@ -69,6 +71,7 @@ class _ListeningGameState extends State<ListeningGame>
   ];
 
   List<Map<String, String>> _currentChoices = [];
+  List<Map<String, String>> _hintAnimals = [];
 
   final List<Map<String, String>> _bodyParts = [
     {'id': 'ear', 'image': 'assets/images/objects/lagoon/ear.png'},
@@ -120,6 +123,14 @@ class _ListeningGameState extends State<ListeningGame>
 
   Future<void> _startListeningPhase() async {
     _generateChoices();
+    _hintAnimals = (_allAnimals.where((a) => a['id'] != _targetAnimal).toList()
+      ..shuffle(Random()))
+        .take(3)
+        .toList();
+    setState(() => _currentPhase = GamePhase.choosing);
+    showHowToPlay = false;
+    startIdleTimer();
+
     setState(() => _currentPhase = GamePhase.listening);
 
     await playVoiceRestartingOnFaceLoss(
@@ -131,12 +142,15 @@ class _ListeningGameState extends State<ListeningGame>
     if (!mounted) return;
 
     setState(() => _currentPhase = GamePhase.choosing);
+    showHowToPlay = false;
+    startIdleTimer();
   }
 
   Future<void> _onAnimalTapped(String animalName) async {
     if (_currentPhase != GamePhase.choosing) return;
 
     if (animalName == _targetAnimal) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       setState(() => _currentPhase = GamePhase.answered);
       showKikiReaction(KikiState.correct);
@@ -160,11 +174,15 @@ class _ListeningGameState extends State<ListeningGame>
         setState(() => _currentPhase = GamePhase.bodyParts);
         await playVoiceRestartingOnFaceLoss(
             _audioPlayer, 'audio/discovery_lagoon/listening_whatpart.wav');
+        if (!mounted) return; 
+        showHowToPlay = false; 
+        startIdleTimer();
       }
     } else {
       _tapTracker.recordMistake();
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       if (kikiState != KikiState.wrong) showKikiReaction(KikiState.wrong);
+      startIdleTimer();
     }
   }
 
@@ -172,6 +190,7 @@ class _ListeningGameState extends State<ListeningGame>
     if (_currentPhase != GamePhase.bodyParts) return;
 
     if (partId == 'ear') {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       setState(() => _currentPhase = GamePhase.bodyPartsAnswered);
       showKikiReaction(KikiState.correct);
@@ -184,6 +203,7 @@ class _ListeningGameState extends State<ListeningGame>
       _tapTracker.recordMistake();
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       if (kikiState != KikiState.wrong) showKikiReaction(KikiState.wrong);
+      startIdleTimer();
     }
   }
 
@@ -241,7 +261,14 @@ class _ListeningGameState extends State<ListeningGame>
     final double catHeight = sh * 1.0;
     final double catBottom = sh * -0.25;
 
-    return Scaffold(
+    return Listener(
+        onPointerDown: (_) {
+          if (_currentPhase == GamePhase.choosing ||
+              _currentPhase == GamePhase.bodyParts) {
+            resetIdleTimer();
+          }
+        },
+        child: Scaffold(
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -334,6 +361,11 @@ class _ListeningGameState extends State<ListeningGame>
             ),
           ],
 
+          if (showHowToPlay &&
+              (_currentPhase == GamePhase.choosing ||
+                  _currentPhase == GamePhase.bodyParts))
+            Positioned.fill(child: _buildHowToPlayOverlay()),
+
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
               onClose: () {
@@ -362,6 +394,99 @@ class _ListeningGameState extends State<ListeningGame>
             ),
         ],
       ),
+        ),
+    );
+  }
+
+  Widget _sampleCard(double size) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      boxShadow: const [
+        BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+      ],
+    ),
+  );
+
+  Widget _buildHowToPlayOverlay() {
+    final sz = MediaQuery.of(context).size;
+    final sh = sz.height;
+
+    final bg = Positioned.fill(
+      child: Image.asset('assets/images/backgrounds/bg_rainbow_lagoon.png', fit: BoxFit.cover),
+    );
+
+    // ── Body parts: 3 cards on top, cat holding fishbone below ──
+    if (_currentPhase == GamePhase.bodyParts) {
+      final card = sh * 0.35;
+      return HowToPlayOverlay(
+        previewChild: Stack(children: [
+          bg,
+          Positioned(
+            bottom: sh * -0.35,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Image.asset(
+                'assets/images/characters/cat_holding_fishbone.png',
+                height: sh * 0.95,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+          Positioned(
+            top: sh * 0.05,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (int i = 0; i < 3; i++)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _sampleCard(card),
+                  ),
+              ],
+            ),
+          ),
+        ]),
+        handAlignment: Alignment(0, 2 * (sh * 0.05 + card / 2) / sh - 1), 
+        handOffset: const Offset(0.05, 0.46),
+        onDismiss: resetIdleTimer,
+      );
+    }
+
+    return HowToPlayOverlay(
+      previewChild: Stack(children: [
+        bg,
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: _hintAnimals
+                  .map(
+                    (a) => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Image.asset(
+                      a['image']!,
+                      height: sh * 0.55,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              )
+                  .toList(),
+            ),
+          ),
+        ),
+      ]),
+      handAlignment: Alignment.center,
+      handOffset: const Offset(0.05, 0.46),
+      onDismiss: resetIdleTimer,
     );
   }
 

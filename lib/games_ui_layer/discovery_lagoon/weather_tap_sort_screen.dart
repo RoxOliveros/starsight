@@ -13,6 +13,8 @@ import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_audio_path.dart';
 import 'intro_phase.dart';
@@ -54,7 +56,8 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
         AiCameraMixin<WeatherTapSortScreen>,
         AppAudioLifecycleMixin<WeatherTapSortScreen>,
         LagoonIntroMixin<WeatherTapSortScreen>,
-        KikiReactionMixin {
+        KikiReactionMixin,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer= AudioPlayer();
@@ -239,7 +242,13 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
 
   Future<void> _playQuestion() async {
     final token = ++_questionToken;
-    if (mounted) setState(() => _inputEnabled = false);
+    cancelIdleTimer();
+    if (mounted) {
+      setState(() {
+        _inputEnabled = false;
+        showHowToPlay = false;
+      });
+    }
 
     final Future<void> done = _audioPlayer.onPlayerComplete.first
         .then<void>((_) {})
@@ -253,6 +262,7 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
     await done;
     if (!mounted || token != _questionToken || _roundComplete) return;
     setState(() => _inputEnabled = true);
+    startIdleTimer();
   }
 
   Future<void> _onTap(FallingIcon icon) async {
@@ -266,6 +276,7 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
       });
       GamesSfxPlayer.instance.play(GameSfx.shine);
       if (_score >= _needed) {
+        cancelIdleTimer();
         setState(() {
           _roundComplete = true;
           _inputEnabled = false;
@@ -293,6 +304,7 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
 
   Future<void> _saveDataAndShowSuccessDialog() async {
     if (_hasSavedResult) return;
+    cancelIdleTimer();
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
 
@@ -360,6 +372,7 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _tickCtrl.dispose();
     disposeLagoonIntro();
     _audioPlayer.dispose();
@@ -369,7 +382,16 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Listener(
+        onPointerDown: (_) {
+          _tapTracker.recordGenericTap();
+          if (_screenPhase == LagoonScreenPhase.game &&
+              _inputEnabled &&
+              !_roundComplete) {
+            resetIdleTimer();
+          }
+        },
+        child: Scaffold(
       body: LayoutBuilder(
         builder: (context, constraints) {
           final w = constraints.maxWidth;
@@ -438,6 +460,19 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
                 child: LagoonLevelBadge(level: widget.level),
               ),
 
+              if (showHowToPlay &&
+                  _screenPhase == LagoonScreenPhase.game &&
+                  _inputEnabled &&
+                  !_roundComplete)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(w, h),
+                    handAlignment: const Alignment(0.0, -0.2),
+                    handOffset: const Offset(0.15, 0.4),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+
               if (hasCapturedFirstFrame &&
                   !isFaceDetected &&
                   !_hideLightingCard)
@@ -451,6 +486,30 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
           );
         },
       ),
+        ),
+    );
+  }
+
+  Widget _buildHowToPreview(double w, double h) {
+    Widget icon(String asset, double cx, double cy) => Positioned(
+      left: cx * w - 50,
+      top: cy * h - 50,
+      child: Image.asset(asset, width: 100, height: 100, fit: BoxFit.contain),
+    );
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            _weatherBgImage['sunny']!,
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+          ),
+        ),
+        icon('assets/images/objects/lagoon/raincloud.png', 0.25, 0.30),
+        icon('assets/images/objects/lagoon/sun.png', 0.50, 0.40), // the hand taps this
+        icon('assets/images/objects/lagoon/windy_kite.png', 0.75, 0.50),
+      ],
     );
   }
 
