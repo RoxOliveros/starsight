@@ -10,6 +10,8 @@ import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import '../tryagain_prompt.dart';
 import 'lumi_game_safe_or_not.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -147,7 +149,8 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
     with
         AiCameraMixin<DontTalkToStrangersGame>,
         AppAudioLifecycleMixin<DontTalkToStrangersGame>,
-        TrWooReactionMixin{
+        TrWooReactionMixin,
+        IdleHintMixin {
 
   final DateTime _loadStart = DateTime.now();
 
@@ -279,6 +282,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
 
   @override
   void dispose() {
+    disposeIdleTimer();
     disposeAiCamera();
     _talkGlowTimer?.cancel();
     _cancelGlowTimer?.cancel();
@@ -347,25 +351,6 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
     await _enterCurrentCharacter();
   }
 
-  Future<void> _playAndWait(AudioPlayer player, String asset) async {
-    final completer = Completer<void>();
-    late final StreamSubscription<void> sub;
-
-    sub = player.onPlayerComplete.listen((_) {
-      if (!completer.isCompleted) completer.complete();
-    });
-
-    try {
-      await player.stop();
-      await player.play(AssetSource(asset.replaceFirst('assets/', '')));
-      await completer.future;
-    } catch (_) {
-      if (!completer.isCompleted) completer.complete();
-    } finally {
-      await sub.cancel();
-    }
-  }
-
   // --- Character entrance ---------------------------------------------------
 
   Future<void> _enterCurrentCharacter() async {
@@ -395,6 +380,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
         _phase = _GamePhase.choosing;
         _inputEnabled = true;
       });
+      startIdleTimer();
     } else {
       setState(() {
         _phase = _GamePhase.characterEntering;
@@ -417,6 +403,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
         _phase = _GamePhase.choosing;
         _inputEnabled = true;
       });
+      startIdleTimer();
     }
   }
 
@@ -424,6 +411,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
 
   Future<void> _onFamiliarTalk() async {
     if (_onWolf || !_inputEnabled || _busy || !mounted) return;
+    cancelIdleTimer();
 
     _tapTracker.recordCorrectTap();
     GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
@@ -443,6 +431,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
 
   Future<void> _onFamiliarCancel() async {
     if (_onWolf || !_inputEnabled || _busy || !mounted) return;
+    cancelIdleTimer();
 
     _tapTracker.recordMistake();
     GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
@@ -481,6 +470,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
 
   Future<void> _onWolfCancel() async {
     if (!_onWolf || !_inputEnabled || _busy || !mounted) return;
+    cancelIdleTimer();
 
     _tapTracker.recordCorrectTap();
 
@@ -499,6 +489,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
 
   Future<void> _onWolfTalk() async {
     if (!_onWolf || !_inputEnabled || _busy || !mounted) return;
+    cancelIdleTimer();
 
     _tapTracker.recordMistake();
 
@@ -575,6 +566,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
   // --- Completion / restart -------------------------------------------------
 
   Future<void> _completeGame({bool playWinAudio = true}) async {
+    cancelIdleTimer();
     if (!mounted) return;
 
     setState(() => _phase = _GamePhase.complete);
@@ -651,6 +643,66 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
     Navigator.of(context).pop();
   }
 
+
+  // Buttons column: Positioned(top: 0, bottom: 0, right: 100), two 110px buttons.
+  Offset _buttonCenter(Size s, {required bool talk}) {
+    const double btn = 110;
+    final double gap = s.width * 0.03;
+    final double columnH = btn * 2 + gap;
+    final double top = (s.height - columnH) / 2;
+
+    final double x = s.width - 100 - btn / 2;
+    final double y = talk
+        ? top + btn / 2
+        : top + btn + gap + btn / 2;
+
+    return Offset(x, y);
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final double width = s.width;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_playgroundBg, fit: BoxFit.cover),
+
+        Positioned(
+          left: width * 0.10,
+          bottom: 5,
+          height: width * (_onWolf ? _wolfHeightFactor : 0.35),
+          child: Image.asset(_currentDisplayAsset, fit: BoxFit.contain),
+        ),
+
+        Positioned(
+          left: width * 0.40,
+          bottom: 5,
+          width: width * 0.28,
+          height: width * 0.33,
+          child: Image.asset(_littleBearImage, fit: BoxFit.contain),
+        ),
+
+        Positioned(
+          top: 0,
+          bottom: 0,
+          right: 100,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _ResponseButton(asset: _talkButton, onTap: null),
+              SizedBox(height: width * 0.03),
+              _ResponseButton(asset: _cancelButton, onTap: null),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   // --- UI -----------------------------------------------------------------
 
   @override
@@ -659,9 +711,16 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
       return Scaffold(body: LoadingScreen.lumiTown());
     }
 
+    final Size screenSize = MediaQuery.of(context).size;
+
     return Scaffold(
       body: Listener(
-        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        onPointerDown: (_) {
+          _tapTracker.recordGenericTap();
+          if (_inputEnabled && !_busy && !_gameComplete) {
+            resetIdleTimer();
+          }
+        },
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -804,6 +863,23 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
               right: 25,
               child: LumiLevelBadge(level: widget.level),
             ),
+
+            if (showHowToPlay &&
+                _phase == _GamePhase.choosing &&
+                _inputEnabled &&
+                !_busy &&
+                !_gameComplete)
+              Positioned.fill(
+                child: HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(screenSize),
+                  handAlignment: _toAlignment(
+                    _buttonCenter(screenSize, talk: !_onWolf),
+                    screenSize,
+                  ),
+                  handOffset: const Offset(0.15, 0.55),
+                  onDismiss: resetIdleTimer,
+                ),
+              ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

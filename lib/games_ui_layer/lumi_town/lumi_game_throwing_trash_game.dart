@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lvl12/appreciation_game.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lumi_game_appreciation_game.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:StarSight/ui_layer/lumi_town/lumi_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -13,11 +14,13 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-import '../../../ui_layer/game_loading_mixin.dart';
-import '../../../ui_layer/loading_screen.dart';
-import '../../games_audio_helper.dart';
-import '../lumi_game_ui_layer.dart';
-import '../tr.woo_reaction.dart';
+
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
+import 'lumi_game_ui_layer.dart';
 
 // ==========================================
 // 🛠️ TRASH ITEM DATA MODEL
@@ -39,7 +42,13 @@ class ThrowingTrashGame extends StatefulWidget {
 }
 
 class _ThrowingTrashGameState extends State<ThrowingTrashGame>
-    with TickerProviderStateMixin, AiCameraMixin<ThrowingTrashGame>, GameLoadingMixin, AppAudioLifecycleMixin<ThrowingTrashGame>, TrWooReactionMixin {
+    with
+        TickerProviderStateMixin,
+        AiCameraMixin<ThrowingTrashGame>,
+        GameLoadingMixin,
+        AppAudioLifecycleMixin<ThrowingTrashGame>,
+        TrWooReactionMixin,
+        IdleHintMixin {
   // ==========================================
   // 🛠️ ADJUSTERS
   // ==========================================
@@ -55,6 +64,38 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
   final double drWooHeightPercentage = 0.85;
   final double darkOverlayOpacity = 0.7;
   final double drWooVerticalOffset = 60.00;
+
+  final GlobalKey _trashKey = GlobalKey();
+  final Map<int, GlobalKey> _binKeys = {};
+  GlobalKey _binKey(int id) => _binKeys.putIfAbsent(id, () => GlobalKey());
+
+  bool get _hintActive =>
+      _introStep == 5 &&
+          _currentTrash != null &&
+          !_isGameWon &&
+          !_isTrashFading;
+
+  bool get _hintAllowed => showHowToPlay && _hintActive;
+
+  /// Hide any visible hint and restart the idle countdown.
+  void _armHint() {
+    if (!mounted) return;
+    setState(() => showHowToPlay = false);
+    startIdleTimer();
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final center =
+    box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
 
   late final AnimationController _walkCtrl;
   late final AnimationController _jumpCtrl;
@@ -116,26 +157,37 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
         if (!mounted) return;
 
         setState(() => _introStep = 2);
-        playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_trashcan1.wav');
+        playVoiceRestartingOnFaceLoss(
+          _audioPlayer,
+          'assets/audio/lumi_town/level11/throwing_trash_game_trashcan1.wav',
+        );
       } else if (_introStep == 2) {
         setState(() => _introStep = -1);
         await Future.delayed(Duration(milliseconds: audioIntervalMilliseconds));
         if (!mounted) return;
 
         setState(() => _introStep = 3);
-        playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_trashcan2.wav');
+        playVoiceRestartingOnFaceLoss(
+          _audioPlayer,
+          'assets/audio/lumi_town/level11/throwing_trash_game_trashcan2.wav',
+        );
       } else if (_introStep == 3) {
         setState(() => _introStep = -1);
         await Future.delayed(Duration(milliseconds: audioIntervalMilliseconds));
         if (!mounted) return;
 
         setState(() => _introStep = 4);
-        playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_trashcan3.wav');
+        playVoiceRestartingOnFaceLoss(
+          _audioPlayer,
+          'assets/audio/lumi_town/level11/throwing_trash_game_trashcan3.wav',
+        );
       } else if (_introStep == 4) {
         setState(() {
           _introStep = 5;
           _jumpCtrl.stop();
+          showHowToPlay = false;
         });
+        startIdleTimer();
       }
     });
 
@@ -146,7 +198,10 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
     _walkCtrl.forward().then((_) {
       if (mounted) {
         setState(() => _introStep = 1);
-        playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level11/throwing_trash_game_intro.wav');
+        playVoiceRestartingOnFaceLoss(
+          _audioPlayer,
+          'assets/audio/lumi_town/level11/throwing_trash_game_intro.wav',
+        );
       }
     });
   }
@@ -227,6 +282,8 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
 
   void _handleDrop(DragTargetDetails<TrashItem> details, int targetBinId) {
     final TrashItem item = details.data;
+    cancelIdleTimer();
+    if (showHowToPlay) setState(() => showHowToPlay = false);
 
     if (item.correctBinId == targetBinId) {
       _tapTracker.recordCorrectTap();
@@ -247,6 +304,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
             _fadingTrash = null;
             _droppedPosition = null;
           });
+          if (_hintActive) _armHint();
         }
       });
     } else {
@@ -267,6 +325,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _walkCtrl.dispose();
     _jumpCtrl.dispose();
     _audioPlayer.dispose();
@@ -276,24 +335,24 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
   }
 
   Widget _buildTrashcan(
-    String happyPath,
-    String sadPath,
-    double width,
-    int step,
-    int binId,
-  ) {
+      String happyPath,
+      String sadPath,
+      double width,
+      int step,
+      int binId, {
+        bool preview = false,
+      }) {
     final bool isJumping = _introStep == step;
     final bool isSad = _sadBinId == binId;
 
     return DragTarget<TrashItem>(
+      key: preview ? null : _binKey(binId),
       onAcceptWithDetails: (details) => _handleDrop(details, binId),
       builder: (context, candidateData, rejectedData) {
         return AnimatedBuilder(
           animation: _jumpCtrl,
           builder: (context, child) {
-            final double bounce = isJumping
-                ? _jumpCtrl.value * jumpHeight
-                : 0.0;
+            final double bounce = isJumping ? _jumpCtrl.value * jumpHeight : 0.0;
             return Transform.translate(
               offset: Offset(0, -bounce),
               child: child,
@@ -311,173 +370,28 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
 
   @override
   Widget build(BuildContext context) {
-    final sw = MediaQuery.of(context).size.width;
-    final sh = MediaQuery.of(context).size.height;
-    final trashcanWidth = sw * trashcanWidthPercentage;
-    final double trashItemSize = sh * 0.30;
-
-    final double dynamicBottomOffset = _introStep == 5
-        ? -sh * 0.15
-        : trashcanIntroBottomOffset;
-
     return Scaffold(
       body: buildWithLoading(
         loadingScreen: LoadingScreen.lumiTown(),
         gameBuilder: () => Listener(
-          onPointerDown: (_) => _tapTracker.recordGenericTap(),
+          onPointerDown: (_) {
+            _tapTracker.recordGenericTap();
+            if (!_hintActive) return;
+            cancelIdleTimer();
+            if (showHowToPlay) setState(() => showHowToPlay = false);
+          },
+          onPointerUp: (_) {
+            if (_hintActive) startIdleTimer();
+          },
+          onPointerCancel: (_) {
+            if (_hintActive) startIdleTimer();
+          },
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.asset(
-                'assets/images/backgrounds/bg_park_sunny.png',
-                fit: BoxFit.cover,
-              ),
+              _buildScene(),
 
-              Container(
-                color: Colors.white.withValues(alpha: backgroundWhiteOpacity),
-              ),
-
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 800),
-                curve: Curves.easeInOut,
-                bottom: dynamicBottomOffset,
-                left: 0,
-                right: 0,
-                child: AnimatedBuilder(
-                  animation: _walkCtrl,
-                  builder: (context, child) {
-                    final double t = _walkCtrl.value;
-                    final double easedT = Curves.easeOutCubic.transform(t);
-                    final double dx = sw * (1 - easedT);
-                    final int stepCount = 8;
-                    final double walkBounce = t < 1.0
-                        ? (math.sin(t * stepCount * math.pi)).abs() *
-                              walkBounceHeight
-                        : 0.0;
-
-                    return Transform.translate(
-                      offset: Offset(dx, -walkBounce),
-                      child: child,
-                    );
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _buildTrashcan(
-                        'assets/images/objects/lumi/trashcan1_happy.png',
-                        'assets/images/objects/lumi/trashcan1_sad.png',
-                        trashcanWidth,
-                        2,
-                        1,
-                      ),
-                      SizedBox(width: spacingBetweenCans),
-                      _buildTrashcan(
-                        'assets/images/objects/lumi/trashcan2_happy.png',
-                        'assets/images/objects/lumi/trashcan2_sad.png',
-                        trashcanWidth,
-                        3,
-                        2,
-                      ),
-                      SizedBox(width: spacingBetweenCans),
-                      _buildTrashcan(
-                        'assets/images/objects/lumi/trashcan3_happy.png',
-                        'assets/images/objects/lumi/trashcan3_sad.png',
-                        trashcanWidth,
-                        4,
-                        3,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              if (_introStep == 1)
-                Positioned.fill(
-                  child: Container(
-                    color: Colors.black.withValues(alpha: darkOverlayOpacity),
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Transform.translate(
-                        offset: Offset(0, drWooVerticalOffset),
-                        child: Image.asset(
-                          'assets/images/characters/tr.woo_the_owl.png',
-                          height: sh * drWooHeightPercentage,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-              if (_introStep == 5 &&
-                  _currentTrash != null &&
-                  !_isGameWon &&
-                  !_isTrashFading)
-                Positioned(
-                  top: sh * 0.08,
-                  left: (sw / 2) - (trashItemSize / 2),
-                  child: Draggable<TrashItem>(
-                    data: _currentTrash,
-                    onDragEnd: (details) {
-                      if (!details.wasAccepted) {
-                        _tapTracker.recordMistake();
-                      }
-                    },
-                    feedback: Material(
-                      color: Colors.transparent,
-                      child: Image.asset(
-                        _currentTrash!.imagePath,
-                        width: trashItemSize * 1.2,
-                        height: trashItemSize * 1.2,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                    childWhenDragging: SizedBox(
-                      width: trashItemSize,
-                      height: trashItemSize,
-                    ),
-                    child: Image.asset(
-                      _currentTrash!.imagePath,
-                      width: trashItemSize,
-                      height: trashItemSize,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-
-              if (_fadingTrash != null && _droppedPosition != null)
-                Positioned(
-                  left: _droppedPosition!.dx,
-                  top: _droppedPosition!.dy,
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween<double>(begin: 1.0, end: 0.0),
-                    duration: const Duration(milliseconds: 400),
-                    curve: Curves.easeInBack,
-                    builder: (context, value, child) {
-                      return Transform.scale(
-                        scale: value,
-                        child: Opacity(
-                          opacity: value.clamp(0.0, 1.0),
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: Image.asset(
-                      _fadingTrash!.imagePath,
-                      width: trashItemSize * 1.2,
-                      height: trashItemSize * 1.2,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-
-              Positioned(top: 25, left: 25, child: LumiXButton()),
-              Positioned(
-                top: 25,
-                right: 25,
-                child: LumiLevelBadge(level: widget.level),
-              ),
+              if (_hintAllowed) Positioned.fill(child: _buildHowToPlay()),
 
               if (hasCapturedFirstFrame &&
                   !isFaceDetected &&
@@ -492,7 +406,8 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
               if (_isGameWon)
                 Positioned.fill(
                   child: GoodJobOverlay(
-                    characterImage: 'assets/images/characters/tr.woo_the_owl.png',
+                    characterImage:
+                    'assets/images/characters/tr.woo_the_owl.png',
                     onNext: () {
                       if (mounted) {
                         Navigator.of(context).pushAndRemoveUntil(
@@ -500,7 +415,7 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
                             builder: (_) =>
                                 AppreciationGame(level: widget.level + 1),
                           ),
-                          (route) => route.isFirst,
+                              (route) => route.isFirst,
                         );
                       }
                     },
@@ -519,6 +434,189 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildScene({bool preview = false}) {
+    final sw = MediaQuery.of(context).size.width;
+    final sh = MediaQuery.of(context).size.height;
+    final trashcanWidth = sw * trashcanWidthPercentage;
+    final double trashItemSize = sh * 0.30;
+
+    final double dynamicBottomOffset =
+    _introStep == 5 ? -sh * 0.15 : trashcanIntroBottomOffset;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/backgrounds/bg_park_sunny.png',
+          fit: BoxFit.cover,
+        ),
+
+        Container(
+          color: Colors.white.withValues(alpha: backgroundWhiteOpacity),
+        ),
+
+        AnimatedPositioned(
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeInOut,
+          bottom: dynamicBottomOffset,
+          left: 0,
+          right: 0,
+          child: AnimatedBuilder(
+            animation: _walkCtrl,
+            builder: (context, child) {
+              final double t = _walkCtrl.value;
+              final double easedT = Curves.easeOutCubic.transform(t);
+              final double dx = sw * (1 - easedT);
+              final int stepCount = 8;
+              final double walkBounce = t < 1.0
+                  ? (math.sin(t * stepCount * math.pi)).abs() * walkBounceHeight
+                  : 0.0;
+
+              return Transform.translate(
+                offset: Offset(dx, -walkBounce),
+                child: child,
+              );
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _buildTrashcan(
+                  'assets/images/objects/lumi/trashcan1_happy.png',
+                  'assets/images/objects/lumi/trashcan1_sad.png',
+                  trashcanWidth,
+                  2,
+                  1,
+                  preview: preview,
+                ),
+                SizedBox(width: spacingBetweenCans),
+                _buildTrashcan(
+                  'assets/images/objects/lumi/trashcan2_happy.png',
+                  'assets/images/objects/lumi/trashcan2_sad.png',
+                  trashcanWidth,
+                  3,
+                  2,
+                  preview: preview,
+                ),
+                SizedBox(width: spacingBetweenCans),
+                _buildTrashcan(
+                  'assets/images/objects/lumi/trashcan3_happy.png',
+                  'assets/images/objects/lumi/trashcan3_sad.png',
+                  trashcanWidth,
+                  4,
+                  3,
+                  preview: preview,
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        if (_introStep == 1 && !preview)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withValues(alpha: darkOverlayOpacity),
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Transform.translate(
+                  offset: Offset(0, drWooVerticalOffset),
+                  child: Image.asset(
+                    'assets/images/characters/tr.woo_the_owl.png',
+                    height: sh * drWooHeightPercentage,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+        if (_introStep == 5 &&
+            _currentTrash != null &&
+            !_isGameWon &&
+            !_isTrashFading)
+          Positioned(
+            top: sh * 0.08,
+            left: (sw / 2) - (trashItemSize / 2),
+            child: KeyedSubtree(
+              key: preview ? null : _trashKey,
+              child: Draggable<TrashItem>(
+                data: _currentTrash,
+                onDragEnd: (details) {
+                  if (!details.wasAccepted) {
+                    _tapTracker.recordMistake();
+                  }
+                },
+                feedback: Material(
+                  color: Colors.transparent,
+                  child: Image.asset(
+                    _currentTrash!.imagePath,
+                    width: trashItemSize * 1.2,
+                    height: trashItemSize * 1.2,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                childWhenDragging: SizedBox(
+                  width: trashItemSize,
+                  height: trashItemSize,
+                ),
+                child: Image.asset(
+                  _currentTrash!.imagePath,
+                  width: trashItemSize,
+                  height: trashItemSize,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+
+        if (_fadingTrash != null && _droppedPosition != null && !preview)
+          Positioned(
+            left: _droppedPosition!.dx,
+            top: _droppedPosition!.dy,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 1.0, end: 0.0),
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInBack,
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Opacity(
+                    opacity: value.clamp(0.0, 1.0),
+                    child: child,
+                  ),
+                );
+              },
+              child: Image.asset(
+                _fadingTrash!.imagePath,
+                width: trashItemSize * 1.2,
+                height: trashItemSize * 1.2,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+
+        Positioned(top: 25, left: 25, child: LumiXButton()),
+        Positioned(
+          top: 25,
+          right: 25,
+          child: LumiLevelBadge(level: widget.level),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHowToPlay() {
+    final binId = _currentTrash!.correctBinId;
+
+    return HowToPlayOverlay(
+      handAlignment: _alignmentOf(_trashKey),
+      handEndAlignment: _alignmentOf(_binKey(binId)),
+      handOffset: const Offset(0.15, 0.55),
+      onDismiss: resetIdleTimer,
+      previewChild: _buildScene(preview: true),
     );
   }
 }

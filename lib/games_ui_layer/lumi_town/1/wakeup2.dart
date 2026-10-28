@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
@@ -35,21 +37,25 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
     with
         AiCameraMixin<Lumi2ValuesWakingup>,
         AppAudioLifecycleMixin<Lumi2ValuesWakingup> {
-  bool _showNext = false;
   final AudioPlayer _audioPlayer = AudioPlayer();
-  bool _showGoodJob = false;
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
-
-  bool _hideLightingCard = false;
-  bool _hasSavedResult = false;
 
   static const String _salamatAudio = 'assets/audio/lumi_town/level1/salamat.wav';
 
   static const String _bgImage = 'assets/images/backgrounds/bg_lumi_bed.png';
   static const String _trWooImage = 'assets/images/characters/tr.woo_the_owl.png';
   static const String _littleBearImage = 'assets/images/characters/little_bear.png';
+
+  static const Duration _alarmDuration = Duration(seconds: 9);
+
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
+  bool _showGoodJob = false;
+  bool _showNext = false;
+
+  Timer? _alarmTimer;
 
   @override
   void initState() {
@@ -61,25 +67,24 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
 
-    _playAlarm();
-    Future.delayed(const Duration(seconds: 9), () async {
-      if (mounted) {
-        await _audioPlayer.stop();
-        setState(() => _showNext = true);
-        await _playNext();
-      }
-    });
+    unawaited(
+      GamesSfxPlayer.instance.play(GameSfx.alarmClock).catchError((e) {
+        debugPrint('[Alarm] Error: $e');
+      }),
+    );
+    _alarmTimer = Timer(_alarmDuration, _onAlarmFinished);
   }
 
-  Future<void> _playAlarm() => GamesSfxPlayer.instance.play(GameSfx.alarmClock);
+  Future<void> _onAlarmFinished() async {
+    if (!mounted) return;
+    GamesSfxPlayer.instance.stop(GameSfx.alarmClock);
+    setState(() => _showNext = true);
+    await _playSalamat();
+  }
 
-  Future<void> _playNext() async {
+  Future<void> _playSalamat() async {
     try {
-      await playVoiceRestartingOnFaceLoss(
-        _audioPlayer,
-        _salamatAudio,
-      );
-      
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _salamatAudio);
     } catch (e) {
       debugPrint('[Audio] Error: $e');
     }
@@ -87,15 +92,15 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
 
     await _saveDataAndMarkComplete();
     if (!mounted) return;
-
     setState(() => _showGoodJob = true);
   }
 
   @override
   void dispose() {
+    _alarmTimer?.cancel();
     disposeAiCamera();
-    _audioPlayer.dispose();
     GamesSfxPlayer.instance.stop(GameSfx.alarmClock);
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -208,10 +213,7 @@ class _Lumi2ValuesWakingupState extends State<Lumi2ValuesWakingup>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset(
-            _bgImage,
-            fit: BoxFit.cover,
-          ),
+          Image.asset(_bgImage, fit: BoxFit.cover),
           Align(
             alignment: Alignment.bottomCenter,
             child: Transform.translate(

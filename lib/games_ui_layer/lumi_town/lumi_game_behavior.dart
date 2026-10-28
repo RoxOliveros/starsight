@@ -10,6 +10,8 @@ import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'lumi_game_cleaning.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
@@ -118,7 +120,8 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
     with
         TrWooReactionMixin<BehaviorGameScreen>,
         AiCameraMixin<BehaviorGameScreen>,
-        AppAudioLifecycleMixin<BehaviorGameScreen> {
+        AppAudioLifecycleMixin<BehaviorGameScreen>,
+        IdleHintMixin {
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
@@ -188,6 +191,7 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
 
   @override
   void dispose() {
+    disposeIdleTimer();
     disposeAiCamera();
     _audioPlayer.dispose();
     _trWooPlayer.dispose();
@@ -238,14 +242,17 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
     setState(() => _inputEnabled = false);
 
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _current.narrationAudio);
-    
+
     if (!mounted) return;
 
     setState(() => _inputEnabled = true);
+    startIdleTimer();
   }
 
   Future<void> _onAnswer(bool pickedGreen) async {
     if (!_inputEnabled || _checkingAnswer || !mounted) return;
+
+    cancelIdleTimer();
 
     setState(() {
       _checkingAnswer = true;
@@ -292,10 +299,12 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
         _checkingAnswer = false;
         _inputEnabled = true;
       });
+      startIdleTimer();
     }
   }
 
   Future<void> _completeGame() async {
+    cancelIdleTimer();
     if (!mounted) return;
 
     setState(() {
@@ -359,15 +368,59 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
     Navigator.of(context).pop();
   }
 
+  // Same area the real _BehaviorRound is placed in.
+  Rect _roundRect(Size s) => Rect.fromLTRB(
+    s.width * 0.08,
+    s.height * 0.08,
+    s.width * 0.92,
+    s.height * 0.90,
+  );
+
+  // Green button: 100x100, right-aligned inside the round, vertically centred.
+  Offset _greenButtonCenter(Size s) {
+    final Rect r = _roundRect(s);
+    return Offset(r.right - 50, r.center.dy);
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_gameBg, fit: BoxFit.cover),
+        Positioned.fromRect(
+          rect: _roundRect(s),
+          child: _BehaviorRound(
+            scene: _behaviors[0],
+            inputEnabled: true,
+            pressedButton: null,
+            onRed: () {},
+            onGreen: () {},
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(body: LoadingScreen.lumiTown());
     }
 
+    final Size screenSize = MediaQuery.of(context).size;
+
     return Scaffold(
       body: Listener(
-        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        onPointerDown: (_) {
+          _tapTracker.recordGenericTap();
+          if (_inputEnabled && !_checkingAnswer && !_gameComplete) {
+            resetIdleTimer();
+          }
+        },
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -442,6 +495,23 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
               right: 25,
               child: LumiLevelBadge(level: widget.level),
             ),
+
+            if (showHowToPlay &&
+                _phase == BehaviorSequencePhase.game &&
+                _inputEnabled &&
+                !_checkingAnswer &&
+                !_gameComplete)
+              Positioned.fill(
+                child: HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(screenSize),
+                  handAlignment: _toAlignment(
+                    _greenButtonCenter(screenSize),
+                    screenSize,
+                  ),
+                  handOffset: const Offset(0.15, 0.55),
+                  onDismiss: resetIdleTimer,
+                ),
+              ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

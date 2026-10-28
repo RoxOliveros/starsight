@@ -12,6 +12,8 @@ import 'package:audioplayers/audioplayers.dart';
 import '../../../business_layer/app_audio_lifecycle_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../games_audio_helper.dart';
+import '../../how_to_play_overlay.dart';
+import '../../idle_hint_mixin.dart';
 import '../../tryagain_prompt.dart';
 import '../lumi_game_ui_layer.dart';
 import 'character_entrance.dart';
@@ -39,12 +41,18 @@ class Sharing2 extends StatefulWidget {
 }
 
 class _Sharing2State extends State<Sharing2>
-    with AiCameraMixin<Sharing2>, AppAudioLifecycleMixin<Sharing2> {
-
+    with
+        AiCameraMixin<Sharing2>,
+        AppAudioLifecycleMixin<Sharing2>,
+        IdleHintMixin {
   final AudioPlayer _voice = AudioPlayer();
+
   static const String _voiceBase = 'assets/audio/lumi_town/level5/';
   bool _disposed = false;
+
   final GlobalKey _characterKey = GlobalKey();
+  final GlobalKey _pancakeKey = GlobalKey();
+  final GlobalKey _waterKey = GlobalKey();
 
   bool _isOverCharacter(Offset feedbackTopLeft, double feedbackWidth) {
     final box = _characterKey.currentContext?.findRenderObject() as RenderBox?;
@@ -174,7 +182,9 @@ class _Sharing2State extends State<Sharing2>
   void _handleTutorialClose() {
     setState(() {
       _showTutorial = false;
+      showHowToPlay = false;
     });
+    startIdleTimer();
     _startRoundAudioAndTimers();
   }
 
@@ -205,6 +215,8 @@ class _Sharing2State extends State<Sharing2>
   void _setReady(bool ready) {
     _readyForEntrance = ready;
     _canGive = false;
+    cancelIdleTimer();
+    showHowToPlay = false;
   }
 
   Future<void> _lockOrientationThenStartEntrance() async {
@@ -224,6 +236,8 @@ class _Sharing2State extends State<Sharing2>
   void dispose() {
     _disposed = true;
     disposeAiCamera();
+    disposeIdleTimer();
+
     _cancelBtnTimer?.cancel();
     _voice.dispose();
 
@@ -240,7 +254,7 @@ class _Sharing2State extends State<Sharing2>
     final String audioFile = _bearPhase
         ? 'littlebear_thankyou.wav'
         : (characterThankYouVoiceovers[currentCharKey] ??
-        'littlebear_thankyou.wav');
+              'littlebear_thankyou.wav');
 
     _speak(audioFile);
 
@@ -405,7 +419,14 @@ class _Sharing2State extends State<Sharing2>
 
     return Scaffold(
       body: Listener(
-        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        onPointerDown: (_) {
+          widget.tapTracker.recordGenericTap();
+          if (showHowToPlay) setState(() => showHowToPlay = false);
+          cancelIdleTimer();
+        },
+        onPointerUp: (_) {
+          if (_canGive && !_showTutorial) startIdleTimer();
+        },
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -430,8 +451,9 @@ class _Sharing2State extends State<Sharing2>
                   return false;
                 },
                 onAcceptWithDetails: (details) {
-                  final double feedbackW =
-                  details.data == 'pancake' ? pancakeWidth : glassWidth;
+                  final double feedbackW = details.data == 'pancake'
+                      ? pancakeWidth
+                      : glassWidth;
 
                   if (!_isOverCharacter(details.offset, feedbackW)) {
                     GamesSfxPlayer.instance.play(GameSfx.bubblePop);
@@ -452,6 +474,7 @@ class _Sharing2State extends State<Sharing2>
                       _hasGivenWater = true;
                     });
                   }
+                  startIdleTimer();
                   _checkNextCharacter();
                 },
                 builder: (context, candidateData, rejectedData) {
@@ -462,7 +485,9 @@ class _Sharing2State extends State<Sharing2>
                       children: [
                         if (_readyForEntrance)
                           CharacterEntrance(
-                            key: ValueKey('$_charIndex-$_retryCount-$_bearPhase'),
+                            key: ValueKey(
+                              '$_charIndex-$_retryCount-$_bearPhase',
+                            ),
                             characterKey: _characterKey,
                             characterImagePath: currentCharacterImage,
                             characterHeightFraction: 0.95,
@@ -482,11 +507,11 @@ class _Sharing2State extends State<Sharing2>
                             stepDuration: const Duration(milliseconds: 380),
                             onArrived: () {
                               if (!mounted) return;
-
                               setState(() {
                                 _canGive = true;
                                 _showCancelBtn = true;
                               });
+                              if (!_showTutorial) startIdleTimer();
                             },
                           )
                         else
@@ -557,11 +582,14 @@ class _Sharing2State extends State<Sharing2>
                           duration: const Duration(milliseconds: 250),
                           child: isTop
                               ? Draggable<String>(
+                                  key: isTop ? _pancakeKey : null,
                                   data: 'pancake',
                                   maxSimultaneousDrags: _canGive ? 1 : 0,
                                   onDragEnd: (details) {
                                     if (!details.wasAccepted) {
-                                      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+                                      GamesSfxPlayer.instance.play(
+                                        GameSfx.bubblePop,
+                                      );
                                       widget.tapTracker.recordMistake();
                                     }
                                   },
@@ -619,6 +647,7 @@ class _Sharing2State extends State<Sharing2>
                           opacity: _canGive ? 1.0 : 0.35,
                           duration: const Duration(milliseconds: 250),
                           child: Draggable<String>(
+                            key: index == _waterLeft - 1 ? _waterKey : null,
                             data: 'water',
                             maxSimultaneousDrags: _canGive ? 1 : 0,
                             onDragEnd: (details) {
@@ -691,6 +720,15 @@ class _Sharing2State extends State<Sharing2>
               right: 25,
               child: LumiLevelBadge(level: widget.level),
             ),
+
+            if (showHowToPlay &&
+                _canGive &&
+                !_showTutorial &&
+                !_isCancelProcessing &&
+                !_showSadBearFailedUI &&
+                !_showAllCharactersSuccessUI &&
+                !(_hasGivenPancake && _hasGivenWater))
+              Positioned.fill(child: _buildHowToPlay(sw, sh)),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
@@ -914,6 +952,59 @@ class _Sharing2State extends State<Sharing2>
           ],
         ),
       ),
+    );
+  }
+
+  Rect? _rectOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero, ancestor: root) & box.size;
+  }
+
+  Alignment _alignOf(Offset c, Size s) =>
+      Alignment(c.dx / s.width * 2 - 1, c.dy / s.height * 2 - 1);
+
+  Widget _buildHowToPlay(double sw, double sh) {
+    final isPancake = !_hasGivenPancake;
+    final itemRect = _rectOf(isPancake ? _pancakeKey : _waterKey);
+    final charRect = _rectOf(_characterKey);
+    if (itemRect == null || charRect == null) return const SizedBox.shrink();
+
+    final size = Size(sw, sh);
+    final itemAsset = isPancake
+        ? 'assets/images/objects/lumi/pancke_maple_syrup_butter.png'
+        : 'assets/images/objects/lumi/water_glass.png';
+
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset('assets/images/backgrounds/bg_lumi_park.png', fit: BoxFit.cover),
+        Positioned.fromRect(
+          rect: charRect,
+          child: Image.asset(currentCharacterImage, fit: BoxFit.contain),
+        ),
+        Positioned(
+          bottom: -sh * 0.60, left: 0, right: 0,
+          child: Image.asset('assets/images/objects/lumi/table.png', width: sw, fit: BoxFit.contain),
+        ),
+        Positioned(
+          bottom: sh * 0.055, left: sw * 0.08,
+          child: Image.asset('assets/images/objects/lumi/plate.png', width: sw * 0.26),
+        ),
+        Positioned.fromRect(
+          rect: itemRect,
+          child: Image.asset(itemAsset, fit: BoxFit.contain),
+        ),
+      ],
+    );
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: _alignOf(itemRect.center, size),
+      handEndAlignment: _alignOf(charRect.center, size),
+      handOffset: const Offset(0.15, 0.4),
+      onDismiss: resetIdleTimer,
     );
   }
 }

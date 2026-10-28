@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../games_audio_helper.dart';
+import '../../../how_to_play_overlay.dart';
+import '../../../idle_hint_mixin.dart';
 import '../../lumi_game_ui_layer.dart';
 import '../widgets/shake_widget.dart';
 import 'step3_combing.dart';
@@ -32,9 +34,9 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
     with
         SingleTickerProviderStateMixin,
         AiCameraMixin<Step3ChoiceScreen>,
-        AppAudioLifecycleMixin<Step3ChoiceScreen> {
+        AppAudioLifecycleMixin<Step3ChoiceScreen>,
+        IdleHintMixin {
   final AudioPlayer _player = AudioPlayer();
-  bool _hideLightingCard = false;
 
   final GlobalKey<ShakeWidgetState> _plantKey = GlobalKey();
   final GlobalKey<ShakeWidgetState> _appleKey = GlobalKey();
@@ -45,7 +47,11 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
   static const String _step3QuestionAudio = 'assets/audio/lumi_town/level2/vo_step3_question.wav';
   static const String _step1WrongAudio = 'assets/audio/lumi_town/level2/vo_step1_wrong.wav';
   static const String _combStartAudio = 'assets/audio/lumi_town/level2/vo_comb_start.wav';
-  
+
+  bool _hideLightingCard = false;
+  bool _ready = false;
+  bool _busy = false;
+
   @override
   List<AudioPlayer> get lifecyclePlayers => [_player];
 
@@ -74,21 +80,21 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
   }
 
   Future<void> _playQuestionAudio() async {
-    await playVoiceRestartingOnFaceLoss(
-      _player,
-      _step3QuestionAudio,
-    );
+    await playVoiceRestartingOnFaceLoss(_player, _step3QuestionAudio);
     await waitForAudio(_player);
+    if (!mounted) return;
+    _iconEntranceCtrl.forward();
+    setState(() => _ready = true);
+    startIdleTimer();
     if (mounted) _iconEntranceCtrl.forward();
   }
 
   Future<void> _onCorrect() async {
+    setState(() => _busy = true);
+    cancelIdleTimer();
     widget.tapTracker.recordCorrectTap();
     GamesSfxPlayer.instance.play(GameSfx.shine);
-    await playVoiceRestartingOnFaceLoss(
-      _player,
-      _combStartAudio,
-    );
+    await playVoiceRestartingOnFaceLoss(_player, _combStartAudio);
     await waitForAudio(_player);
     if (!mounted) return;
     final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
@@ -104,18 +110,22 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
   }
 
   Future<void> _onWrong(GlobalKey<ShakeWidgetState> key) async {
+    setState(() => _busy = true);
+    cancelIdleTimer();
     widget.tapTracker.recordMistake();
     key.currentState?.shake();
     GamesSfxPlayer.instance.play(GameSfx.bubblePop);
-    await playVoiceRestartingOnFaceLoss(
-      _player,
-      _step1WrongAudio,
-    );
+    await playVoiceRestartingOnFaceLoss(_player, _step1WrongAudio);
+    await waitForAudio(_player);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    startIdleTimer();
   }
 
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _player.dispose();
     _iconEntranceCtrl.dispose();
     super.dispose();
@@ -126,7 +136,10 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
     return Scaffold(
       backgroundColor: Colors.black,
       body: Listener(
-        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        onPointerDown: (_) {
+          widget.tapTracker.recordGenericTap();
+          if (_ready && !_busy) resetIdleTimer();
+        },
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -202,6 +215,16 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
               child: LumiLevelBadge(level: widget.level),
             ),
 
+            if (showHowToPlay && _ready && !_busy)
+              Positioned.fill(
+                child: HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(),
+                  handAlignment: _tileAlignment(),
+                  handOffset: const Offset(0.15, 0.46),
+                  onDismiss: resetIdleTimer,
+                ),
+              ),
+
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
                 onClose: () {
@@ -212,6 +235,60 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
           ],
         ),
       ),
+    );
+  }
+
+  Alignment _tileAlignment() {
+    final h = MediaQuery.of(context).size.height;
+    return Alignment(0, (h - 16 - 45) / h * 2 - 1);
+  }
+
+  Widget _buildHowToPreview() {
+    final h = MediaQuery.of(context).size.height;
+    Widget tile() => Container(
+      width: 90,
+      height: 90,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white, width: 3),
+      ),
+    );
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/backgrounds/bg_lumi_bathroom.png',
+          fit: BoxFit.cover,
+        ),
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Image.asset(
+              'assets/images/characters/little_bear.png',
+              height: h * 0.80,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 16,
+          left: 0,
+          right: 0,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              tile(),
+              const SizedBox(width: 24),
+              tile(),
+              const SizedBox(width: 24),
+              tile(),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

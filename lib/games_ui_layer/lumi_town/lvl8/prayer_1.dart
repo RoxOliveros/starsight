@@ -3,7 +3,6 @@ import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/gesture_camera_view.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_1.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -13,7 +12,7 @@ import '../../../ui_layer/game_loading_mixin.dart';
 import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../ui_layer/lumi_town/town_level.dart';
-import '../../games_audio_helper.dart';
+import '../lumi_game_sorry_game.dart';
 import '../lumi_game_ui_layer.dart';
 import 'prayer_prompt_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -39,6 +38,10 @@ class _Prayer1State extends State<Prayer1>
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
+  Timer? _idleVoiceTimer;
+
+  static const Duration _idleVoiceDelay = Duration(seconds: 8);
+  static const String _letsPrayAudio = 'assets/audio/lumi_town/level8/lets_pray.wav';
   String _currentScene = 'assets/images/objects/lumi/lvl8_scene1.png';
 
   // Timers
@@ -75,6 +78,19 @@ class _Prayer1State extends State<Prayer1>
     finishLoading(_initializeSequence);
   }
 
+  void _startIdleVoiceTimer() {
+    _idleVoiceTimer?.cancel();
+    if (!mounted || !_isWaitingForPrayerGesture || _gestureDetected) return;
+    _idleVoiceTimer = Timer(_idleVoiceDelay, _playLetsPrayReminder);
+  }
+
+  Future<void> _playLetsPrayReminder() async {
+    if (!mounted || !_isWaitingForPrayerGesture || _gestureDetected) return;
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _letsPrayAudio);
+    if (!mounted) return;
+    _startIdleVoiceTimer();
+  }
+
   Future<void> _initializeSequence() async {
     final status = await Permission.camera.request();
     if (!mounted) return;
@@ -102,13 +118,15 @@ class _Prayer1State extends State<Prayer1>
       });
     });
 
-    
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _letsPrayAudio);
+
     if (!mounted || _gestureDetected) return;
 
     if (_hasCameraPermission) {
       setState(() {
         _isWaitingForPrayerGesture = true;
       });
+      _startIdleVoiceTimer();
 
       _promptTimer = Timer(const Duration(seconds: 5), () {
         if (mounted && _isWaitingForPrayerGesture && !_gestureDetected) {
@@ -134,6 +152,7 @@ class _Prayer1State extends State<Prayer1>
     _scene3Timer?.cancel();
     _promptTimer?.cancel();
     _skipTimer?.cancel();
+    _idleVoiceTimer?.cancel();
 
     setState(() {
       _gestureDetected = true;
@@ -200,6 +219,7 @@ class _Prayer1State extends State<Prayer1>
   @override
   void dispose() {
     disposeAiCamera();
+    _idleVoiceTimer?.cancel();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _scene2Timer?.cancel();
     _scene3Timer?.cancel();
@@ -215,9 +235,14 @@ class _Prayer1State extends State<Prayer1>
       backgroundColor: Colors.white,
       body: buildWithLoading(
         loadingScreen: LoadingScreen.lumiTown(),
-        gameBuilder: () => Listener(
-          onPointerDown: (_) => _tapTracker.recordGenericTap(),
-          child: Stack(
+          gameBuilder: () => Listener(
+            onPointerDown: (_) {
+              _tapTracker.recordGenericTap();
+              if (_isWaitingForPrayerGesture && !_gestureDetected) {
+                _startIdleVoiceTimer();
+              }
+            },
+            child: Stack(
             fit: StackFit.expand,
             children: [
               AnimatedSwitcher(
@@ -309,7 +334,7 @@ class _Prayer1State extends State<Prayer1>
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute(
                         builder: (context) =>
-                            Sorry1Screen(level: widget.level + 1),
+                            SorryGameScreen(level: widget.level + 1),
                       ),
                     );
                   },

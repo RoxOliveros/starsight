@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../games_audio_helper.dart';
+import '../../../how_to_play_overlay.dart';
+import '../../../idle_hint_mixin.dart';
 import '../../lumi_game_ui_layer.dart';
 import '../widgets/bubble_overlay.dart';
 import '../widgets/sparkle_overlay.dart';
@@ -33,29 +35,30 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
     with
         SingleTickerProviderStateMixin,
         AiCameraMixin<Step1BrushingScreen>,
-        AppAudioLifecycleMixin<Step1BrushingScreen> {
+        AppAudioLifecycleMixin<Step1BrushingScreen>,
+        IdleHintMixin {
   final AudioPlayer _player = AudioPlayer();
 
-  bool _hideLightingCard = false;
-  bool _dropped = false;
   BubbleState _bubbleState = BubbleState.none;
   StarState _starState = StarState.none;
 
   late AnimationController _wobbleCtrl;
   late Animation<double> _wobbleAnim;
 
+  static const String _brushDoneAudio = 'assets/audio/lumi_town/level2/vo_brush_done.wav';
+  static const String _brushMidAudio = 'assets/audio/lumi_town/level2/vo_brush_mid.wav';
+
   double _brushProgress = 0.0;
+  double _toothbrushX = 0.0;
+  double _toothbrushY = 0.0;
+
+  bool _isBrushing = false;
+  bool _audioFired = false;
   bool _quarterFired = false;
   bool _halfFired = false;
   bool _completeFired = false;
-
-  double _toothbrushX = 0.0;
-  double _toothbrushY = 0.0;
-  bool _isBrushing = false;
-  bool _audioFired = false;
-
-  static const String _brushDoneAudio = 'assets/audio/lumi_town/level2/vo_brush_done.wav';
-  static const String _brushMidAudio = 'assets/audio/lumi_town/level2/vo_brush_mid.wav';
+  bool _hideLightingCard = false;
+  bool _dropped = false;
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_player];
@@ -83,11 +86,13 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
       begin: -4.0,
       end: 4.0,
     ).animate(CurvedAnimation(parent: _wobbleCtrl, curve: Curves.easeInOut));
+    startIdleTimer();
   }
 
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _player.dispose();
     _wobbleCtrl.dispose();
     GamesSfxPlayer.instance.stop(GameSfx.brush);
@@ -100,15 +105,13 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
 
   Future<void> _onBrushComplete() async {
     GamesSfxPlayer.instance.stop(GameSfx.brush);
+    cancelIdleTimer();
     widget.tapTracker.recordCorrectTap();
     setState(() => _bubbleState = BubbleState.none);
     setState(() => _starState = StarState.lot);
     _wobbleCtrl.stop();
     _wobbleCtrl.stop();
-    await playVoiceRestartingOnFaceLoss(
-      _player,
-      _brushDoneAudio,
-    );
+    await playVoiceRestartingOnFaceLoss(_player, _brushDoneAudio);
     await waitForAudio(_player);
     if (!mounted) return;
     final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
@@ -128,17 +131,18 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
     return Scaffold(
       backgroundColor: Colors.black,
       body: Listener(
-        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        onPointerDown: (_) {
+          widget.tapTracker.recordGenericTap();
+          if (!_completeFired) resetIdleTimer();
+        },
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Background
             Image.asset(
               'assets/images/backgrounds/bg_lumi_bathroom.png',
               fit: BoxFit.cover,
             ),
 
-            // Little Bear with DragTarget on mouth area
             Positioned(
               bottom: 0,
               left: 0,
@@ -160,7 +164,6 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
                           fit: BoxFit.contain,
                         ),
 
-                        // Bubbles and Stars
                         if (_dropped)
                           Positioned(
                             bottom: mouthBottom + 90,
@@ -173,15 +176,18 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
                             ),
                           ),
 
-                        // Swipe touch area on mouth
                         if (_dropped)
                           Positioned(
                             bottom: mouthBottom + 70,
                             child: GestureDetector(
                               behavior: HitTestBehavior.translucent,
                               onPanStart: (details) {
+                                cancelIdleTimer();
                                 if (!_completeFired) {
-                                  GamesSfxPlayer.instance.play(GameSfx.brush, loop: true);
+                                  GamesSfxPlayer.instance.play(
+                                    GameSfx.brush,
+                                    loop: true,
+                                  );
                                 }
                                 setState(() {
                                   _isBrushing = true;
@@ -224,6 +230,7 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
                               onPanEnd: (_) {
                                 GamesSfxPlayer.instance.stop(GameSfx.brush);
                                 setState(() => _isBrushing = false);
+                                if (!_completeFired) startIdleTimer();
                               },
                               child: Container(
                                 width: 160,
@@ -329,10 +336,57 @@ class _Step1BrushingScreenState extends State<Step1BrushingScreen>
                   releaseFaceGate();
                 },
               ),
+
+            if (showHowToPlay && !_completeFired && !_isBrushing)
+              Positioned.fill(
+                child: Builder(
+                  builder: (context) {
+                    final h = MediaQuery.of(context).size.height;
+                    final y = h - (h * 0.80 * 0.28 + 110);
+                    return HowToPlayOverlay(
+                      previewChild: _buildHowToPreview(),
+                      handAlignment: _swipeAlignment(-60, y),
+                      handEndAlignment: _swipeAlignment(60, y),
+                      handOffset: const Offset(0.15, 0.46),
+                      onDismiss: resetIdleTimer,
+                    );
+                  },
+                ),
+              ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildHowToPreview() {
+    final h = MediaQuery.of(context).size.height;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/backgrounds/bg_lumi_bathroom.png',
+          fit: BoxFit.cover,
+        ),
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Image.asset(
+              'assets/images/characters/little_bear.png',
+              height: h * 0.80,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Alignment _swipeAlignment(double dx, double centerY) {
+    final sz = MediaQuery.of(context).size;
+    return Alignment(dx / (sz.width / 2), centerY / sz.height * 2 - 1);
   }
 }
 

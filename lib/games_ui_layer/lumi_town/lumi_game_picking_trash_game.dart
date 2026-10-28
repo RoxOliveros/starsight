@@ -3,7 +3,6 @@ import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lvl11/throwing_trash_game.dart';
 import 'package:StarSight/ui_layer/lumi_town/lumi_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -12,10 +11,13 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-import '../../../ui_layer/game_loading_mixin.dart';
-import '../../../ui_layer/loading_screen.dart';
-import '../../games_audio_helper.dart';
-import '../lumi_game_ui_layer.dart';
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
+import 'lumi_game_ui_layer.dart';
+import 'lumi_game_throwing_trash_game.dart';
 
 class PickingTrashGame extends StatefulWidget {
   final int level;
@@ -30,7 +32,8 @@ class _PickingTrashGameState extends State<PickingTrashGame>
     with
         AiCameraMixin<PickingTrashGame>,
         GameLoadingMixin,
-        AppAudioLifecycleMixin<PickingTrashGame> {
+        AppAudioLifecycleMixin<PickingTrashGame>,
+        IdleHintMixin {
   // ==========================================
   // GAME STATE
   // ==========================================
@@ -47,6 +50,43 @@ class _PickingTrashGameState extends State<PickingTrashGame>
   List<TrashItemData> trashItems = [];
 
   final GameTapTracker _tapTracker = GameTapTracker();
+  final GlobalKey _hintKey = GlobalKey();
+
+  TrashItemData? get _hintItem {
+    for (final t in trashItems) {
+      if (!t.isCollected) return t;
+    }
+    return null;
+  }
+
+  bool get _hintActive =>
+      !_showDrWoo &&
+          !_isGameFinished &&
+          !_hasSavedResult &&
+          _hintItem != null;
+
+  bool get _hintAllowed => showHowToPlay && _hintActive;
+
+  /// Hide any visible hint and restart the idle countdown.
+  void _armHint() {
+    if (!mounted) return;
+    setState(() => showHowToPlay = false);
+    startIdleTimer();
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final center =
+    box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
@@ -192,38 +232,39 @@ class _PickingTrashGameState extends State<PickingTrashGame>
         ),
       ];
     });
-
+    cancelIdleTimer();
     _playIntroSequence();
   }
 
   Future<void> _playIntroSequence() async {
-    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level10/picking_trash_game_intro.wav');
-
     _playerCompleteSubscription?.cancel();
-
     _playerCompleteSubscription = _audioPlayer.onPlayerComplete.listen((event) {
-      if (mounted) {
-        setState(() {
-          _showDrWoo = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _showDrWoo = false;
+        showHowToPlay = false;
+      });
+      startIdleTimer();
     });
+
+    await playVoiceRestartingOnFaceLoss(
+      _audioPlayer,
+      'assets/audio/lumi_town/level10/picking_trash_game_intro.wav',
+    );
   }
 
   Future<void> _playEndingSequence() async {
-    setState(() {
-      _showDrWoo = true;
-    });
-
-    await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/lumi_town/level10/picking_trash_game_ending.wav');
+    setState(() => _showDrWoo = true);
 
     _playerCompleteSubscription?.cancel();
-
     _playerCompleteSubscription = _audioPlayer.onPlayerComplete.listen((event) {
-      if (mounted) {
-        _saveDataAndShowGoodJob();
-      }
+      if (mounted) _saveDataAndShowGoodJob();
     });
+
+    await playVoiceRestartingOnFaceLoss(
+      _audioPlayer,
+      'assets/audio/lumi_town/level10/picking_trash_game_ending.wav',
+    );
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
@@ -260,6 +301,8 @@ class _PickingTrashGameState extends State<PickingTrashGame>
   // ==========================================
   Future<void> _handleTrashTap(TrashItemData item) async {
     if (_showDrWoo || item.isCollected || _isGameFinished) return;
+    cancelIdleTimer();
+    if (showHowToPlay) setState(() => showHowToPlay = false);
 
     GamesSfxPlayer.instance.play(GameSfx.shine);
 
@@ -288,20 +331,26 @@ class _PickingTrashGameState extends State<PickingTrashGame>
 
     await Future.delayed(const Duration(milliseconds: 800));
 
-    if (mounted) {
-      setState(() {
-        item.isCollected = true;
+    if (!mounted) return;
 
-        if (trashItems.every((t) => t.isCollected)) {
-          _playEndingSequence();
-        }
-      });
+    bool allDone = false;
+    setState(() {
+      item.isCollected = true;
+      allDone = trashItems.every((t) => t.isCollected);
+    });
+
+    if (allDone) {
+      cancelIdleTimer();
+      _playEndingSequence();
+    } else {
+      _armHint();
     }
   }
 
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _playerCompleteSubscription?.cancel();
     _audioPlayer.dispose();
     OrientationService.setLandscape();
@@ -310,56 +359,19 @@ class _PickingTrashGameState extends State<PickingTrashGame>
 
   @override
   Widget build(BuildContext context) {
-    final Size screenSize = MediaQuery.of(context).size;
-
     return Scaffold(
       body: buildWithLoading(
         loadingScreen: LoadingScreen.lumiTown(),
         gameBuilder: () => Listener(
-          onPointerDown: (_) => _tapTracker.recordGenericTap(),
+          onPointerDown: (_) {
+            _tapTracker.recordGenericTap();
+            if (_hintActive) resetIdleTimer();
+          },
           child: Stack(
             children: [
-              Positioned.fill(
-                child: Image.asset(
-                  'assets/images/backgrounds/bg_park_sunny.png',
-                  fit: BoxFit.cover,
-                ),
-              ),
+              Positioned.fill(child: _buildScene()),
 
-              ...trashItems.where((item) => !item.isCollected).map((item) {
-                return AnimatedPositioned(
-                  key: ValueKey(item.image),
-                  duration: const Duration(milliseconds: 800),
-                  curve: Curves.easeInOut,
-                  left: screenSize.width * item.x,
-                  top: screenSize.height * item.y,
-                  width: screenSize.width * item.size,
-                  child: GestureDetector(
-                    onTap: () {
-                      _handleTrashTap(item);
-                    },
-                    child: Image.asset(item.image, fit: BoxFit.contain),
-                  ),
-                );
-              }),
-
-              Positioned(top: 25, left: 25, child: LumiXButton()),
-              Positioned(
-                top: 25,
-                right: 25,
-                child: LumiLevelBadge(level: widget.level),
-              ),
-
-              if (_showDrWoo)
-                Positioned(
-                  left: screenSize.width * drWooX,
-                  top: screenSize.height * drWooY,
-                  width: screenSize.width * drWooSize,
-                  child: Image.asset(
-                    'assets/images/characters/tr.woo_the_owl.png',
-                    fit: BoxFit.contain,
-                  ),
-                ),
+              if (_hintAllowed) Positioned.fill(child: _buildHowToPlay()),
 
               if (hasCapturedFirstFrame &&
                   !isFaceDetected &&
@@ -375,7 +387,7 @@ class _PickingTrashGameState extends State<PickingTrashGame>
                 Positioned.fill(
                   child: GoodJobOverlay(
                     characterImage:
-                        'assets/images/characters/tr.woo_the_owl.png',
+                    'assets/images/characters/tr.woo_the_owl.png',
                     onNext: () {
                       if (mounted) {
                         Navigator.of(context).pushAndRemoveUntil(
@@ -383,7 +395,7 @@ class _PickingTrashGameState extends State<PickingTrashGame>
                             builder: (_) =>
                                 ThrowingTrashGame(level: widget.level + 1),
                           ),
-                          (route) => route.isFirst,
+                              (route) => route.isFirst,
                         );
                       }
                     },
@@ -401,6 +413,70 @@ class _PickingTrashGameState extends State<PickingTrashGame>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHowToPlay() {
+    return HowToPlayOverlay(
+      handAlignment: _alignmentOf(_hintKey),
+      handOffset: const Offset(0.15, 0.55),
+      onDismiss: resetIdleTimer,
+      previewChild: _buildScene(preview: true),
+    );
+  }
+
+  Widget _buildScene({bool preview = false}) {
+    final Size screenSize = MediaQuery.of(context).size;
+    final hintItem = preview ? null : _hintItem;
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/backgrounds/bg_park_sunny.png',
+            fit: BoxFit.cover,
+          ),
+        ),
+
+        ...trashItems.where((item) => !item.isCollected).map((item) {
+          Widget image = GestureDetector(
+            onTap: preview ? null : () => _handleTrashTap(item),
+            child: Image.asset(item.image, fit: BoxFit.contain),
+          );
+
+          if (identical(item, hintItem)) {
+            image = KeyedSubtree(key: _hintKey, child: image);
+          }
+
+          return AnimatedPositioned(
+            key: ValueKey(item.image),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeInOut,
+            left: screenSize.width * item.x,
+            top: screenSize.height * item.y,
+            width: screenSize.width * item.size,
+            child: image,
+          );
+        }),
+
+        Positioned(top: 25, left: 25, child: LumiXButton()),
+        Positioned(
+          top: 25,
+          right: 25,
+          child: LumiLevelBadge(level: widget.level),
+        ),
+
+        if (_showDrWoo && !preview)
+          Positioned(
+            left: screenSize.width * drWooX,
+            top: screenSize.height * drWooY,
+            width: screenSize.width * drWooSize,
+            child: Image.asset(
+              'assets/images/characters/tr.woo_the_owl.png',
+              fit: BoxFit.contain,
+            ),
+          ),
+      ],
     );
   }
 }

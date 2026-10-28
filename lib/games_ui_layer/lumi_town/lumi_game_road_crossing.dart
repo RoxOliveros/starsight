@@ -8,6 +8,8 @@ import 'package:StarSight/ui_layer/loading_screen.dart';
 import 'package:StarSight/ui_layer/lumi_town/lumi_buttons.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import '../tryagain_prompt.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
@@ -72,7 +74,8 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
     with
         TrWooReactionMixin,
         AiCameraMixin<CrossingGameScreen>,
-        AppAudioLifecycleMixin<CrossingGameScreen> {
+        AppAudioLifecycleMixin<CrossingGameScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _trWooPlayer = AudioPlayer();
@@ -225,10 +228,12 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       _inputEnabled = true;
       _isProcessing = false;
     });
+    startIdleTimer();
   }
 
   Future<void> _handleRound1Answer(bool choseCross) async {
     if (!_inputEnabled || _isProcessing) return;
+    cancelIdleTimer();
 
     setState(() {
       _isProcessing = true;
@@ -292,10 +297,12 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       _inputEnabled = true;
       _isProcessing = false;
     });
+    startIdleTimer();
   }
 
   Future<void> _handleRound2Answer(bool choseCross) async {
     if (!_inputEnabled || _isProcessing) return;
+    cancelIdleTimer();
 
     setState(() {
       _isProcessing = true;
@@ -402,6 +409,7 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
 
   @override
   void dispose() {
+    disposeIdleTimer();
     disposeAiCamera();
     _cancelGlowTimers();
     _audioPlayer.dispose();
@@ -451,6 +459,62 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
     }
   }
 
+  // Button centers, mirroring the Positioned buttons in build.
+  Offset _decisionCenter(Size s, {required bool up}) {
+    final double box = s.width * 0.16 + 12; // size + 6px padding each side
+    final double y = s.height - s.height * 0.06 - box / 2;
+    final double x = up
+        ? s.width - s.width * 0.04 - box / 2
+        : s.width * 0.04 + box / 2;
+    return Offset(x, y);
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_backgroundAsset, fit: BoxFit.cover),
+        Positioned(
+          top: 75,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: SizedBox(
+              height: s.height * 0.5,
+              child: Image.asset(_roxieImage, fit: BoxFit.contain),
+            ),
+          ),
+        ),
+        Positioned(
+          left: s.width * 0.04,
+          bottom: s.height * 0.06,
+          child: _DecisionButton(
+            assetPath: _thumbsDown,
+            size: s.width * 0.16,
+            glowing: false,
+            enabled: true,
+            onTap: () {},
+          ),
+        ),
+        Positioned(
+          right: s.width * 0.04,
+          bottom: s.height * 0.06,
+          child: _DecisionButton(
+            assetPath: _thumbsUp,
+            size: s.width * 0.16,
+            glowing: false,
+            enabled: true,
+            onTap: () {},
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -460,10 +524,15 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
       );
     }
 
+    final Size screenSize = MediaQuery.of(context).size;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Listener(
-        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        onPointerDown: (_) {
+          _tapTracker.recordGenericTap();
+          if (_buttonsInteractive) resetIdleTimer();
+        },
         child: LayoutBuilder(
           builder: (context, constraints) {
             final w = constraints.maxWidth;
@@ -561,6 +630,24 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
                   right: 25,
                   child: LumiLevelBadge(level: widget.level),
                 ),
+
+                if (showHowToPlay && _buttonsInteractive)
+                  Positioned.fill(
+                    child: HowToPlayOverlay(
+                      previewChild: _buildHowToPreview(screenSize),
+                      handAlignment: _toAlignment(
+                        _decisionCenter(screenSize, up: false),
+                        screenSize,
+                      ),
+                      tapSequence: true,
+                      handPath: [
+                        _toAlignment(_decisionCenter(screenSize, up: false), screenSize),
+                        _toAlignment(_decisionCenter(screenSize, up: true), screenSize),
+                      ],
+                      handOffset: const Offset(0.15, 0.55),
+                      onDismiss: resetIdleTimer,
+                    ),
+                  ),
 
                 if (hasCapturedFirstFrame &&
                     !isFaceDetected &&
