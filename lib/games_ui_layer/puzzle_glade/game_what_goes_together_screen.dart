@@ -123,8 +123,8 @@ const List<_GoesTogetherQuestion> _kRound5Pool = [
   ),
   _GoesTogetherQuestion(
     targetObject: 'door',
-    correctObject: 'door_key',
-    choices: ['door_key', 'spoon', 'kite'],
+    correctObject: 'key',
+    choices: ['key', 'spoon', 'kite'],
   ),
 ];
 
