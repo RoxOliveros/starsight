@@ -10,6 +10,8 @@ import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'lumi_game_dont_talk_to_strangers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
@@ -20,7 +22,8 @@ import 'lumi_game_ui_layer.dart';
 
 const String _introBg = 'assets/images/backgrounds/mama_little_bear_scene.png';
 const String _gameBg = 'assets/images/backgrounds/bg_sky.png';
-const String _completeBg = 'assets/images/backgrounds/mama_little_bear_happy_cleaning.png';
+const String _completeBg =
+    'assets/images/backgrounds/mama_little_bear_happy_cleaning.png';
 const String _teacherWooImage = 'assets/images/characters/tr.woo_the_owl.png';
 
 const String _audioBase = 'assets/audio/lumi_town/';
@@ -194,8 +197,8 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
     with
         TrWooReactionMixin<CleaningGameScreen>,
         AiCameraMixin<CleaningGameScreen>,
-        AppAudioLifecycleMixin<CleaningGameScreen> {
-
+        AppAudioLifecycleMixin<CleaningGameScreen>,
+        IdleHintMixin {
   final GameTapTracker _tapTracker = GameTapTracker();
   final DateTime _loadStart = DateTime.now();
 
@@ -224,6 +227,7 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
   bool _hasSavedResult = false;
 
   CleaningSequencePhase _phase = CleaningSequencePhase.intro;
+
   CleaningScenarioModel get _current => _queue[_currentIndex];
 
   @override
@@ -264,6 +268,7 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
 
   @override
   void dispose() {
+    disposeIdleTimer();
     disposeAiCamera();
     _audioPlayer.dispose();
     _trWooPlayer.dispose();
@@ -324,7 +329,7 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
     });
 
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _introAudio);
-    
+
     if (!mounted) return;
 
     setState(() {
@@ -333,7 +338,7 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
     });
 
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _instructionAudio);
-    
+
     if (!mounted) return;
 
     setState(() => _phase = CleaningSequencePhase.game);
@@ -354,14 +359,17 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
     });
 
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _current.questionAudio);
-    
+
     if (!mounted) return;
 
     setState(() => _inputEnabled = true);
+    startIdleTimer();
   }
 
   Future<void> _onAnswer(CleaningMaterial picked) async {
     if (!_inputEnabled || _checkingAnswer || !mounted) return;
+
+    cancelIdleTimer();
 
     final bool isCorrect = picked == _current.correctMaterial;
 
@@ -380,7 +388,7 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
       setState(() => _showClean = true);
 
       await playVoiceRestartingOnFaceLoss(_audioPlayer, _current.correctAudio);
-      
+
       if (!mounted) return;
 
       if (_currentIndex == _queue.length - 1) {
@@ -401,12 +409,15 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
           }),
         );
       }
+
+      startIdleTimer();
     }
   }
 
   // --- Completion / restart --------------------------------------------------
 
   Future<void> _completeGame() async {
+    cancelIdleTimer();
     if (!mounted) return;
 
     setState(() => _phase = CleaningSequencePhase.complete);
@@ -437,7 +448,7 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
     if (!mounted) return;
 
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _winAudio);
-    
+
     if (!mounted) return;
 
     setState(() {
@@ -474,15 +485,86 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
 
   // --- UI ------------------------------------------------------------------
 
+  CleaningScenarioModel get _demoScenario {
+    final String demoId =
+    _current.id == 'dirty_floor' ? 'dirty_sink' : 'dirty_floor';
+    return _scenarios.firstWhere((s) => s.id == demoId);
+  }
+
+  Rect _roundRect(Size s) => Rect.fromLTRB(
+    s.width * 0.15,
+    s.height * 0.15,
+    s.width * 0.92,
+    s.height * 0.94,
+  );
+
+  Offset _correctCardCenter(Size s) {
+    final Rect r = _roundRect(s);
+    final CleaningScenarioModel demo = _demoScenario;
+    final int count = demo.choices.length;
+
+    final double spacing = r.height * 0.03;
+    final double totalSpacing = spacing * (count - 1);
+
+    final double maxCardWidth = r.width * 0.13;
+    final double maxCardHeightFit = (r.height - totalSpacing) / count;
+    final double cardSize =
+    (maxCardWidth < maxCardHeightFit ? maxCardWidth : maxCardHeightFit)
+        .clamp(60.0, 100.0);
+
+    // Column sits below a 15px top padding and is vertically centred.
+    final double availableH = r.height - 15;
+    final double columnH = cardSize * count + totalSpacing;
+    final double startY = r.top + 15 + (availableH - columnH) / 2;
+
+    final int index = demo.choices.indexOf(demo.correctMaterial);
+
+    return Offset(
+      r.right - cardSize / 2,
+      startY + index * (cardSize + spacing) + cardSize / 2,
+    );
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final CleaningScenarioModel demo = _demoScenario;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_gameBg, fit: BoxFit.cover),
+        Positioned.fromRect(
+          rect: _roundRect(s),
+          child: _CleaningRound(
+            scenario: demo,
+            showClean: false,
+            choiceOrder: demo.choices,
+            inputEnabled: true,
+            onSelect: (_) {},
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(body: LoadingScreen.lumiTown());
     }
+    final Size screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
       body: Listener(
-        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        onPointerDown: (_) {
+          _tapTracker.recordGenericTap();
+          if (_inputEnabled && !_checkingAnswer && !_gameComplete) {
+            resetIdleTimer();
+          }
+        },
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -548,6 +630,23 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
               right: 25,
               child: LumiLevelBadge(level: widget.level),
             ),
+
+            if (showHowToPlay &&
+                _phase == CleaningSequencePhase.game &&
+                _inputEnabled &&
+                !_checkingAnswer &&
+                !_gameComplete)
+              Positioned.fill(
+                child: HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(screenSize),
+                  handAlignment: _toAlignment(
+                    _correctCardCenter(screenSize),
+                    screenSize,
+                  ),
+                  handOffset: const Offset(0.15, 0.55),
+                  onDismiss: resetIdleTimer,
+                ),
+              ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

@@ -9,6 +9,8 @@ import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'lumi_game_diary.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
@@ -35,7 +37,8 @@ const String _completeAudio = '${_audioBase}stoplight_complete.wav';
 const String _sleepingScene = 'assets/animations/sleeping.webp';
 const String _bikingScene = 'assets/images/objects/lumi/biking_scene.png';
 const String _snacksScene = 'assets/images/objects/lumi/snacks_scene.png';
-const String _watchingTvScene = 'assets/images/objects/lumi/watching_tv_scene.png';
+const String _watchingTvScene =
+    'assets/images/objects/lumi/watching_tv_scene.png';
 const String _gamingScene = 'assets/images/objects/lumi/gaming_scene.png';
 
 // ============================================================================
@@ -118,7 +121,8 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
     with
         TrWooReactionMixin<StoplightGameScreen>,
         AiCameraMixin<StoplightGameScreen>,
-        AppAudioLifecycleMixin<StoplightGameScreen> {
+        AppAudioLifecycleMixin<StoplightGameScreen>,
+        IdleHintMixin {
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
@@ -127,10 +131,7 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
   final AudioPlayer _trWooPlayer = AudioPlayer();
 
   @override
-  List<AudioPlayer> get lifecyclePlayers => [
-    _audioPlayer,
-    _trWooPlayer,
-  ];
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _trWooPlayer];
 
   @override
   AudioPlayer get trWooPlayer => _trWooPlayer;
@@ -150,6 +151,62 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
   bool _hasSavedResult = false;
 
   StoplightScenario get _scenario => _scenarios[_currentRound];
+
+  // Matches the real layout: stoplight is width * 0.21 wide, aspect 0.45,
+  // left: width * 0.15, bottom: -80.
+  Offset _yellowLightCenter(Size s) {
+    final double w = s.width * 0.21;
+    final double h = w / 0.45;
+    final double left = s.width * 0.15;
+    final double top = s.height + 80 - h;
+    return Offset(left + w / 2, top + h * 0.275);
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final double stoplightWidth = s.width * 0.21;
+    final double scenarioWidth = s.width * 0.48;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_roadBg, fit: BoxFit.cover),
+
+        Positioned(
+          left: s.width * 0.15,
+          bottom: -80,
+          child: SizedBox(
+            width: stoplightWidth,
+            child: _StoplightWidget(
+              imagePath: _stoplight,
+              enabled: false,
+              selectedAnswer: null,
+              onTap: (_) {},
+            ),
+          ),
+        ),
+
+        // one sample scenario (biking)
+        Positioned(
+          right: s.width * 0.08,
+          top: s.height * 0.20,
+          child: SizedBox(
+            width: scenarioWidth,
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: _ScenarioCard(
+                scenario: _scenarios[1],
+                selectedAnswer: null,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   void initState() {
@@ -191,6 +248,7 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _trWooPlayer.dispose();
     super.dispose();
@@ -205,7 +263,7 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
     });
 
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _introAudio);
-    
+
     if (!mounted) return;
 
     setState(() {
@@ -218,7 +276,7 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
     unawaited(_runInstructionFlashes());
 
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _instructionAudio);
-    
+
     if (!mounted) return;
 
     setState(() {
@@ -285,14 +343,17 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
     });
 
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _scenario.audio);
-    
+
     if (!mounted) return;
 
     setState(() => _buttonsEnabled = true);
+    startIdleTimer();
   }
 
   Future<void> _onLightTapped(StoplightAnswer answer) async {
     if (!_buttonsEnabled || _checkingAnswer || !mounted) return;
+
+    cancelIdleTimer();
 
     setState(() {
       _selectedAnswer = answer;
@@ -328,6 +389,7 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
         _buttonsEnabled = true;
         _checkingAnswer = false;
       });
+      startIdleTimer();
     }
   }
 
@@ -341,6 +403,7 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
   }
 
   Future<void> _completeGame() async {
+    cancelIdleTimer();
     if (!mounted) return;
 
     setState(() {
@@ -374,7 +437,6 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
     if (!mounted) return;
 
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _completeAudio);
-    
 
     if (!mounted) return;
 
@@ -415,9 +477,16 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
       return Scaffold(body: LoadingScreen.lumiTown());
     }
 
+    final Size screenSize = MediaQuery.of(context).size;
+
     return Scaffold(
       body: Listener(
-        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        onPointerDown: (_) {
+          _tapTracker.recordGenericTap();
+          if (_buttonsEnabled && !_checkingAnswer && !_gameComplete) {
+            resetIdleTimer();
+          }
+        },
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -492,6 +561,23 @@ class _StoplightGameScreenState extends State<StoplightGameScreen>
               right: 25,
               child: LumiLevelBadge(level: widget.level),
             ),
+
+            if (showHowToPlay &&
+                _phase == StoplightPhase.game &&
+                _buttonsEnabled &&
+                !_checkingAnswer &&
+                !_gameComplete)
+              Positioned.fill(
+                child: HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(screenSize),
+                  handAlignment: _toAlignment(
+                    _yellowLightCenter(screenSize),
+                    screenSize,
+                  ),
+                  handOffset: const Offset(0.15, 0.75),
+                  onDismiss: resetIdleTimer,
+                ),
+              ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

@@ -1,14 +1,13 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/town_progress_service.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lvl10/picking_trash_game.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lvl11/throwing_trash_game.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lvl12/appreciation_game.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lvl13/family_tree_game.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lumi_game_picking_trash_game.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lumi_game_throwing_trash_game.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lumi_game_appreciation_game.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lumi_game_family_tree_game.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl5/sharing_1.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_stars_screen.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl7/lumi_classroom_screen.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl8/prayer_1.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lvl9/sorry_1.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/audio_helper.dart';
@@ -20,6 +19,7 @@ import '../../games_ui_layer/lumi_town/lumi_game_cleaning.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_diary.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_road_crossing.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_safe_or_not.dart';
+import '../../games_ui_layer/lumi_town/lumi_game_sorry_game.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_stoplight.dart';
 import '../../games_ui_layer/lumi_town/lumi_game_dont_talk_to_strangers.dart';
 import '../../games_ui_layer/lumi_town/lvl2/bathroom_game_screen.dart';
@@ -330,7 +330,7 @@ class _LevelTile extends StatelessWidget {
       case 8:
         return Prayer1(level: 8);
       case 9:
-        return Sorry1Screen(level: 9);
+        return SorryGameScreen(level: 9);
       case 10:
         return PickingTrashGame(level: 10);
       case 11:

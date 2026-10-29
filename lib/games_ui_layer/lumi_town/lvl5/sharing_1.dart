@@ -16,6 +16,8 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import '../../games_audio_helper.dart';
+import '../../how_to_play_overlay.dart';
+import '../../idle_hint_mixin.dart';
 import '../lumi_game_ui_layer.dart';
 
 enum _CameraGestureState { checking, granted, denied }
@@ -33,7 +35,8 @@ class _Sharing1State extends State<Sharing1>
     with
         AiCameraMixin<Sharing1>,
         GameLoadingMixin,
-        AppAudioLifecycleMixin<Sharing1> {
+        AppAudioLifecycleMixin<Sharing1>,
+        IdleHintMixin {
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_voice];
@@ -126,12 +129,16 @@ class _Sharing1State extends State<Sharing1>
 
     if (_cameraState == _CameraGestureState.denied) {
       setState(() => _showButtons = true);
+      startIdleTimer();
       return;
     }
     if (_cameraState == _CameraGestureState.checking) return;
 
     _noHandsTimer = Timer(_noHandsTimeout, () {
-      if (!_disposed && mounted) setState(() => _showButtons = true);
+      if (!_disposed && mounted) {
+        setState(() => _showButtons = true);
+        startIdleTimer();
+      }
     });
   }
 
@@ -139,6 +146,7 @@ class _Sharing1State extends State<Sharing1>
   void dispose() {
     _disposed = true;
     disposeAiCamera();
+    disposeIdleTimer();
     _noHandsTimer?.cancel();
     _voice.dispose();
     if (!_promptDone.isCompleted) _promptDone.complete();
@@ -148,6 +156,7 @@ class _Sharing1State extends State<Sharing1>
   Future<void> _handleThumbsUp() async {
     if (_actionTaken) return;
     _actionTaken = true;
+    cancelIdleTimer();
 
     await _promptDone.future;
     if (_disposed || !mounted) return;
@@ -183,6 +192,7 @@ class _Sharing1State extends State<Sharing1>
     if (_disposed || !mounted) return;
 
     setState(() => _actionTaken = false);
+    startIdleTimer();
   }
 
   @override
@@ -207,14 +217,18 @@ class _Sharing1State extends State<Sharing1>
       (_) => (rng.nextDouble() - 0.5) * pancakeWidth * 0.18,
     );
 
-    final double thumbSize = sw * 0.11;
-    final double thumbBtnSize = sw * 0.135;
-
     return Scaffold(
       body: buildWithLoading(
         loadingScreen: LoadingScreen.lumiTown(),
         gameBuilder: () => Listener(
-          onPointerDown: (_) => _tapTracker.recordGenericTap(),
+          onPointerDown: (_) {
+            _tapTracker.recordGenericTap();
+            if (showHowToPlay) setState(() => showHowToPlay = false);
+            cancelIdleTimer();
+          },
+          onPointerUp: (_) {
+            if (_showButtons && !_actionTaken) startIdleTimer();
+          },
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -346,12 +360,12 @@ class _Sharing1State extends State<Sharing1>
                 ).animate().fadeIn(duration: const Duration(milliseconds: 500)),
               ),
 
-              // Gesture detection stays active when the camera is allowed,
-              // but the buttons are always visible as soon as the intro ends.
               if (_introFinished && _cameraState == _CameraGestureState.granted)
                 _HiddenGestureDetector(
                   onGesture: (result) {
-                    _startNoHandsTimer(); // hand seen: restart countdown
+                    _startNoHandsTimer();
+                    resetIdleTimer();
+                    _startNoHandsTimer();
                     if (result.isThumbsUp) {
                       _handleThumbsUp();
                     } else if (result.isThumbsDown) {
@@ -360,49 +374,7 @@ class _Sharing1State extends State<Sharing1>
                   },
                 ),
 
-              if (_showButtons)
-                Positioned(
-                  bottom: sh * 0.10,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            if (_actionTaken) return;
-                            GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
-                            _handleThumbsUp();
-                          },
-                          child: _ThumbButton(
-                            imagePath:
-                                'assets/images/objects/lumi/thumbs_up.png',
-                            backgroundColor: const Color.fromARGB(0, 0, 0, 0),
-                            size: thumbBtnSize,
-                            iconSize: thumbSize,
-                            animDelay: Duration.zero,
-                          ),
-                        ),
-                        SizedBox(width: sw * 0.04),
-                        GestureDetector(
-                          onTap: () {
-                            if (_actionTaken) return;
-                            GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
-                            _handleThumbsDown();
-                          },
-                          child: _ThumbButton(
-                            imagePath: 'assets/images/objects/lumi/thumbs_down.png',
-                            backgroundColor: const Color.fromARGB(0, 0, 0, 0),
-                            size: thumbBtnSize,
-                            iconSize: thumbSize,
-                            animDelay: const Duration(milliseconds: 400),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+              _buildThumbRow(sw, sh),
 
               Positioned(top: 25, left: 25, child: LumiXButton()),
               Positioned(
@@ -410,6 +382,19 @@ class _Sharing1State extends State<Sharing1>
                 right: 25,
                 child: LumiLevelBadge(level: widget.level),
               ),
+
+              if (showHowToPlay &&
+                  _showButtons &&
+                  !_actionTaken &&
+                  _promptDone.isCompleted)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(sw, sh, bearHeight, tableBottom, tableWidth),
+                    handAlignment: _thumbsUpAlignment(sw, sh),
+                    handOffset: const Offset(0.15, 0.4),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
 
               if (hasCapturedFirstFrame &&
                   !isFaceDetected &&
@@ -426,6 +411,96 @@ class _Sharing1State extends State<Sharing1>
       ),
     );
   }
+
+  Widget _buildHowToPreview(
+      double sw, double sh, double bearHeight, double tableBottom, double tableWidth,
+      ) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset('assets/images/backgrounds/bg_game_kitchen.png', fit: BoxFit.cover),
+        Positioned(
+          bottom: 0, left: 0, right: 0,
+          child: Center(
+            child: Image.asset(
+              'assets/images/characters/little_bear_uniform.png',
+              height: bearHeight,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: tableBottom, left: 0, right: 0,
+          child: Image.asset(
+            'assets/images/objects/lumi/table.png',
+            width: tableWidth,
+            fit: BoxFit.contain,
+          ),
+        ),
+        _buildThumbRow(sw, sh, preview: true),
+      ],
+    );
+  }
+
+  Alignment _thumbsUpAlignment(double sw, double sh) {
+    final b = sw * 0.135;
+    final g = sw * 0.04;
+    final cx = sw / 2 - (b + g) / 2;
+    final cy = sh - sh * 0.10 - b / 2;
+    return Alignment(cx / sw * 2 - 1, cy / sh * 2 - 1);
+  }
+
+  Widget _buildThumbRow(double sw, double sh, {bool preview = false}) {
+    final thumbSize = sw * 0.11;
+    final thumbBtnSize = sw * 0.135;
+
+    return Positioned(
+      bottom: sh * 0.10,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GestureDetector(
+              onTap: preview
+                  ? null
+                  : () {
+                if (_actionTaken) return;
+                GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+                _handleThumbsUp();
+              },
+              child: _ThumbButton(
+                imagePath: 'assets/images/objects/lumi/thumbs_up.png',
+                backgroundColor: const Color.fromARGB(0, 0, 0, 0),
+                size: thumbBtnSize,
+                iconSize: thumbSize,
+                animDelay: Duration.zero,
+              ),
+            ),
+            SizedBox(width: sw * 0.04),
+            GestureDetector(
+              onTap: preview
+                  ? null
+                  : () {
+                if (_actionTaken) return;
+                GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+                _handleThumbsDown();
+              },
+              child: _ThumbButton(
+                imagePath: 'assets/images/objects/lumi/thumbs_down.png',
+                backgroundColor: const Color.fromARGB(0, 0, 0, 0),
+                size: thumbBtnSize,
+                iconSize: thumbSize,
+                animDelay: const Duration(milliseconds: 400),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 }
 
 class _HiddenGestureDetector extends StatelessWidget {

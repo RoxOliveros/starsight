@@ -13,6 +13,7 @@ import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../ui_layer/lumi_town/lumi_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
 import 'lumi_game_road_crossing.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
@@ -131,6 +132,9 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
 
   SafeObject get _currentObject => _objects[_currentRound];
 
+  Timer? _demoTimer;
+  bool _demoUnsafe = false;
+
   static const int _roundSeconds = 5;
   static const Duration _betweenRoundsDelay = Duration(milliseconds: 400);
 
@@ -176,6 +180,7 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
   void dispose() {
     disposeAiCamera();
     _countdownTimer?.cancel();
+    _demoTimer?.cancel();
     _audioPlayer.dispose();
     _trWooPlayer.dispose();
     super.dispose();
@@ -188,12 +193,24 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
 
     setState(() => _phase = _GamePhase.intro);
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _introAudio);
-    
+
     if (!mounted) return;
 
-    setState(() => _phase = _GamePhase.instruction);
+    setState(() {
+      _demoUnsafe = false;
+      _phase = _GamePhase.instruction;
+    });
+
+    _demoTimer?.cancel();
+    _demoTimer = Timer(const Duration(seconds: 6), () {
+      if (mounted && _phase == _GamePhase.instruction) {
+        setState(() => _demoUnsafe = true);
+      }
+    });
+
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _instructionAudio);
-    
+
+    _demoTimer?.cancel();
     if (!mounted) return;
 
     _startRound();
@@ -469,6 +486,18 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
               child: LumiLevelBadge(level: widget.level),
             ),
 
+            if (_phase == _GamePhase.instruction)
+              Positioned.fill(
+                child: HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(
+                    MediaQuery.of(context).size,
+                  ),
+                  handAlignment: Alignment.center,
+                  handOffset: const Offset(0.15, 0.4),
+                  showHand: !_demoUnsafe,
+                ),
+              ),
+
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(
                 onClose: () {
@@ -494,6 +523,26 @@ class _SafeOrNotGameScreenState extends State<SafeOrNotGameScreen>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final demoObject = _allObjects.firstWhere(
+          (o) => o.name == (_demoUnsafe ? 'knife' : 'teddy_bear'),
+    );
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_playgroundBg, fit: BoxFit.cover),
+        Center(
+          child: SizedBox(
+            width: s.width * 0.32,
+            height: s.width * 0.32,
+            child: Image.asset(demoObject.image, fit: BoxFit.contain),
+          ),
+        ),
+      ],
     );
   }
 }

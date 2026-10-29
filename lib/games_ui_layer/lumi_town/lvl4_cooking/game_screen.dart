@@ -16,6 +16,8 @@ import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../ui_layer/lumi_town/town_level.dart';
 import '../../games_audio_helper.dart';
 import '../../goodjob_prompt.dart';
+import '../../how_to_play_overlay.dart';
+import '../../idle_hint_mixin.dart';
 import '../lumi_game_ui_layer.dart';
 import '../lvl5/sharing_1.dart';
 import 'bear_speech_bubble.dart';
@@ -39,7 +41,8 @@ class _CookingGameScreenState extends State<CookingGameScreen>
         TickerProviderStateMixin,
         AiCameraMixin<CookingGameScreen>,
         GameLoadingMixin,
-        AppAudioLifecycleMixin<CookingGameScreen> {
+        AppAudioLifecycleMixin<CookingGameScreen>,
+        IdleHintMixin {
 
   late GameState _state;
   final AudioPlayer _voice = AudioPlayer();
@@ -53,6 +56,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
   late AnimationController _cookTimerController;
 
   final GameTapTracker _tapTracker = GameTapTracker();
+  final GlobalKey _hintKey = GlobalKey();
 
   int _dialogToken = 0;
 
@@ -72,9 +76,10 @@ class _CookingGameScreenState extends State<CookingGameScreen>
   bool _syrupAdded = false;
   bool _butterAdded = false;
   bool _showCelebration = false;
-  bool _outroDone = false; // true only after outro_3 voice finishes
+  bool _outroDone = false;
   bool _disposed = false;
   bool _isWhisking = false;
+  bool _previewing = false;
 
   double _whiskProgress = 0.0;
   double _cookProgress = 0.0;
@@ -129,6 +134,48 @@ class _CookingGameScreenState extends State<CookingGameScreen>
   late final double _eggBottomPosition = 0;
   late final double _eggSize = _sh * 0.18;
 
+  String? get _hintTargetId {
+    switch (_state.currentScene) {
+      case GameScene.dryIngredients:
+        if (!_flourAdded) return 'flour';
+        if (!_bakingPowderAdded) return 'baking_powder';
+        if (!_sugarAdded) return 'sugar';
+        return null;
+      case GameScene.wetIngredients:
+        if (!_milkAdded) return 'milk';
+        if (!_eggAdded) return 'egg';
+        return null;
+      case GameScene.whisking:
+        return _batcherMixed ? null : 'whisk';
+      case GameScene.cooking:
+        if (!_panSelected) return 'pan';
+        if (!_batterPoured) return 'bowl';
+        if (_cookProgress >= 1.0 && !_pancakeFlipped) return 'pan';
+        return null;
+      case GameScene.plating:
+        if (!_pancakePlated) return 'plate';
+        if (!_syrupAdded) return 'syrup';
+        if (!_butterAdded) return 'butter';
+        return null;
+      default:
+        return null;
+    }
+  }
+
+
+  Key? _k(String id) => (!_previewing && _hintTargetId == id) ? _hintKey : null;
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+    final c = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      c.dx / root.size.width * 2 - 1,
+      c.dy / root.size.height * 2 - 1,
+    );
+  }
+
   @override
   void initState() {
     OrientationService.setLandscape();
@@ -162,6 +209,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
   void dispose() {
     _disposed = true;
     disposeAiCamera();
+    disposeIdleTimer();
     _cookTimer?.cancel();
     _voice.dispose();
     for (final s in [
@@ -178,7 +226,10 @@ class _CookingGameScreenState extends State<CookingGameScreen>
 
   Future<void> _showDialog(GameDialog dialog) async {
     final token = ++_dialogToken;
+    cancelIdleTimer();
     setState(() {
+      showHowToPlay = false;
+      _voiceDone = false;
       _voiceDone = false;
       _state = _state.copyWith(
         bearSpeechText: dialog.bearText,
@@ -193,7 +244,11 @@ class _CookingGameScreenState extends State<CookingGameScreen>
       await waitForAudio(_voice);
     } catch (_) {}
     if (_disposed || !mounted || token != _dialogToken) return;
-    setState(() => _voiceDone = true);
+    setState(() {
+      _voiceDone = true;
+      showHowToPlay = false;
+    });
+    startIdleTimer();
 
     if (_state.currentScene == GameScene.outro && _state.dialogIndex < 2) {
       _onOutroTap();
@@ -587,7 +642,17 @@ class _CookingGameScreenState extends State<CookingGameScreen>
       body: buildWithLoading(
         loadingScreen: LoadingScreen.lumiTown(),
         gameBuilder: () => Listener(
-          onPointerDown: (_) => _tapTracker.recordGenericTap(),
+          onPointerDown: (_) {
+            _tapTracker.recordGenericTap();
+            if (showHowToPlay) setState(() => showHowToPlay = false);
+            cancelIdleTimer();
+          },
+          onPointerUp: (_) {
+            if (_voiceDone) startIdleTimer();
+          },
+          onPointerCancel: (_) {
+            if (_voiceDone) startIdleTimer();
+          },
           child: GestureDetector(
             onTap: null,
             child: Stack(
@@ -686,11 +751,42 @@ class _CookingGameScreenState extends State<CookingGameScreen>
                       releaseFaceGate();
                     },
                   ),
+
+                if (showHowToPlay &&
+                    _voiceDone &&
+                    _hintTargetId != null &&
+                    !_showCelebration)
+                  Positioned.fill(child: _buildHowToPlay()),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHowToPlay() {
+    final id = _hintTargetId!;
+
+    _previewing = true;
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/backgrounds/bg_game_kitchen.png',
+          fit: BoxFit.cover,
+        ),
+        _buildSceneContent(),
+      ],
+    );
+    _previewing = false;
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: _alignmentOf(_hintKey),
+      handEndAlignment: id == 'whisk' ? const Alignment(0.0, 0.5) : null,
+      handOffset: const Offset(0.15, 0.4),
+      onDismiss: resetIdleTimer,
     );
   }
 
@@ -835,6 +931,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
           bottom: _flourBottomPosition + _sh * 0.1,
           left: _flourLeftPosition,
           child: SizedBox(
+            key: _k('flour'),
             height: _flourSize,
             child: GameIngredient(
               id: 'flour',
@@ -853,6 +950,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
           bottom: _bakingPowderBottomPosition + _sh * 0.1,
           left: _bakingPowderLeftPosition,
           child: SizedBox(
+            key: _k('baking_powder'),
             height: _bakingPowderSize,
             child: GameIngredient(
               id: 'baking_powder',
@@ -870,6 +968,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
           bottom: _sugarBottomPosition + _sh * 0.1,
           left: _sugarLeftPosition,
           child: SizedBox(
+            key: _k('sugar'),
             height: _sugarSize,
             child: GameIngredient(
               id: 'sugar',
@@ -932,6 +1031,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
           bottom: _milkBottomPosition + _sh * 0.1,
           left: _milkLeftPosition,
           child: SizedBox(
+            key: _k('milk'),
             height: _milkSize,
             child: GameIngredient(
               id: 'milk',
@@ -949,6 +1049,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
           bottom: _eggBottomPosition + _sh * 0.1,
           left: _eggLeftPosition,
           child: SizedBox(
+            key: _k('egg'),
             height: _eggSize,
             child: GameIngredient(
               id: 'egg',
@@ -1012,10 +1113,13 @@ class _CookingGameScreenState extends State<CookingGameScreen>
             left: 0,
             right: 0,
             child: Center(
-              child: WhiskWidget(
-                progress: _whiskProgress,
-                onProgress: _onWhiskProgress,
-                onComplete: _onWhiskComplete,
+              child: KeyedSubtree(
+                key: _k('whisk'),
+                child: WhiskWidget(
+                  progress: _whiskProgress,
+                  onProgress: _onWhiskProgress,
+                  onComplete: _onWhiskComplete,
+                ),
               ),
             ),
           ),
@@ -1062,6 +1166,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
             bottom: _bowlBottomPosition + _sh * 0.1,
             left: _sw * 0.18,
             child: GestureDetector(
+              key: _k('bowl'),
               onTap: _onBowlTapForBatter,
               child: Image.asset(
                 'assets/images/objects/lumi/bowl_mixed_ingredients.png',
@@ -1081,6 +1186,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
           bottom: _sh * 0.10,
           right: _sw * 0.15,
           child: GestureDetector(
+            key: _k('pan'),
             onTap: !_panSelected
                 ? _onPanTap
                 : (_batterPoured && _cookProgress >= 1.0 && !_pancakeFlipped
@@ -1143,6 +1249,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
           right: 0,
           child: Center(
             child: GestureDetector(
+              key: _k('plate'),
               onTap: !_pancakePlated ? _onPlateTap : null,
               child: Stack(
                 alignment: Alignment.center,
@@ -1183,6 +1290,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
             bottom: _sh * 0.1,
             right: _sw * 0.1,
             child: SizedBox(
+              key: _k('syrup'),
               height: _sh * 0.4,
               child: GameIngredient(
                 id: 'syrup',
@@ -1200,6 +1308,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
             bottom: _sh * 0.1,
             left: _sw * 0.15,
             child: SizedBox(
+              key: _k('butter'),
               height: _sh * 0.2,
               child: GameIngredient(
                 id: 'butter',

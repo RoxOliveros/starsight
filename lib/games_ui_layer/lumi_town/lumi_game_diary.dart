@@ -11,6 +11,8 @@ import '../../ui_layer/loading_screen.dart';
 import '../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'lumi_game_behavior.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
@@ -79,7 +81,8 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
     with
         TrWooReactionMixin<DiaryGameScreen>,
         AiCameraMixin<DiaryGameScreen>,
-        AppAudioLifecycleMixin<DiaryGameScreen> {
+        AppAudioLifecycleMixin<DiaryGameScreen>,
+        IdleHintMixin {
   final DateTime _loadStart = DateTime.now();
 
   // --- Audio ----------------------------------------------------------
@@ -148,6 +151,7 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _trWooPlayer.dispose();
     super.dispose();
@@ -200,12 +204,14 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
       _phase = DailySequencePhase.game;
       _dragEnabled = true;
     });
+    startIdleTimer();
   }
 
   Future<void> _onDrop(int originIndex, int targetIndex) async {
     if (!_dragEnabled || _checkingAnswer || !mounted) return;
     if (originIndex == targetIndex || _slotLocked[targetIndex]) return;
 
+    cancelIdleTimer();
     setState(() => _checkingAnswer = true);
 
     final draggedCard = _slotScenes[originIndex];
@@ -233,6 +239,8 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
 
       if (_slotLocked.every((locked) => locked)) {
         await _completeGame();
+      } else {
+        startIdleTimer();
       }
     } else {
       _tapTracker.recordMistake();
@@ -247,10 +255,12 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
         _checkingAnswer = false;
         _wrongFlashSlot = null;
       });
+      startIdleTimer();
     }
   }
 
   Future<void> _completeGame() async {
+    cancelIdleTimer();
     if (!mounted) return;
 
     setState(() {
@@ -307,6 +317,7 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
       _hasSavedResult = false;
       _tapTracker.startSession();
     });
+    startIdleTimer();
   }
 
   Future<void> _goBack() async {
@@ -316,14 +327,79 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
     Navigator.of(context).pop();
   }
 
+  // Same area the real _DiaryGrid is placed in.
+  Rect _gridRect(Size s) =>
+      Rect.fromLTRB(s.width * 0.10, s.height * 0.15, s.width * 0.90, s.height * 0.92);
+
+  // Centre of a slot, using the grid's 18px padding and 14px gaps.
+  Offset _slotCenter(int index, Size s) {
+    final Rect r = _gridRect(s);
+    const double pad = 18, gap = 14;
+    final double cellW = (r.width - pad * 2 - gap) / 2;
+    final double cellH = (r.height - pad * 2 - gap) / 2;
+    final int col = index % 2;
+    final int row = index ~/ 2;
+    return Offset(
+      r.left + pad + col * (cellW + gap) + cellW / 2,
+      r.top + pad + row * (cellH + gap) + cellH / 2,
+    );
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  // [from, to] for the first card that is not yet in its correct slot, or null.
+  List<int>? _hintMove() {
+    for (int i = 0; i < _slotScenes.length; i++) {
+      if (_slotLocked[i]) continue;
+      final int target = _slotScenes[i].correctNumber - 1;
+      if (target != i && !_slotLocked[target]) return [i, target];
+    }
+    return null;
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_tableBg, fit: BoxFit.cover),
+        Positioned.fromRect(
+          rect: _gridRect(s),
+          child: _DiaryGrid(
+            slotScenes: _slotScenes,
+            slotLocked: _slotLocked,
+            dragEnabled: false,
+            wrongFlashSlot: null,
+            onDrop: (_, __) {},
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(body: LoadingScreen.lumiTown());
     }
+
+    final Size screenSize = MediaQuery.of(context).size;
+    final List<int>? hint = _hintMove();
+
     return Scaffold(
       body: Listener(
-        onPointerDown: (_) => _tapTracker.recordGenericTap(),
+        onPointerDown: (_) {
+          _tapTracker.recordGenericTap();
+          if (_dragEnabled && !_checkingAnswer && !_gameComplete) {
+            resetIdleTimer();
+          }
+        },
+        onPointerMove: (_) {
+          if (_dragEnabled && !_checkingAnswer && !_gameComplete) {
+            resetIdleTimer();
+          }
+        },
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -387,6 +463,28 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
               right: 25,
               child: LumiLevelBadge(level: widget.level),
             ),
+
+            if (showHowToPlay &&
+                _phase == DailySequencePhase.game &&
+                _dragEnabled &&
+                !_checkingAnswer &&
+                !_gameComplete &&
+                hint != null)
+              Positioned.fill(
+                child: HowToPlayOverlay(
+                  previewChild: _buildHowToPreview(screenSize),
+                  handAlignment: _toAlignment(
+                    _slotCenter(hint[0], screenSize),
+                    screenSize,
+                  ),
+                  handEndAlignment: _toAlignment(
+                    _slotCenter(hint[1], screenSize),
+                    screenSize,
+                  ),
+                  handOffset: const Offset(0.15, 0.4),
+                  onDismiss: resetIdleTimer,
+                ),
+              ),
 
             if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
               LightingPromptCard(

@@ -8,6 +8,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../business_layer/orientation_service.dart';
 import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../games_audio_helper.dart';
+import '../../how_to_play_overlay.dart';
+import '../../idle_hint_mixin.dart';
 import '../lumi_game_ui_layer.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
@@ -39,43 +41,45 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
     with
         TickerProviderStateMixin,
         AiCameraMixin<BedroomRoundScreen>,
-        AppAudioLifecycleMixin<BedroomRoundScreen> {
+        AppAudioLifecycleMixin<BedroomRoundScreen>,
+        IdleHintMixin {
   final AudioPlayer _player = AudioPlayer();
-  bool _hideLightingCard = false;
 
-  // Which toy ids are in this round
-  late List<String> _targetIds;
-  late List<String> _visibleToyIds;
-
-  // Track which slots are filled: slotIndex -> toyId
-  final Map<int, String> _filledSlots = {};
-
-  // Track which toys have been picked up (to hide original)
-  final Set<String> _pickedUp = {};
-
-  // Shake controllers per slot index (for wrong drop feedback)
-  late List<AnimationController> _slotShakeCtrl;
-  late List<Animation<double>> _slotShakeAnim;
-
-  // Scale pop controllers per slot (correct drop celebration)
-  late List<AnimationController> _slotPopCtrl;
-  late List<Animation<double>> _slotPopAnim;
-  late AnimationController _hintPulseCtrl;
-  late Animation<double> _hintPulseAnim;
-
-  // Add near the other state fields (around line 43)
-  Timer? _hintTimer;
-  String? _hintToyId; // toy currently highlighted as a hint
-
-  bool _roundComplete = false;
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   static const String _roundDoneAudio = 'assets/audio/lumi_town/level3/vo_round_done.wav';
   static const String _wrongAudio = 'assets/audio/lumi_town/level3/vo_wrong.wav';
 
   static const String _bgImage = 'assets/images/backgrounds/bg_lumi_bed.png';
 
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [_player];
+  static const List<Offset> _toyPositions = [
+    Offset(0.83, 0.91), // airplane
+    Offset(0.545, 0.65), // cap
+    Offset(0.12, 0.51), // dinosaur
+    Offset(0.40, 0.48), // doll
+    Offset(0.50, 0.45), // jar
+    Offset(0.60, 0.55), // key
+    Offset(0.82, 0.42), // ball
+    Offset(0.47, 0.91), // train
+    Offset(0.32, 0.85), // umbrella
+    Offset(0.70, 0.93), // xylophone
+    Offset(0.92, 0.47), // yarn
+    Offset(0.95, 0.85), // yoyo
+  ];
+
+  final Map<int, String> _filledSlots = {};
+  final Set<String> _pickedUp = {};
+
+  late List<AnimationController> _slotShakeCtrl;
+  late List<Animation<double>> _slotShakeAnim;
+  late List<AnimationController> _slotPopCtrl;
+  late List<Animation<double>> _slotPopAnim;
+  late List<String> _targetIds;
+  late List<String> _visibleToyIds;
+
+  bool _roundComplete = false;
+  bool _hideLightingCard = false;
 
   @override
   void initState() {
@@ -135,24 +139,13 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
           ]).animate(CurvedAnimation(parent: ctrl, curve: Curves.easeOut)),
         )
         .toList();
-
-    _hintPulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    )..repeat(reverse: true);
-    _hintPulseAnim = CurvedAnimation(
-      parent: _hintPulseCtrl,
-      curve: Curves.easeInOut,
-    );
-
-    _startHintTimer();
+    startIdleTimer();
   }
 
   @override
   void dispose() {
     disposeAiCamera();
-    _hintTimer?.cancel();
-    _hintPulseCtrl.dispose();
+    disposeIdleTimer();
     _player.dispose();
     for (final c in _slotShakeCtrl) {
       c.dispose();
@@ -166,8 +159,6 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
   // ── Drag handlers ─────────────────────────────────────────────────────────
 
   Future<void> _onToyPickup(String toyId) async {
-    _startHintTimer();
-    setState(() => _hintToyId = null);
     if (_player.state == PlayerState.playing) {
       await waitForAudio(_player);
     }
@@ -181,54 +172,29 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
     final expectedToyId = _targetIds[slotIndex];
 
     if (droppedToyId == expectedToyId) {
-      // ✅ Correct
       widget.tapTracker.recordCorrectTap();
       setState(() {
         _filledSlots[slotIndex] = droppedToyId;
         _pickedUp.add(droppedToyId);
       });
 
-      // AFTER
       GamesSfxPlayer.instance.play(GameSfx.shine);
       _slotPopCtrl[slotIndex].forward(from: 0);
 
-      // Check if round complete
       if (_filledSlots.length == 3 && !_roundComplete) {
         _roundComplete = true;
+        cancelIdleTimer();
         await Future.delayed(const Duration(milliseconds: 300));
-        await playVoiceRestartingOnFaceLoss(
-          _player,
-          _roundDoneAudio,
-        );
+        await playVoiceRestartingOnFaceLoss(_player, _roundDoneAudio);
         await waitForAudio(_player);
         if (!mounted) return;
         _goToNextRound();
       }
     } else {
-      // ❌ Wrong slot
       widget.tapTracker.recordMistake();
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       _slotShakeCtrl[slotIndex].forward(from: 0);
-      await playVoiceRestartingOnFaceLoss(
-        _player,
-        _wrongAudio,
-      );
-    }
-  }
-
-  void _startHintTimer() {
-    _hintTimer?.cancel();
-    _hintTimer = Timer(const Duration(seconds: 5), _showHint);
-  }
-
-  void _showHint() {
-    if (!mounted || _roundComplete) return;
-    // Find the first unfilled slot's expected toy
-    for (int i = 0; i < _targetIds.length; i++) {
-      if (!_filledSlots.containsKey(i)) {
-        setState(() => _hintToyId = _targetIds[i]);
-        break;
-      }
+      await playVoiceRestartingOnFaceLoss(_player, _wrongAudio);
     }
   }
 
@@ -268,63 +234,28 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
     return Scaffold(
       backgroundColor: Colors.black,
       body: Listener(
-        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        onPointerDown: (_) {
+          widget.tapTracker.recordGenericTap();
+          if (!_roundComplete) {
+            if (showHowToPlay) setState(() => showHowToPlay = false);
+            cancelIdleTimer();
+          }
+        },
+        onPointerUp: (_) {
+          if (!_roundComplete) startIdleTimer();
+        },
+        onPointerCancel: (_) {
+          if (!_roundComplete) startIdleTimer();
+        },
         child: LayoutBuilder(
           builder: (context, constraints) {
             final screenW = constraints.maxWidth;
             final screenH = constraints.maxHeight;
 
-            final panelW = screenW * 0.18;
-            final sceneW = screenW - panelW;
-            final toySize = screenW * 0.085;
-            final slotSize = panelW * 0.55;
-
             return Stack(
               fit: StackFit.expand,
               children: [
-                // ── Background scene ──────────────────────────────────────────
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  width: sceneW,
-                  height: screenH,
-                  child: Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-
-                // ── Right panel ───────────────────────────────────────────────
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  width: panelW,
-                  height: screenH,
-                  child: _RightPanel(
-                    roundToyIds: _targetIds,
-                    filledSlots: _filledSlots,
-                    slotSize: slotSize,
-                    shakeAnims: _slotShakeAnim,
-                    popAnims: _slotPopAnim,
-                    onDrop: _onDropOnSlot,
-                  ),
-                ),
-
-                // ── Scattered toys on scene ───────────────────────────────────
-                ..._buildScatteredToys(sceneW, screenH, toySize),
-
-                // ── Round indicator (top center of scene) ────────────────────
-                Positioned(
-                  top: 12,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: _RoundDots(
-                      total: kRounds.length,
-                      current: widget.roundIndex,
-                    ),
-                  ),
-                ),
+                ..._buildScene(screenW, screenH),
 
                 Positioned(top: 25, left: 25, child: LumiXButton()),
                 Positioned(
@@ -332,6 +263,7 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
                   right: 25,
                   child: LumiLevelBadge(level: widget.level),
                 ),
+
 
                 if (hasCapturedFirstFrame &&
                     !isFaceDetected &&
@@ -342,6 +274,20 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
                       releaseFaceGate();
                     },
                   ),
+
+                if (showHowToPlay && !_roundComplete)
+                  Positioned.fill(
+                    child: HowToPlayOverlay(
+                      previewChild: Stack(
+                        fit: StackFit.expand,
+                        children: _buildScene(screenW, screenH),
+                      ),
+                      handAlignment: _toyAlignment(_targetIds[_demoSlot], screenW),
+                      handEndAlignment: _slotAlignment(_demoSlot, screenW, screenH),
+                      handOffset: const Offset(0.15, 0.4),
+                      onDismiss: resetIdleTimer,
+                    ),
+                  ),
               ],
             );
           },
@@ -350,33 +296,73 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
     );
   }
 
+  int get _demoSlot {
+    for (int i = 0; i < _targetIds.length; i++) {
+      if (!_filledSlots.containsKey(i)) return i;
+    }
+    return 0;
+  }
+
+  Alignment _toyAlignment(String toyId, double screenW) {
+    final sceneW = screenW * 0.82;
+    final p = _toyPositions[kAllToyIds.indexOf(toyId)];
+    return Alignment(p.dx * sceneW / screenW * 2 - 1, p.dy * 2 - 1);
+  }
+
+  Alignment _slotAlignment(int i, double screenW, double screenH) {
+    final panelW = screenW * 0.18;
+    final slotSize = panelW * 0.55;
+    final innerH = screenH - 85 - 10;
+    final gap = (innerH - 3 * slotSize) / 4;
+    final cy = 85 + gap * (i + 1) + slotSize * i + slotSize / 2;
+    final cx = screenW - panelW / 2;
+    return Alignment(cx / screenW * 2 - 1, cy / screenH * 2 - 1);
+  }
+
+  List<Widget> _buildScene(double screenW, double screenH) {
+    final panelW = screenW * 0.18;
+    final sceneW = screenW - panelW;
+    final toySize = screenW * 0.085;
+    final slotSize = panelW * 0.55;
+
+    return [
+      Positioned(
+        left: 0, top: 0, width: sceneW, height: screenH,
+        child: Image.asset(_bgImage, fit: BoxFit.cover),
+      ),
+      Positioned(
+        right: 0, top: 0, width: panelW, height: screenH,
+        child: _RightPanel(
+          roundToyIds: _targetIds,
+          filledSlots: _filledSlots,
+          slotSize: slotSize,
+          shakeAnims: _slotShakeAnim,
+          popAnims: _slotPopAnim,
+          onDrop: _onDropOnSlot,
+        ),
+      ),
+      ..._buildScatteredToys(sceneW, screenH, toySize),
+      Positioned(
+        top: 12, left: 0, right: 0,
+        child: Center(
+          child: _RoundDots(total: kRounds.length, current: widget.roundIndex),
+        ),
+      ),
+    ];
+  }
+
   List<Widget> _buildScatteredToys(
     double sceneW,
     double screenH,
     double toySize,
   ) {
-    const positions = [
-      Offset(0.83, 0.91), // airplane
-      Offset(0.545, 0.65), // cap
-      Offset(0.12, 0.51), // dinosaur
-      Offset(0.40, 0.48), // doll
-      Offset(0.50, 0.45), // jar
-      Offset(0.60, 0.55), // key
-      Offset(0.82, 0.42), // ball
-      Offset(0.47, 0.91), // train
-      Offset(0.32, 0.85), // umbrella
-      Offset(0.70, 0.93), // xylophone
-      Offset(0.92, 0.47), // yarn
-      Offset(0.95, 0.85), // yoyo
-    ];
-
     return List.generate(_visibleToyIds.length, (i) {
       final toyId = _visibleToyIds[i];
       if (_pickedUp.contains(toyId)) return const SizedBox.shrink();
 
       final posIndex = kAllToyIds.indexOf(toyId);
-      final dx = positions[posIndex].dx * sceneW - toySize / 2;
-      final dy = positions[posIndex].dy * screenH - toySize / 2;
+      final dx = _toyPositions[posIndex].dx * sceneW - toySize / 2;
+      final dy = _toyPositions[posIndex].dy * screenH - toySize / 2;
 
       return Positioned(
         left: dx,
@@ -384,9 +370,7 @@ class _BedroomRoundScreenState extends State<BedroomRoundScreen>
         child: _DraggableToy(
           toy: toyById(toyId),
           size: toySize,
-          onPickup: () => _onToyPickup(toyId),
-          isHinted: toyId == _hintToyId,
-          pulse: _hintPulseAnim,
+          onPickup: () => _onToyPickup(toyId)
         ),
       );
     });
@@ -580,15 +564,11 @@ class _DraggableToy extends StatelessWidget {
   final ToyItem toy;
   final double size;
   final VoidCallback onPickup;
-  final bool isHinted;
-  final Animation<double> pulse;
 
   const _DraggableToy({
     required this.toy,
     required this.size,
     required this.onPickup,
-    required this.isHinted,
-    required this.pulse,
   });
 
   @override
@@ -601,41 +581,12 @@ class _DraggableToy extends StatelessWidget {
       opacity: 0.95,
     );
 
-    final draggable = Draggable<String>(
+    return Draggable<String>(
       data: toy.id,
       onDragStarted: onPickup,
       feedback: feedback,
       childWhenDragging: ghost,
       child: icon,
-    );
-
-    if (!isHinted) return draggable;
-
-    return AnimatedBuilder(
-      animation: pulse,
-      builder: (context, child) {
-        final t = pulse.value; // 0 → 1 → 0
-        final bounce = -10.0 * t; // lift up to 10px at peak
-        final glow = 0.3 + (0.5 * t); // glow strength 0.3 → 0.8
-
-        return Transform.translate(
-          offset: Offset(0, bounce),
-          child: Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.yellowAccent.withValues(alpha: glow),
-                  blurRadius: 20 + (20 * t),
-                  spreadRadius: 4 + (6 * t),
-                ),
-              ],
-            ),
-            child: child,
-          ),
-        );
-      },
-      child: draggable,
     );
   }
 }

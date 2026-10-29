@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../games_audio_helper.dart';
+import '../../../how_to_play_overlay.dart';
+import '../../../idle_hint_mixin.dart';
 import '../../lumi_game_ui_layer.dart';
 import '../widgets/sparkle_overlay.dart';
 import 'step3_choice.dart';
@@ -34,31 +36,34 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
     with
         TickerProviderStateMixin,
         AiCameraMixin<Step2WashingScreen>,
-        AppAudioLifecycleMixin<Step2WashingScreen> {
+        AppAudioLifecycleMixin<Step2WashingScreen>,
+        IdleHintMixin {
   final AudioPlayer _player = AudioPlayer();
-  bool _hideLightingCard = false;
-  _WashPhase _phase = _WashPhase.dragging;
-  StarState _starState = StarState.none;
 
-  late AnimationController _wobbleCtrl;
-
-  double _washProgress = 0.0;
-  bool _halfFired = false;
-  bool _completeFired = false;
-  double _splashX = 0.0;
-  double _splashY = 0.0;
-  bool _isWashing = false;
-
-  double _towelProgress = 0.0;
-  bool _towelCompleteFired = false;
-  double _towelX = 0.0;
-  double _towelY = 0.0;
-  bool _isWiping = false;
   @override
   List<AudioPlayer> get lifecyclePlayers => [_player];
 
+  late AnimationController _wobbleCtrl;
+
   static const String _washDoneAudio = 'assets/audio/lumi_town/level2/vo_wash_done.wav';
   static const String _dryDoneAudio = 'assets/audio/lumi_town/level2/vo_dry_done.wav';
+
+  _WashPhase _phase = _WashPhase.dragging;
+  StarState _starState = StarState.none;
+
+  double _washProgress = 0.0;
+  double _towelX = 0.0;
+  double _towelY = 0.0;
+  double _splashX = 0.0;
+  double _splashY = 0.0;
+  double _towelProgress = 0.0;
+
+  bool _towelCompleteFired = false;
+  bool _isWiping = false;
+  bool _hideLightingCard = false;
+  bool _halfFired = false;
+  bool _completeFired = false;
+  bool _isWashing = false;
 
   @override
   void initState() {
@@ -78,6 +83,7 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     )..repeat(reverse: true);
+    startIdleTimer();
   }
 
   void _onHalfway() {
@@ -86,6 +92,7 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
 
   Future<void> _onWashComplete() async {
     GamesSfxPlayer.instance.stop(GameSfx.wash);
+    cancelIdleTimer();
     widget.tapTracker.recordCorrectTap();
     setState(() {
       _starState = StarState.lot;
@@ -94,10 +101,13 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
     });
     _wobbleCtrl.stop();
     await playVoiceRestartingOnFaceLoss(_player, _washDoneAudio);
+    await waitForAudio(_player);
+    if (mounted) startIdleTimer();
   }
 
   Future<void> _onTowelComplete() async {
     if (_phase != _WashPhase.drying) return;
+    cancelIdleTimer();
     GamesSfxPlayer.instance.stop(GameSfx.wipe);
     widget.tapTracker.recordCorrectTap();
     setState(() {
@@ -105,10 +115,7 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
       _starState = StarState.none;
       _isWiping = false;
     });
-    await playVoiceRestartingOnFaceLoss(
-      _player,
-      _dryDoneAudio,
-    );
+    await playVoiceRestartingOnFaceLoss(_player, _dryDoneAudio);
     await waitForAudio(_player);
     if (!mounted) return;
     final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
@@ -126,6 +133,7 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _player.dispose();
     _wobbleCtrl.dispose();
     GamesSfxPlayer.instance.stop(GameSfx.wash);
@@ -138,7 +146,12 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
     return Scaffold(
       backgroundColor: Colors.black,
       body: Listener(
-        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        onPointerDown: (_) {
+          widget.tapTracker.recordGenericTap();
+          if (_phase == _WashPhase.washing || _phase == _WashPhase.drying) {
+            resetIdleTimer();
+          }
+        },
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -187,8 +200,12 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
                               child: GestureDetector(
                                 behavior: HitTestBehavior.translucent,
                                 onPanStart: (details) {
+                                  cancelIdleTimer();
                                   if (!_towelCompleteFired) {
-                                    GamesSfxPlayer.instance.play(GameSfx.wipe, loop: true);
+                                    GamesSfxPlayer.instance.play(
+                                      GameSfx.wipe,
+                                      loop: true,
+                                    );
                                   }
                                   setState(() {
                                     _isWiping = true;
@@ -213,8 +230,9 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
                                   }
                                 },
                                 onPanEnd: (_) {
-                                  GamesSfxPlayer.instance.stop(GameSfx.wipe);
-                                  setState(() => _isWiping = false);
+                                  GamesSfxPlayer.instance.stop(GameSfx.wash);
+                                  setState(() => _isWashing = false);
+                                  if (!_completeFired) startIdleTimer();
                                 },
                                 child: Container(
                                   width: 160,
@@ -241,6 +259,7 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
                   child: GestureDetector(
                     behavior: HitTestBehavior.translucent,
                     onPanStart: (details) {
+                      cancelIdleTimer();
                       if (!_completeFired) {
                         GamesSfxPlayer.instance.play(GameSfx.wash, loop: true);
                       }
@@ -269,8 +288,9 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
                       }
                     },
                     onPanEnd: (_) {
-                      GamesSfxPlayer.instance.stop(GameSfx.wash);
-                      setState(() => _isWashing = false);
+                      GamesSfxPlayer.instance.stop(GameSfx.wipe);
+                      setState(() => _isWiping = false);
+                      if (!_towelCompleteFired) startIdleTimer();
                     },
                     child: Container(
                       width: 160,
@@ -389,10 +409,62 @@ class _Step2WashingScreenState extends State<Step2WashingScreen>
                   releaseFaceGate();
                 },
               ),
+
+            if (showHowToPlay &&
+                (_phase == _WashPhase.washing || _phase == _WashPhase.drying) &&
+                !_isWashing &&
+                !_isWiping)
+              Positioned.fill(
+                child: Builder(
+                  builder: (context) {
+                    final h = MediaQuery.of(context).size.height;
+                    final y = _phase == _WashPhase.washing
+                        ? h - (h * 0.28 + 110)
+                        : h * 0.20 + h * 0.80 * 0.28 + 40;
+                    return HowToPlayOverlay(
+                      previewChild: _buildHowToPreview(),
+                      handAlignment: _swipeAlignment(-60, y),
+                      handEndAlignment: _swipeAlignment(60, y),
+                      handOffset: const Offset(0.15, 0.46),
+                      onDismiss: resetIdleTimer,
+                    );
+                  },
+                ),
+              ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildHowToPreview() {
+    final h = MediaQuery.of(context).size.height;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/backgrounds/bg_lumi_bathroom.png',
+          fit: BoxFit.cover,
+        ),
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Image.asset(
+              'assets/images/characters/little_bear.png',
+              height: h * 0.80,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Alignment _swipeAlignment(double dx, double centerY) {
+    final sz = MediaQuery.of(context).size;
+    return Alignment(dx / (sz.width / 2), centerY / sz.height * 2 - 1);
   }
 }
 

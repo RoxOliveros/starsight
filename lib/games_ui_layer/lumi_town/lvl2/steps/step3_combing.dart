@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../games_audio_helper.dart';
+import '../../../how_to_play_overlay.dart';
+import '../../../idle_hint_mixin.dart';
 import '../../lumi_game_ui_layer.dart';
 import 'step_ending.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -31,26 +33,28 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
     with
         SingleTickerProviderStateMixin,
         AiCameraMixin<Step3CombingScreen>,
-        AppAudioLifecycleMixin<Step3CombingScreen> {
+        AppAudioLifecycleMixin<Step3CombingScreen>,
+        IdleHintMixin {
   final AudioPlayer _player = AudioPlayer();
-  bool _hideLightingCard = false;
-  bool _dropped = false;
 
-  double _combProgress = 0.0;
-  bool _quarterFired = false;
-  bool _halfFired = false;
-  bool _completeFired = false;
-  double _combX = 0.0;
-  double _combY = 0.0;
-  bool _isCombing = false;
-  bool _audioFired = false;
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_player];
 
   late AnimationController _wobbleCtrl;
 
   static const String _combDoneAudio = 'assets/audio/lumi_town/level2/vo_comb_done.wav';
 
-  @override
-  List<AudioPlayer> get lifecyclePlayers => [_player];
+  double _combProgress = 0.0;
+  double _combX = 0.0;
+  double _combY = 0.0;
+
+  bool _hideLightingCard = false;
+  bool _dropped = false;
+  bool _quarterFired = false;
+  bool _halfFired = false;
+  bool _completeFired = false;
+  bool _isCombing = false;
+  bool _audioFired = false;
 
   @override
   void initState() {
@@ -70,16 +74,15 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     )..repeat(reverse: true);
+    startIdleTimer();
   }
 
   Future<void> _onCombComplete() async {
     GamesSfxPlayer.instance.stop(GameSfx.comb);
+    cancelIdleTimer();
     widget.tapTracker.recordCorrectTap();
     _wobbleCtrl.stop();
-    await playVoiceRestartingOnFaceLoss(
-      _player,
-      _combDoneAudio,
-    );
+    await playVoiceRestartingOnFaceLoss(_player, _combDoneAudio);
     await waitForAudio(_player);
     if (!mounted) return;
     final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
@@ -97,6 +100,7 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _player.dispose();
     _wobbleCtrl.dispose();
     GamesSfxPlayer.instance.stop(GameSfx.comb);
@@ -108,7 +112,10 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
     return Scaffold(
       backgroundColor: Colors.black,
       body: Listener(
-        onPointerDown: (_) => widget.tapTracker.recordGenericTap(),
+        onPointerDown: (_) {
+          widget.tapTracker.recordGenericTap();
+          if (!_completeFired) resetIdleTimer();
+        },
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -141,6 +148,7 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
                   child: GestureDetector(
                     behavior: HitTestBehavior.translucent,
                     onPanStart: (details) {
+                      cancelIdleTimer();
                       if (!_completeFired) {
                         GamesSfxPlayer.instance.play(GameSfx.comb, loop: true);
                       }
@@ -176,6 +184,7 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
                     onPanEnd: (_) {
                       GamesSfxPlayer.instance.stop(GameSfx.comb);
                       setState(() => _isCombing = false);
+                      if (!_completeFired) startIdleTimer();
                     },
                     child: Container(
                       width: 160,
@@ -249,10 +258,56 @@ class _Step3CombingScreenState extends State<Step3CombingScreen>
                   releaseFaceGate();
                 },
               ),
+
+            if (showHowToPlay && !_completeFired && !_isCombing)
+              Positioned.fill(
+                child: Builder(
+                  builder: (context) {
+                    final h = MediaQuery.of(context).size.height;
+                    final y = h * 0.18 + 40;
+                    return HowToPlayOverlay(
+                      previewChild: _buildHowToPreview(),
+                      handAlignment: _swipeAlignment(-60, y),
+                      handEndAlignment: _swipeAlignment(60, y),
+                      handOffset: const Offset(0.15, 0.46),
+                      onDismiss: resetIdleTimer,
+                    );
+                  },
+                ),
+              ),
           ],
         ),
       ),
     );
+  }
+  Widget _buildHowToPreview() {
+    final h = MediaQuery.of(context).size.height;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          'assets/images/backgrounds/bg_lumi_bathroom.png',
+          fit: BoxFit.cover,
+        ),
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Image.asset(
+              'assets/images/characters/little_bear.png',
+              height: h * 0.80,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Alignment _swipeAlignment(double dx, double centerY) {
+    final sz = MediaQuery.of(context).size;
+    return Alignment(dx / (sz.width / 2), centerY / sz.height * 2 - 1);
   }
 }
 

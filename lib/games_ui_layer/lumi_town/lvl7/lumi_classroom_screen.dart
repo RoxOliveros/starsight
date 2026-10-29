@@ -4,9 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
-import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
-import 'respect_1.dart';
+import 'respect_round_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
@@ -91,7 +90,8 @@ class _LumiClassroomScreenState extends State<LumiClassroomScreen>
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => Respect1Screen(
+          builder: (context) => RespectRoundScreen(
+            roundIndex: 0,
             priorEmotions: emotionsSoFar,
             tapTracker: _tapTracker,
             level: widget.level,

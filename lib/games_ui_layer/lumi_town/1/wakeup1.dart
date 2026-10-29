@@ -4,16 +4,14 @@ import 'package:StarSight/games_ui_layer/lumi_town/1/wakeup2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:speech_to_text/speech_recognition_error.dart';
-import 'package:speech_to_text/speech_to_text.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import '../../../business_layer/keyword_speech_listener.dart';
 import '../../../business_layer/orientation_service.dart';
 import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
-import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 
 class Lumi1ValuesWakeup extends StatefulWidget {
@@ -41,32 +39,33 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
         SingleTickerProviderStateMixin,
         AiCameraMixin<Lumi1ValuesWakeup>,
         AppAudioLifecycleMixin<Lumi1ValuesWakeup> {
-  final GameTapTracker _tapTracker = GameTapTracker();
-  bool _hideLightingCard = false;
-
-  // ── Audio ──────────────────────────────────────────────────────────────────
   final AudioPlayer _audioPlayer = AudioPlayer();
-  String? _audioError;
-  bool _audioFinished = false;
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer];
 
-  // ── Speech ─────────────────────────────────────────────────────────────────
-  final SpeechToText _speech = SpeechToText();
-  bool _speechAvailable = false;
-  int _gisingCount = 0;
   static const int _gisingTarget = 3;
-  bool _completed = false;
-  bool _speechStopped = false;
-  Timer? _restartTimer;
+  static const Duration _reminderDelay = Duration(seconds: 12);
+  static const String _reminderAudio = 'assets/audio/lumi_town/level1/say_gising.wav';
 
-  // ── Animation (subtle fade-in) ─────────────────────────────────────────────
+  final GameTapTracker _tapTracker = GameTapTracker();
+  final DateTime _loadStart = DateTime.now();
+
+  late final KeywordSpeechListener _listener;
+
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
+  Timer? _reminderTimer;
+  String? _audioError;
+
+  int _gisingCount = 0;
+
+  bool _hideLightingCard = false;
+  bool _inputEnabled = false;
+  bool _completed = false;
+  bool _reminderPlaying = false;
   bool _animationReady = false;
-  final DateTime _loadStart = DateTime.now();
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   @override
@@ -78,6 +77,12 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
     startAiCamera();
     _tapTracker.startSession();
+
+    _listener = KeywordSpeechListener(
+      pattern: RegExp(r'gising|gizing|giseng|giging|gisen|gisin|ising'),
+      onNewMatches: _onGisingHeard,
+      onSpeechActivity: _scheduleReminder,
+    );
 
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) setState(() => _hideLightingCard = false);
@@ -93,6 +98,58 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadAnimation());
+  }
+
+  void _scheduleReminder() {
+    _reminderTimer?.cancel();
+    if (!mounted || _completed || _reminderPlaying) return;
+    _reminderTimer = Timer(_reminderDelay, _playReminder);
+  }
+
+  Future<void> _playReminder() async {
+    if (!mounted || _completed) return;
+    _reminderPlaying = true;
+    await _listener.pause();
+    try {
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _reminderAudio);
+    } catch (e) {
+      debugPrint('[Reminder] Audio error: $e');
+    }
+    _reminderPlaying = false;
+    if (!mounted || _completed) return;
+    _listener.resume();
+    _scheduleReminder();
+  }
+
+  Future<void> _initAudio() async {
+    try {
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, widget.audioBinPath2);
+    } catch (e) {
+      debugPrint('[Lumi1ValuesWakeup] Audio error: $e');
+      if (mounted) setState(() => _audioError = e.toString());
+    }
+    if (!mounted || _completed) return;
+    setState(() => _inputEnabled = true);
+    if (await _listener.start() && mounted) _scheduleReminder();
+  }
+
+  void _onGisingHeard(int heard) {
+    if (!mounted || _completed) return;
+    final credit = heard.clamp(0, _gisingTarget - _gisingCount);
+    if (credit <= 0) return;
+
+    for (var i = 0; i < credit; i++) {
+      _tapTracker.recordCorrectTap();
+    }
+    setState(() => _gisingCount += credit);
+    _scheduleReminder();
+
+    if (_gisingCount >= _gisingTarget) _onCompleted();
+  }
+
+  void _stopListening() {
+    _reminderTimer?.cancel();
+    _listener.dispose();
   }
 
   Future<void> _loadAnimation() async {
@@ -119,182 +176,36 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
     _initAudio();
   }
 
-  Future<void> _initAudio() async {
-    try {
-      await playVoiceRestartingOnFaceLoss(_audioPlayer, widget.audioBinPath2);
-      
-      if (!mounted) return;
-      debugPrint('[Speech] Audio done, now listening...');
-      setState(() => _audioFinished = true);
-      _initSpeech();
-    } catch (e) {
-      debugPrint('[Lumi1ValuesWakeup] Audio error: $e');
-      if (mounted) setState(() => _audioError = e.toString());
-    }
-  }
-
-  String _localeId = 'en_US'; // default fallback
-
-  Future<void> _initSpeech() async {
-    _speechAvailable = await _speech.initialize(
-      onError: _onSpeechError,
-      onStatus: _onSpeechStatus,
-    );
-
-    // The screen was closed while speech was still initializing.
-    if (!mounted || _speechStopped) {
-      _detachSpeechListeners();
-      return;
-    }
-
-    // SpeechToText() is a shared singleton and initialize() ignores new
-    // callbacks if it was already initialized (e.g. on an earlier visit to
-    // this screen), so always point the listeners at THIS screen.
-    _speech.errorListener = _onSpeechError;
-    _speech.statusListener = _onSpeechStatus;
-
-    final locales = await _speech.locales();
-    if (!mounted || _speechStopped) return;
-    final hasFil = locales.any((l) => l.localeId == 'fil_PH');
-
-    _localeId = hasFil ? 'fil_PH' : 'en_US';
-
-    debugPrint('[Speech] Using locale: $_localeId');
-
-    if (_speechAvailable) {
-      _startListening();
-    }
-  }
-
-  void _onSpeechError(SpeechRecognitionError e) {
-    debugPrint('[Speech] Error: $e');
-    _scheduleRestart();
-  }
-
-  void _onSpeechStatus(String s) {
-    debugPrint('[Speech] Status: $s');
-    // Restart whenever it goes idle/done, unless we intentionally stopped.
-    if (s == 'done' || s == 'notListening') _scheduleRestart();
-  }
-
-  /// Restarts listening after a short delay. A single timer is used so an
-  /// error and a "done" status arriving together can't start two listeners.
-  void _scheduleRestart() {
-    if (!mounted || _completed || _speechStopped) return;
-    _restartTimer?.cancel();
-    _restartTimer = Timer(const Duration(milliseconds: 300), _startListening);
-  }
-
-  void _detachSpeechListeners() {
-    // Only clear them if they're still ours (not a newer screen's).
-    if (_speech.errorListener == _onSpeechError) {
-      _speech.errorListener = null;
-    }
-    if (_speech.statusListener == _onSpeechStatus) {
-      _speech.statusListener = null;
-    }
-  }
-
-  /// Fully shuts speech recognition down and stops it from ever restarting.
-  void _stopSpeech() {
-    _speechStopped = true;
-    _restartTimer?.cancel();
-    _restartTimer = null;
-    _detachSpeechListeners();
-    _speech.cancel();
-  }
-
-  void _startListening() {
-    if (!mounted || _speechStopped || !_speechAvailable || _completed) return;
-
-    debugPrint('[Speech] Started continuous listening...');
-
-    _speech.listen(
-      localeId: _localeId,
-      listenFor: const Duration(minutes: 1),
-      pauseFor: const Duration(minutes: 1),
-      onResult: (result) {
-        if (!mounted || _speechStopped) return;
-        debugPrint('[Speech] Heard: "${result.recognizedWords}"');
-
-        const variants = [
-          'gising',
-          'gisin',
-          'ising',
-          'giging',
-          'gisen',
-          'giseng',
-        ];
-
-        bool containsVariant(String word) {
-          return variants.any((v) => word.contains(v));
-        }
-
-        final words = result.recognizedWords.toLowerCase().split(' ');
-
-        int detected = 0;
-
-        for (final word in words) {
-          if (containsVariant(word)) {
-            detected++;
-          }
-        }
-
-        // ONLY increase gradually
-        if (detected > _gisingCount) {
-          final int newlyDetected =
-              detected.clamp(0, _gisingTarget) - _gisingCount;
-          for (int i = 0; i < newlyDetected; i++) {
-            _tapTracker.recordCorrectTap();
-          }
-          setState(() {
-            _gisingCount = detected.clamp(0, _gisingTarget);
-          });
-
-          debugPrint('[Speech] ✅ Count: $_gisingCount');
-
-          if (_gisingCount >= _gisingTarget) {
-            _onCompleted();
-          }
-        }
-      },
-      listenOptions: SpeechListenOptions(
-        partialResults: true,
-        cancelOnError: false,
-      ),
-    );
-  }
-
   void _onCompleted() {
     if (_completed) return;
     setState(() => _completed = true);
-    _stopSpeech();
-    _audioPlayer.stop();
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) {
-        final List<String> emotionsSoFar = stopAiCamera();
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (_, __, ___) => Lumi2ValuesWakingup(
-              priorEmotions: emotionsSoFar,
-              tapTracker: _tapTracker,
-              level: widget.level,
-            ),
-            transitionsBuilder: (_, animation, __, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 1500),
-          ),
-        );
-      }
-    });
+    _stopListening();
+    unawaited(_audioPlayer.stop());
+    Future.delayed(const Duration(milliseconds: 1500), _goToNextScreen);
+  }
+
+  void _goToNextScreen() {
+    if (!mounted) return;
+    final emotionsSoFar = stopAiCamera();
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => Lumi2ValuesWakingup(
+          priorEmotions: emotionsSoFar,
+          tapTracker: _tapTracker,
+          level: widget.level,
+        ),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 1500),
+      ),
+    );
   }
 
   @override
   void dispose() {
     disposeAiCamera();
-    _stopSpeech();
+    _stopListening();
     _audioPlayer.dispose();
     OrientationService.setLandscape();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -373,7 +284,7 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
   }
 
   Widget _buildMeter() {
-    if (!_audioFinished) return const SizedBox.shrink();
+    if (!_inputEnabled) return const SizedBox.shrink();
 
     return Positioned(
       bottom: 24,
@@ -391,13 +302,11 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
           ),
           const SizedBox(height: 15),
 
-          // Bar track
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 48),
             child: Stack(
               alignment: Alignment.centerLeft,
               children: [
-                // Background track
                 Container(
                   height: 18,
                   decoration: BoxDecoration(
@@ -407,7 +316,6 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
                   ),
                 ),
 
-                // Filled portion
                 AnimatedFractionallySizedBox(
                   duration: const Duration(milliseconds: 400),
                   curve: Curves.easeOut,
@@ -430,7 +338,6 @@ class _Lumi1ValuesWakeupState extends State<Lumi1ValuesWakeup>
                   ),
                 ),
 
-                // 3 tick markers
                 Row(
                   children: List.generate(_gisingTarget, (i) {
                     final reached = i < _gisingCount;

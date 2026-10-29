@@ -1,6 +1,6 @@
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_3.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_round_screen.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
@@ -9,7 +9,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
 
 class Emotion2 extends StatefulWidget {
@@ -52,8 +51,10 @@ class _Emotion2State extends State<Emotion2>
     'assets/images/objects/lumi/e6_wrong.png',
   ];
 
-  static const String _audioStart = 'assets/audio/lumi_town/level6/emotion_start.wav';
-  static const String _audioTutorial = 'assets/audio/lumi_town/level6/emotion_tutorial.wav';
+  static const String _audioStart =
+      'assets/audio/lumi_town/level6/emotion_start.wav';
+  static const String _audioTutorial =
+      'assets/audio/lumi_town/level6/emotion_tutorial.wav';
 
   @override
   void initState() {
@@ -85,7 +86,8 @@ class _Emotion2State extends State<Emotion2>
           final emotionsSoFar = [...widget.priorEmotions, ...stopAiCamera()];
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => Emotion3Screen(
+              builder: (context) => EmotionRoundScreen(
+                roundIndex: 0,
                 priorEmotions: emotionsSoFar,
                 tapTracker: widget.tapTracker,
                 level: widget.level,

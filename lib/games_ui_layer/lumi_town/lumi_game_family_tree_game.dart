@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
+import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -12,12 +13,14 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-import '../../../ui_layer/game_loading_mixin.dart';
-import '../../../ui_layer/loading_screen.dart';
-import '../../games_audio_helper.dart';
-import '../lumi_game_stoplight.dart';
-import '../lumi_game_ui_layer.dart';
-import '../tr.woo_reaction.dart';
+
+import '../../ui_layer/game_loading_mixin.dart';
+import '../../ui_layer/loading_screen.dart';
+import '../games_audio_helper.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
+import 'lumi_game_stoplight.dart';
+import 'lumi_game_ui_layer.dart';
 
 class FamilyTreeGame extends StatefulWidget {
   final int level;
@@ -34,7 +37,8 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
         AiCameraMixin<FamilyTreeGame>,
         GameLoadingMixin,
         AppAudioLifecycleMixin<FamilyTreeGame>,
-        TrWooReactionMixin {
+        TrWooReactionMixin,
+        IdleHintMixin {
   late final AnimationController _handAnimCtrl;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -111,6 +115,135 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
     return null;
   }
 
+  // Layout values copied from the game layout (fractions of the 16:9 stage).
+  static const Map<String, Offset> _picPos = {
+    'grandpa': Offset(0.78, 0.20),
+    'mother': Offset(0.03, 0.20),
+    'little_bear': Offset(0.05, 0.60),
+    'grandma': Offset(0.03, 0.20),
+    'father': Offset(0.78, 0.20),
+    'sister': Offset(0.05, 0.60),
+    'brother': Offset(0.78, 0.60),
+  };
+
+  static const Map<String, String> _picAssets = {
+    'grandpa': 'assets/images/objects/lumi/grandpa_bear_pic.png',
+    'mother': 'assets/images/objects/lumi/mother_bear_pic.png',
+    'little_bear': 'assets/images/objects/lumi/little_bear_pic.png',
+    'grandma': 'assets/images/objects/lumi/grandma_bear_pic.png',
+    'father': 'assets/images/objects/lumi/daddy_bear_pic.png',
+    'sister': 'assets/images/objects/lumi/sister_bear_pic.png',
+    'brother': 'assets/images/objects/lumi/brother_bear_pic.png',
+  };
+
+  static const Map<String, Offset> _slotPos = {
+    'gp1': Offset(0.38, 0.18),
+    'gp2': Offset(0.51, 0.18),
+    'par1': Offset(0.34, 0.35),
+    'par2': Offset(0.56, 0.35),
+    'kid1': Offset(0.35, 0.55),
+    'kid2': Offset(0.45, 0.50),
+    'kid3': Offset(0.55, 0.55),
+  };
+
+  static const Map<String, String> _slotGroup = {
+    'gp1': 'grand',
+    'gp2': 'grand',
+    'par1': 'parent',
+    'par2': 'parent',
+    'kid1': 'child',
+    'kid2': 'child',
+    'kid3': 'child',
+  };
+
+  static const double _picW = 0.20;
+  static const double _holderW = 0.09;
+
+  // The 16:9 box the game is drawn in, centred on the screen.
+  Rect _stageRect(Size s) {
+    const double ratio = 16 / 9;
+    if (s.width / s.height > ratio) {
+      final double h = s.height;
+      final double w = h * ratio;
+      return Rect.fromLTWH((s.width - w) / 2, 0, w, h);
+    }
+    final double w = s.width;
+    final double h = w / ratio;
+    return Rect.fromLTWH(0, (s.height - h) / 2, w, h);
+  }
+
+  String? _firstEmptySlotFor(String id) {
+    final String? group = _groupOf[id];
+    for (final e in _slotGroup.entries) {
+      if (e.value == group && !_slotFill.containsKey(e.key)) return e.key;
+    }
+    return null;
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Offset _picCenter(String id, Rect r) {
+    final Offset p = _picPos[id]!;
+    final double half = r.width * _picW / 2;
+    return Offset(r.left + p.dx * r.width + half, r.top + p.dy * r.height + half);
+  }
+
+  Offset _slotCenter(String slotId, Rect r) {
+    final Offset p = _slotPos[slotId]!;
+    final double half = r.width * _holderW / 2;
+    return Offset(r.left + p.dx * r.width + half, r.top + p.dy * r.height + half);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final Rect r = _stageRect(s);
+    final String? active = _activeId;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset('assets/images/backgrounds/bg_table.png', fit: BoxFit.cover),
+
+        Positioned(
+          left: r.left + r.width * 0.25,
+          top: r.top,
+          child: Image.asset(
+            'assets/images/objects/lumi/familytree.png',
+            width: r.width * 0.50,
+            fit: BoxFit.contain,
+          ),
+        ),
+
+        ..._slotPos.entries.map((e) {
+          final String? filled = _slotFill[e.key];
+          return Positioned(
+            left: r.left + e.value.dx * r.width,
+            top: r.top + e.value.dy * r.height,
+            child: Image.asset(
+              filled != null
+                  ? _pfpAssets[filled]!
+                  : 'assets/images/objects/lumi/picture_holder.png',
+              width: r.width * _holderW,
+              fit: BoxFit.contain,
+            ),
+          );
+        }),
+
+        if (active != null)
+          Positioned(
+            left: r.left + _picPos[active]!.dx * r.width,
+            top: r.top + _picPos[active]!.dy * r.height,
+            child: Image.asset(
+              _picAssets[active]!,
+              width: r.width * _picW,
+              fit: BoxFit.contain,
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -161,6 +294,7 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _handAnimCtrl.dispose();
     _audioPlayer.dispose();
     _trWooPlayer.dispose();
@@ -172,10 +306,14 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
     final audioPath = _familyAudio[id];
     if (audioPath == null || !mounted) return;
 
+    cancelIdleTimer();
     setState(() => _canDrag = false);
     await playVoiceRestartingOnFaceLoss(_audioPlayer, audioPath);
-    
-    if (mounted) setState(() => _canDrag = true);
+
+    if (mounted) {
+      setState(() => _canDrag = true);
+      startIdleTimer();
+    }
   }
 
   void _playNextFamilyInstruction() {
@@ -229,6 +367,7 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
   }
 
   Future<void> _saveDataAndShowGoodJob() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     final finalEmotions = stopAiCamera();
@@ -262,11 +401,16 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
 
   @override
   Widget build(BuildContext context) {
+    final Size screenSize = MediaQuery.of(context).size;
+
     return Scaffold(
       body: buildWithLoading(
         loadingScreen: LoadingScreen.lumiTown(),
         gameBuilder: () => Listener(
-          onPointerDown: (_) => _tapTracker.recordGenericTap(),
+          onPointerDown: (_) {
+            _tapTracker.recordGenericTap();
+            if (_canDrag && !_isGameWon) resetIdleTimer();
+          },
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -578,6 +722,31 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
                 child: LumiLevelBadge(level: widget.level),
               ),
 
+              if (showHowToPlay &&
+                  _gamePhase == 2 &&
+                  _canDrag &&
+                  !_isGameWon &&
+                  _activeId != null &&
+                  _firstEmptySlotFor(_activeId!) != null)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: _toAlignment(
+                      _picCenter(_activeId!, _stageRect(screenSize)),
+                      screenSize,
+                    ),
+                    handEndAlignment: _toAlignment(
+                      _slotCenter(
+                        _firstEmptySlotFor(_activeId!)!,
+                        _stageRect(screenSize),
+                      ),
+                      screenSize,
+                    ),
+                    handOffset: const Offset(0.15, 0.4),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+
               if (hasCapturedFirstFrame &&
                   !isFaceDetected &&
                   !_hideLightingCard)
@@ -697,6 +866,7 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
     return Draggable<String>(
       data: id,
       onDragStarted: () {
+        cancelIdleTimer();
         _overWrongSlot = false;
         _pendingClear = false;
       },
@@ -711,10 +881,13 @@ class _FamilyTreeGameState extends State<FamilyTreeGame>
         _overWrongSlot = false;
         _pendingClear = false;
 
-        if (!details.wasAccepted && droppedOnWrong) {
-          _tapTracker.recordMistake();
-          GamesSfxPlayer.instance.play(GameSfx.bubblePop);
-          showTrWooReaction(TrWooState.wrong);
+        if (!details.wasAccepted) {
+          if (droppedOnWrong) {
+            _tapTracker.recordMistake();
+            GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+            showTrWooReaction(TrWooState.wrong);
+          }
+          if (_canDrag && !_isGameWon) startIdleTimer();
         }
       },
       feedback: Material(

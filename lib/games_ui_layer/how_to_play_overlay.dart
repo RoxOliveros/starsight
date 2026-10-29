@@ -9,6 +9,7 @@ class HowToPlayOverlay extends StatefulWidget {
   final VoidCallback? onDismiss;
   final bool tapSequence;
   final List<Alignment>? handPath;
+  final bool showHand;
 
   const HowToPlayOverlay({
     super.key,
@@ -20,6 +21,7 @@ class HowToPlayOverlay extends StatefulWidget {
     this.handOffset = Offset.zero,
     this.onDismiss,
     this.tapSequence = false,
+    this.showHand = true,
   }) : assert(previewChild != null || previewBuilder != null);
 
   static const String _handAsset =
@@ -118,94 +120,97 @@ class _HowToPlayOverlayState extends State<HowToPlayOverlay>
                             child: widget.previewBuilder == null
                                 ? widget.previewChild!
                                 : AnimatedBuilder(
-                              animation: _tapCtrl,
-                              builder: (_, __) =>
-                                  widget.previewBuilder!(_dragProgress(_tapCtrl.value)),
-                            ),
+                                    animation: _tapCtrl,
+                                    builder: (_, __) => widget.previewBuilder!(
+                                      _dragProgress(_tapCtrl.value),
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
                     ),
-                    AnimatedBuilder(
-                      animation: _tapCtrl,
-                      builder: (_, child) {
-                        final t = _tapCtrl.value;
-                        var align = widget.handAlignment;
-                        var liftY = 0.0;
-                        var scale = 1.0;
+                    if (widget.showHand)
+                      AnimatedBuilder(
+                        animation: _tapCtrl,
+                        builder: (_, child) {
+                          final t = _tapCtrl.value;
+                          var align = widget.handAlignment;
+                          var liftY = 0.0;
+                          var scale = 1.0;
 
-                        if (_isPathSequence) {
-                          final path = widget.handPath!;
-                          final n = path.length;
-                          final scaled = (t * n).clamp(0.0, n - 0.0001);
-                          final k = scaled.floor();
-                          final u = scaled - k;
-                          final next = path[(k + 1) % n];
+                          if (_isPathSequence) {
+                            final path = widget.handPath!;
+                            final n = path.length;
+                            final scaled = (t * n).clamp(0.0, n - 0.0001);
+                            final k = scaled.floor();
+                            final u = scaled - k;
+                            final next = path[(k + 1) % n];
 
-                          if (u < 0.65) {
-                            final v = _tapValue(u / 0.65);
-                            align = path[k];
+                            if (u < 0.65) {
+                              final v = _tapValue(u / 0.65);
+                              align = path[k];
+                              liftY = -v * 16;
+                              scale = 1.0 - v * 0.08;
+                            } else {
+                              final move = Curves.easeInOut.transform(
+                                (u - 0.65) / 0.35,
+                              );
+                              align = Alignment.lerp(path[k], next, move)!;
+                            }
+                          } else if (_isSequence) {
+                            double pulse(double a, double b) => (t < a || t > b)
+                                ? 0.0
+                                : _tapValue((t - a) / (b - a));
+                          } else if (!_isDrag) {
+                            final v = _tapValue(t);
                             liftY = -v * 16;
                             scale = 1.0 - v * 0.08;
                           } else {
-                            final move = Curves.easeInOut.transform(
-                              (u - 0.65) / 0.35,
-                            );
-                            align = Alignment.lerp(path[k], next, move)!;
+                            final move = _dragProgress(t);
+
+                            final path = widget.handPath;
+                            align = (path != null && path.length >= 2)
+                                ? _alongPath(path, move)
+                                : Alignment.lerp(
+                                    widget.handAlignment,
+                                    widget.handEndAlignment ??
+                                        widget.handAlignment,
+                                    move,
+                                  )!;
+                            final press = t < 0.15
+                                ? t / 0.15
+                                : (t < 0.8
+                                      ? 1.0
+                                      : 1.0 -
+                                            ((t - 0.8) / 0.1).clamp(0.0, 1.0));
+                            scale = 1.0 - press * 0.1;
                           }
-                        } else if (_isSequence) {
-                          double pulse(double a, double b) => (t < a || t > b)
-                              ? 0.0
-                              : _tapValue((t - a) / (b - a));
-                        } else if (!_isDrag) {
-                          final v = _tapValue(t);
-                          liftY = -v * 16;
-                          scale = 1.0 - v * 0.08;
-                        } else {
-                          final move = _dragProgress(t);
 
-                          final path = widget.handPath;
-                          align = (path != null && path.length >= 2)
-                              ? _alongPath(path, move)
-                              : Alignment.lerp(
-                                  widget.handAlignment,
-                                  widget.handEndAlignment ??
-                                      widget.handAlignment,
-                                  move,
-                                )!;
-                          final press = t < 0.15
-                              ? t / 0.15
-                              : (t < 0.8
-                                    ? 1.0
-                                    : 1.0 - ((t - 0.8) / 0.1).clamp(0.0, 1.0));
-                          scale = 1.0 - press * 0.1;
-                        }
-
-                        return Align(
-                          alignment: align,
-                          child: SizedBox.shrink(
-                            child: OverflowBox(
-                              maxWidth: 60,
-                              maxHeight: 60,
-                              child: FractionalTranslation(
-                                translation: widget.handOffset,
-                                child: Transform.translate(
-                                  offset: Offset(0, liftY),
-                                  child: Transform.scale(
-                                    scale: scale,
-                                    child: child,
+                          return Align(
+                            alignment: align,
+                            child: SizedBox.shrink(
+                              child: OverflowBox(
+                                maxWidth: 60,
+                                maxHeight: 60,
+                                child: FractionalTranslation(
+                                  translation: widget.handOffset,
+                                  child: Transform.translate(
+                                    offset: Offset(0, liftY),
+                                    child: Transform.scale(
+                                      scale: scale,
+                                      child: child,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      },
-                      child: Image.asset(
-                        HowToPlayOverlay._handAsset,
-                        width: 60,
+                          );
+                        },
+                        child: Image.asset(
+                          HowToPlayOverlay._handAsset,
+                          width: 60,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
