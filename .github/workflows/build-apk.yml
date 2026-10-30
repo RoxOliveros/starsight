@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - chore/STAR-462-Build-Apk   # remove once merged and working
+      - chore/STAR-472-Build-Apk   # remove once merged and working
 
 jobs:
   build:
