@@ -30,14 +30,33 @@ const List<List<ShapeType>> _kConfusablePairs = [
   [ShapeType.circle, ShapeType.heart],
 ];
 
-const Map<ShapeType, Color> _kShapeColors = {
-  ShapeType.circle: Color(0xFF4FA8E0),
-  ShapeType.square: Color(0xFFE0654F),
-  ShapeType.triangle: Color(0xFF5FC489),
-  ShapeType.rectangle: Color(0xFFA36FE0),
-  ShapeType.star: Color(0xFFF2B33D),
-  ShapeType.heart: Color(0xFFE85B9B),
-};
+const String _kShapeAssetDir = 'assets/images/objects/puzzle/';
+
+String _shapeAsset(ShapeType shape) => '$_kShapeAssetDir' 'shape_${shape.name}.png';
+
+class _ShapeImage extends StatelessWidget {
+  final ShapeType shape;
+  final double size;
+  final Color? silhouetteColor;
+
+  const _ShapeImage({
+    required this.shape,
+    required this.size,
+    this.silhouetteColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      _shapeAsset(shape),
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      color: silhouetteColor,
+      colorBlendMode: silhouetteColor != null ? BlendMode.srcIn : null,
+    );
+  }
+}
 
 const int _kTotalRounds = 5;
 
@@ -485,13 +504,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
                     ],
                   ),
                   child: Center(
-                    child: CustomPaint(
-                      size: const Size(52, 52),
-                      painter: _ShapePainter(
-                        shape: shape,
-                        color: _kShapeColors[shape]!,
-                      ),
-                    ),
+                    child: _ShapeImage(shape: shape, size: 52),
                   ),
                 ),
               );
@@ -608,15 +621,12 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
               scale: isFilled ? 1.0 : 0.7,
               duration: const Duration(milliseconds: 400),
               curve: Curves.elasticOut,
-              child: CustomPaint(
-                size: const Size(68, 68),
-                painter: isFilled
-                    ? _ShapePainter(shape: shape, color: _kShapeColors[shape]!)
-                    : _ShapeOutlinePainter(
-                        shape: shape,
-                        color: PuzzleColorTheme.verydarkdesaturatedblue
-                            .withValues(alpha: 0.35),
-                      ),
+              child: _ShapeImage(
+                shape: shape,
+                size: 68,
+                silhouetteColor: isFilled
+                    ? null
+                    : PuzzleColorTheme.verydarkdesaturatedblue.withValues(alpha: 0.35),
               ),
             ),
           ),
@@ -678,10 +688,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
       ],
     );
 
-    Widget shapeVisual = CustomPaint(
-      size: const Size(58, 58),
-      painter: _ShapePainter(shape: shape, color: _kShapeColors[shape]!),
-    );
+    Widget shapeVisual = _ShapeImage(shape: shape, size: 58);
 
     if (tilt != 0) {
       shapeVisual = Transform.rotate(angle: tilt, child: shapeVisual);
@@ -740,132 +747,4 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
       },
     );
   }
-}
-
-Path _buildShapePath(ShapeType shape, Size size) {
-  final w = size.width;
-  final h = size.height;
-
-  switch (shape) {
-    case ShapeType.circle:
-      return Path()..addOval(Rect.fromLTWH(0, 0, w, h));
-    case ShapeType.square:
-      final side = min(w, h);
-      final dx = (w - side) / 2;
-      final dy = (h - side) / 2;
-      return Path()..addRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(dx, dy, side, side),
-          Radius.circular(side * 0.14),
-        ),
-      );
-    case ShapeType.rectangle:
-      final rectH = h * 0.62;
-      final dy = (h - rectH) / 2;
-      return Path()..addRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(0, dy, w, rectH),
-          Radius.circular(rectH * 0.18),
-        ),
-      );
-    case ShapeType.triangle:
-      final path = Path();
-      path.moveTo(w / 2, 0);
-      path.lineTo(w, h);
-      path.lineTo(0, h);
-      path.close();
-      return path;
-    case ShapeType.star:
-      return _starPath(w, h, points: 5, innerRatio: 0.5);
-    case ShapeType.heart:
-      return _heartPath(w, h);
-  }
-}
-
-Path _starPath(double w, double h, {int points = 5, double innerRatio = 0.5}) {
-  final path = Path();
-  final cx = w / 2;
-  final cy = h / 2;
-  final outerR = min(w, h) / 2;
-  final innerR = outerR * innerRatio;
-  final step = pi / points;
-
-  for (int i = 0; i < points * 2; i++) {
-    final r = i.isEven ? outerR : innerR;
-    final angle = -pi / 2 + i * step;
-    final x = cx + r * cos(angle);
-    final y = cy + r * sin(angle);
-    if (i == 0) {
-      path.moveTo(x, y);
-    } else {
-      path.lineTo(x, y);
-    }
-  }
-  path.close();
-  return path;
-}
-
-Path _heartPath(double w, double h) {
-  final path = Path();
-  path.moveTo(w / 2, h * 0.92);
-  path.cubicTo(-w * 0.15, h * 0.55, w * 0.05, -h * 0.08, w / 2, h * 0.28);
-  path.cubicTo(w * 0.95, -h * 0.08, w * 1.15, h * 0.55, w / 2, h * 0.92);
-  path.close();
-  return path;
-}
-
-class _ShapePainter extends CustomPainter {
-  final ShapeType shape;
-  final Color color;
-
-  const _ShapePainter({required this.shape, required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = _buildShapePath(shape, size);
-
-    final shadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.12)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-    canvas.save();
-    canvas.translate(0, 2);
-    canvas.drawPath(path, shadowPaint);
-    canvas.restore();
-
-    final fillPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(path, fillPaint);
-
-    final strokePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.55)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
-    canvas.drawPath(path, strokePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ShapePainter oldDelegate) =>
-      oldDelegate.shape != shape || oldDelegate.color != color;
-}
-
-class _ShapeOutlinePainter extends CustomPainter {
-  final ShapeType shape;
-  final Color color;
-
-  const _ShapeOutlinePainter({required this.shape, required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = _buildShapePath(shape, size);
-    final strokePaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5;
-    canvas.drawPath(path, strokePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ShapeOutlinePainter oldDelegate) =>
-      oldDelegate.shape != shape || oldDelegate.color != color;
 }
