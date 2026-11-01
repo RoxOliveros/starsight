@@ -108,9 +108,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     return 'A fun learning area where children build new skills through interactive, age-appropriate activities.';
   }
 
-  /// Turns a raw cycle number into parent/teacher-friendly wording —
-  /// "1st Play", "2nd Play", "3rd Play", "4th Play"... instead of the
-  /// internal "Playthrough" / "Cycle" terminology.
+  /// Turns a raw cycle number into parent/teacher-friendly wording — "1st Play", "2nd Play", "3rd Play", "4th Play"
   String _playLabel(int n) {
     if (n % 100 >= 11 && n % 100 <= 13) {
       return '${n}th Play';
@@ -181,8 +179,8 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
 
       final trackerDoc = await categoryRef.get();
 
-      if (trackerDoc.exists && trackerDoc.data()!.containsKey('currentCycle')) {
-      }
+      if (trackerDoc.exists &&
+          trackerDoc.data()!.containsKey('currentCycle')) {}
 
       // Only cycle_1..cycle_[_maxStoredCycles] ever get written to (the
       // database service rotates through them), so read exactly those
@@ -1611,7 +1609,9 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                               color: const Color(0xFFFFFDF5),
                               borderRadius: BorderRadius.circular(18),
                               border: Border.all(
-                                color: const Color(0xFFF7D070).withValues(alpha: 0.5),
+                                color: const Color(
+                                  0xFFF7D070,
+                                ).withValues(alpha: 0.5),
                                 width: 3,
                               ),
                             ),
