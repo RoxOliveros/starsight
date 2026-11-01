@@ -167,7 +167,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
   // Daily limit (minutes) of the selected child; 0 = Off. Loaded from
   // Firestore, so this default is only shown until that finishes.
   int _screenTimeLimit = DatabaseService.defaultScreenTimeLimitMinutes;
- // bool _autoBackup = false; // automatic backup toggle (UI only)
+  // bool _autoBackup = false; // automatic backup toggle (UI only)
 
   ChildProfile? get _selectedChild =>
       _children.isEmpty ? null : _children[_selectedIndex];
@@ -233,9 +233,13 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           )
           .toList();
 
-      final activeIndex = children.indexWhere(
-        (c) => c.id == widget.activeNickname,
-      );
+      final selectedId = _selectedChild?.id; // null on the very first load
+      var activeIndex = selectedId == null
+          ? -1
+          : children.indexWhere((c) => c.id == selectedId);
+      if (activeIndex < 0) {
+        activeIndex = children.indexWhere((c) => c.id == widget.activeNickname);
+      }
 
       if (!mounted) return;
       setState(() {
@@ -410,7 +414,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const SignUpSignInScreen()),
-          (route) => false,
+      (route) => false,
     );
   }
 

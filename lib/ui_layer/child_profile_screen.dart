@@ -7,6 +7,7 @@ import 'avatar_picker_dialog.dart';
 import '../business_layer/orientation_service.dart';
 import '../business_layer/database_service.dart';
 import 'category_report_screen.dart';
+import 'overall_summary_card.dart';
 import '../business_layer/forest_progress_service.dart';
 import '../business_layer/arctic_progress_service.dart';
 import '../business_layer/lagoon_progress_service.dart';
@@ -141,6 +142,8 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   DateTime? _birthdayDate;
   EditChildResult _result = EditChildResult.none;
   String? _childId;
+  int _loadCount = 0; // bumps on every successful _load(), reloads the summary
+  OverallSummaryStatus _summaryStatus = OverallSummaryStatus.generating;
 
   @override
   void initState() {
@@ -161,6 +164,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
     setState(() {
       _loading = true;
       _error = null;
+      _summaryStatus = OverallSummaryStatus.generating;
     });
 
     try {
@@ -249,6 +253,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
         _resolvedChild = child;
         _subjects = subjects;
         _loading = false;
+        _loadCount++;
       });
     } catch (e) {
       if (!mounted) return;
@@ -449,6 +454,9 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
       );
     }
 
+    // The Firestore document id (never changes, even if the nickname does).
+    final summaryChildId = _resolvedChild?.id ?? _childId ?? widget.child?.id;
+
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 36),
@@ -461,10 +469,10 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
           const SizedBox(height: 20), // Increased spacing
           _buildStatsRow(),
           const SizedBox(height: 45), // Increased spacing
-          _buildReadyBanner(),
-          const SizedBox(
-            height: 35,
-          ), // Increased spacing before navigation list
+          _buildReadyBanner(summaryChildId),
+          const SizedBox(height: 16),
+          _buildSelectSubjectHint(),
+          const SizedBox(height: 20),
           _buildSubjectButtons(context),
         ],
       ),
@@ -507,8 +515,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
       _birthdayText = birthday;
       _birthdayDate = birthdayDate;
       _genderText = gender;
-    } catch (_) {
-    }
+    } catch (_) {}
   }
 
   DateTime? _parseBirthdate(String value) {
@@ -891,53 +898,97 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
     );
   }
 
-  // ── Ready banner: Lottie clapperboard + "Analysis Reports is Ready!" ───
+  // ── Ready banner ────────────────────────────────────────────────────────
+  // Clapperboard + a progress title ("Generating Analysis Report..." ->
+  // "Analysis Report is Ready!"), with the full-width overall summary card
+  // underneath.
 
-  Widget _buildReadyBanner() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+  static String _readyTitle(OverallSummaryStatus status) {
+    switch (status) {
+      case OverallSummaryStatus.generating:
+        return 'Generating Analysis Report...';
+      case OverallSummaryStatus.ready:
+        return 'Analysis Report is Ready!';
+      case OverallSummaryStatus.empty:
+        return 'No Analysis Report Yet';
+      case OverallSummaryStatus.failed:
+        return 'Analysis Report Unavailable';
+    }
+  }
+
+  Widget _buildReadyBanner(String? summaryChildId) {
+    // Without a child id there is no summary to wait for.
+    final status = summaryChildId == null
+        ? OverallSummaryStatus.ready
+        : _summaryStatus;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          width: 58,
-          height: 58,
-          child: Image.asset(
-            'assets/animations/movie_clapperboard.webp',
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stack) => const Icon(
-              Icons.movie_creation_outlined,
-              size: 36,
-              color: ColorTheme.deepNavyBlue,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Analysis Reports is Ready!',
-                style: TextStyle(
-                  fontFamily: AppTextStyles.fredoka,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 58,
+              height: 58,
+              child: Image.asset(
+                'assets/animations/movie_clapperboard.webp',
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stack) => const Icon(
+                  Icons.movie_creation_outlined,
+                  size: 36,
                   color: ColorTheme.deepNavyBlue,
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                'Select a subject below to explore their insights.',
-                style: TextStyle(
-                  fontFamily: 'Nunito',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: ColorTheme.brown.withValues(alpha: 0.8),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                layoutBuilder: (current, previous) => Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [...previous, if (current != null) current],
+                ),
+                child: Text(
+                  _readyTitle(status),
+                  key: ValueKey(status),
+                  style: const TextStyle(
+                    fontFamily: AppTextStyles.fredoka,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: ColorTheme.deepNavyBlue,
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
+        if (summaryChildId != null) ...[
+          const SizedBox(height: 20),
+          OverallSummaryCard(
+            key: ValueKey('overall-$summaryChildId-$_loadCount'),
+            childId: summaryChildId,
+            fallbackName: _resolvedChild?.name ?? widget.child?.name,
+            onStatusChanged: (status) {
+              if (!mounted) return;
+              setState(() => _summaryStatus = status);
+            },
+          ),
+        ],
       ],
+    );
+  }
+
+  // Shown under the overall summary card, above the subject list.
+  Widget _buildSelectSubjectHint() {
+    return Text(
+      'Select a category below to see a more detailed analysis.',
+      style: TextStyle(
+        fontFamily: 'Nunito',
+        fontSize: 14,
+        fontWeight: FontWeight.w800,
+        color: ColorTheme.brown.withValues(alpha: 0.8),
+      ),
     );
   }
 
