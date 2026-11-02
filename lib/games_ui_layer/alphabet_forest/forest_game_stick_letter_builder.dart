@@ -180,6 +180,9 @@ class _FallenStickLetterBuilderGameState
   static const double _traceScale = 0.72;
   static const Offset _traceOffset = Offset(0.0, 0.2);
   static const double _minDragDistance = 40.0;
+  static const double _stickAspect = 2570 / 800;
+  static const double _stickTrunkFraction = 0.91;
+  static const double _stickTrunkCenterY = 0.44;
 
   // ── Letters V, W, X ──────────────────────
   static const List<LetterRoundSpec> _rounds = [
@@ -957,17 +960,30 @@ class _FallenStickLetterBuilderGameState
   }
 
   Widget _stickAsset(StickPiece stick, double length, double thickness) {
-    return Image.asset(
-      _stickLongAsset,
-      width: length,
-      fit: BoxFit.contain,
-      errorBuilder: (_, __, ___) => Container(
-        width: length,
-        height: thickness,
-        decoration: BoxDecoration(
-          color: const Color(0xFF8B5E34),
-          borderRadius: BorderRadius.circular(thickness / 2),
-          border: Border.all(color: const Color(0xFF6B4423), width: 1.5),
+    final imgW = length / _stickTrunkFraction;
+    final imgH = imgW / _stickAspect;
+
+    return OverflowBox(
+      minWidth: imgW,
+      maxWidth: imgW,
+      minHeight: imgH,
+      maxHeight: imgH,
+      child: Transform.translate(
+        offset: Offset(0, (0.5 - _stickTrunkCenterY) * imgH),
+        child: Image.asset(
+          _stickLongAsset,
+          width: imgW,
+          height: imgH,
+          fit: BoxFit.fill,
+          errorBuilder: (_, __, ___) => Container(
+            width: length,
+            height: thickness,
+            decoration: BoxDecoration(
+              color: const Color(0xFF8B5E34),
+              borderRadius: BorderRadius.circular(thickness / 2),
+              border: Border.all(color: const Color(0xFF6B4423), width: 1.5),
+            ),
+          ),
         ),
       ),
     );
