@@ -19,6 +19,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -47,8 +49,8 @@ class _FindThePairScreenState extends State<FindThePairScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<FindThePairScreen> {
-
+        AppAudioLifecycleMixin<FindThePairScreen>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
 
@@ -61,13 +63,17 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/find_the_pair_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/find_the_pair_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/find_the_pair_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/find_the_pair_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/find_the_pair_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/find_the_pair_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -133,6 +139,7 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
 
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
@@ -258,8 +265,10 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     setState(() {
       _isInstructionPlaying = false;
     });
+    showHowToPlay = false;
+    startIdleTimer();
   }
-  
+
   void _startRound() {
     if (!mounted) return;
 
@@ -310,6 +319,7 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     setState(() => _secondSelectedIndex = index);
 
     if (isMatch) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       setState(() => _roundComplete = true);
 
@@ -336,8 +346,8 @@ class _FindThePairScreenState extends State<FindThePairScreen>
         PuzzleProgressService.instance
             .markLevelComplete(widget.level)
             .catchError((e) {
-          debugPrint("Database Error marking level complete: $e");
-        });
+              debugPrint("Database Error marking level complete: $e");
+            });
 
         await _saveDataAndShowWinDialog();
       } else {
@@ -349,6 +359,8 @@ class _FindThePairScreenState extends State<FindThePairScreen>
           _round++;
           _startRound();
         });
+        showHowToPlay = false;
+        startIdleTimer();
       }
     } else {
       _tapTracker.recordMistake();
@@ -368,6 +380,7 @@ class _FindThePairScreenState extends State<FindThePairScreen>
         _wrongFlash = false;
         _wrongIndex = null;
       });
+      startIdleTimer();
     }
   }
 
@@ -394,53 +407,141 @@ class _FindThePairScreenState extends State<FindThePairScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
-                children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                  ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
-                ],
+    return Listener(
+      onPointerDown: (_) {
+        if (_screenPhase == _ScreenPhase.game &&
+            !_isInstructionPlaying &&
+            !_roundComplete &&
+            !_isPlayingCompleteAudio) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(),
+          gameBuilder: () => Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
               ),
-            ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameLayer(),
-                      ),
-                      buildRoxie(context),
-                    ],
-                  ),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
+                      children: [
+                        FadeTransition(
+                          opacity: _gameFade,
+                          child: _buildGameLayer(),
+                        ),
+                        buildRoxie(context),
+                      ],
+                    ),
 
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (showHowToPlay &&
+                  _screenPhase == _ScreenPhase.game &&
+                  !_isInstructionPlaying &&
+                  !_roundComplete &&
+                  !_isPlayingCompleteAudio &&
+                  !_showWinDialog)
+                Positioned.fill(child: _buildHowToPlayOverlay()),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  Widget _buildHowToPlayOverlay() {
+    final sz = MediaQuery.of(context).size;
+    final sw = sz.width, sh = sz.height;
+
+    // sample objects: never the current round's match
+    const pool = ['apple', 'ball', 'dog', 'car', 'flower', 'banana'];
+    final options = pool.where((o) => o != _matchingObject).toList();
+    final match = options[0], other1 = options[1], other2 = options[2];
+
+    Widget card(String object) => Container(
+      width: 105,
+      height: 105,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
+          width: 2.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Image.asset('$_objectAssetPath/$object.png',
+            width: 72, height: 72, fit: BoxFit.contain),
+      ),
+    );
+
+    Widget row(String a, String b) => Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [card(a), const SizedBox(width: 20), card(b)],
+      ),
+    );
+
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [row(match, other1), row(other2, match)],
+          ),
+        ),
+      ],
+    );
+
+    final cx = sw / 2, cy = sh / 2;
+    Alignment al(double x, double y) =>
+        Alignment(2 * x / sw - 1, 2 * y / sh - 1);
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      tapSequence: true,
+      handAlignment: al(cx - 62.5, cy - 72.5),
+      handEndAlignment: al(cx + 62.5, cy + 52.5),
+      handOffset: const Offset(0.15, 0.65),
+      onDismiss: resetIdleTimer,
+    );
+  }
   Widget _buildIntroLayer() {
     return Column(
       children: [

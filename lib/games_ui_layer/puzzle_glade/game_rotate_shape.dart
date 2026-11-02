@@ -18,6 +18,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_what_goes_together_screen.dart';
 
 enum _ScreenPhase { intro, game }
@@ -116,7 +118,8 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<RotateTheShapeScreen> {
+        AppAudioLifecycleMixin<RotateTheShapeScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
@@ -163,6 +166,41 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
   double _dragStartAngle = 0;
   final GlobalKey _objectKey = GlobalKey();
 
+  // ── How to play ────────────────────────────────────────────────────────────
+  final GlobalKey _ccwKey = GlobalKey();
+  final GlobalKey _cwKey = GlobalKey();
+  final GlobalKey _checkKey = GlobalKey();
+
+  /// The hint makes sense once the child can play and hasn't just solved it.
+  bool get _hintActive =>
+      _screenPhase == _ScreenPhase.game &&
+          inputEnabled &&
+          _targetItem != null &&
+          !_isCompleting &&
+          !_showWinDialog;
+
+  bool get _hintAllowed => showHowToPlay && _hintActive;
+
+  /// Hide any visible hint and restart the idle countdown.
+  void _armHint() {
+    if (!mounted) return;
+    setState(() => showHowToPlay = false);
+    startIdleTimer();
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final center =
+    box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
   late AnimationController _roxieSlideCtrl;
@@ -201,6 +239,7 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -228,8 +267,8 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
+      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+    );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -258,14 +297,14 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     _enterAnim = CurvedAnimation(parent: _enterCtrl, curve: Curves.easeOut);
 
     _snapCtrl =
-        AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 260),
-        )..addListener(() {
-          if (_snapAnim != null) {
-            setState(() => _currentRotation = _snapAnim!.value);
-          }
-        });
+    AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    )..addListener(() {
+      if (_snapAnim != null) {
+        setState(() => _currentRotation = _snapAnim!.value);
+      }
+    });
 
     _wiggleCtrl = AnimationController(
       vsync: this,
@@ -309,9 +348,13 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
-    setState(() => inputEnabled = true);
+    setState(() {
+      inputEnabled = true;
+      showHowToPlay = false;
+    });
+    startIdleTimer(); // hint countdown starts once the child can play
   }
-  
+
   void _startRound() {
     final rng = Random();
     final (snapDeg, startTurns) = _configForRound(_round);
@@ -414,7 +457,11 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
   }
 
   Future<void> _handleCorrectRotation() async {
-    setState(() => _isCompleting = true);
+    cancelIdleTimer();
+    setState(() {
+      _isCompleting = true;
+      showHowToPlay = false;
+    });
     showRoxieReaction(RoxieState.correct);
     await _celebrateCtrl.forward(from: 0);
     await Future.delayed(const Duration(milliseconds: 300));
@@ -431,11 +478,13 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     if (!mounted) return;
     setState(() => _round++);
     _startRound();
+    _armHint(); // new round, fresh hint countdown
   }
 
   Future<void> _saveDataAndShowWinDialog() async {
     if (_hasSavedResult) return;
     _hasSavedResult = true;
+    cancelIdleTimer();
     List<String> finalEmotions = stopAiCamera();
 
     PuzzleDatabaseService.saveGameData(
@@ -453,8 +502,8 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
 
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
     PuzzleProgressService.instance.markLevelComplete(widget.level).catchError((
-      e,
-    ) {
+        e,
+        ) {
       debugPrint("Database Error marking level complete: $e");
     });
 
@@ -463,53 +512,115 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     }
   }
 
+  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: buildWithLoading(
         loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
+        gameBuilder: () => Listener(
+          // Rotating is a drag, so stop the countdown while a finger is down
+          // and restart it when the finger lifts.
+          onPointerDown: (_) {
+            if (!_hintActive) return;
+            cancelIdleTimer();
+            if (showHowToPlay) setState(() => showHowToPlay = false);
+          },
+          onPointerUp: (_) {
+            if (_hintActive) startIdleTimer();
+          },
+          onPointerCancel: (_) {
+            if (_hintActive) startIdleTimer();
+          },
+          child: Stack(
+            children: [
+              Positioned.fill(child: _buildBackground()),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameLayer(),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
                 ],
               ),
-            ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameLayer(),
-                      ),
-                    ],
-                  ),
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (_hintAllowed) Positioned.fill(child: _buildHowToPlay()),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  Widget _buildBackground() {
+    return Stack(
+      children: [
+        Image.asset(
+          _bgImage,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+        ),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
+      ],
+    );
+  }
+
+  // ── How to play ────────────────────────────────────────────────────────────
+  /// Whole turns still needed: positive means the shape is turned clockwise,
+  /// so it needs to be turned back counter-clockwise.
+  int get _turnsToMatch => (_currentRotation / _snapRad).round();
+
+  /// Demo: tap the rotate button that turns the shape toward the match, then
+  /// tap the check button. If the shape already matches, just tap check.
+  Widget _buildHowToPlay() {
+    final turns = _turnsToMatch;
+    final checkAlign = _alignmentOf(_checkKey);
+
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        _buildBackground(),
+        _buildGameLayer(preview: true),
+      ],
+    );
+
+    if (turns == 0) {
+      return HowToPlayOverlay(
+        handAlignment: checkAlign,
+        handOffset: const Offset(0.15, 0.65),
+        onDismiss: resetIdleTimer,
+        previewChild: preview,
+      );
+    }
+
+    final rotateKey = turns > 0 ? _ccwKey : _cwKey;
+    return HowToPlayOverlay(
+      handAlignment: _alignmentOf(rotateKey),
+      handEndAlignment: checkAlign,
+      tapSequence: true,
+      handOffset: const Offset(0.15, 0.65),
+      onDismiss: resetIdleTimer,
+      previewChild: preview,
+    );
+  }
+
+  // ── Intro ──────────────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     return Column(
       children: [
@@ -628,7 +739,8 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     );
   }
 
-  Widget _buildGameLayer() {
+  // ── Game ───────────────────────────────────────────────────────────────────
+  Widget _buildGameLayer({bool preview = false}) {
     final target = _targetItem;
     if (target == null) return const SizedBox.shrink();
 
@@ -648,7 +760,9 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
               ],
             ),
           ),
-          Expanded(child: Center(child: _buildGameArea(target))),
+          Expanded(
+            child: Center(child: _buildGameArea(target, preview: preview)),
+          ),
           Padding(
             padding: const EdgeInsets.only(left: 20, right: 25, bottom: 8),
             child: SizedBox(
@@ -660,15 +774,19 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildRotateButton(_btnCounterClockwise, -1),
+                        _buildRotateButton(
+                          _btnCounterClockwise,
+                          -1,
+                          preview: preview,
+                        ),
                         const SizedBox(width: 16),
-                        _buildRotateButton(_btnClockwise, 1),
+                        _buildRotateButton(_btnClockwise, 1, preview: preview),
                       ],
                     ),
                   ),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: _buildCheckButton(),
+                    child: _buildCheckButton(preview: preview),
                   ),
                 ],
               ),
@@ -686,14 +804,14 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     );
   }
 
-  Widget _buildGameArea(_RotateObjectItem target) {
+  Widget _buildGameArea(_RotateObjectItem target, {bool preview = false}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         return Row(
-            children: [
-              Expanded(child: _buildTargetObject(target)),
-              Expanded(child: _buildPuzzleObject(target)),
-            ],
+          children: [
+            Expanded(child: _buildTargetObject(target)),
+            Expanded(child: _buildPuzzleObject(target, preview: preview)),
+          ],
         );
       },
     );
@@ -710,7 +828,7 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     );
   }
 
-  Widget _buildPuzzleObject(_RotateObjectItem target) {
+  Widget _buildPuzzleObject(_RotateObjectItem target, {bool preview = false}) {
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -720,8 +838,8 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
             builder: (context, child) {
               final wiggle = _isWrongFlash
                   ? sin(_wiggleCtrl.value * pi * 6) *
-                        8 *
-                        (1 - _wiggleCtrl.value)
+                  8 *
+                  (1 - _wiggleCtrl.value)
                   : 0.0;
               final bounce = _celebrateCtrl.isAnimating
                   ? 1.0 + (sin(_celebrateCtrl.value * pi) * 0.25)
@@ -741,7 +859,9 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
               );
             },
             child: GestureDetector(
-              key: _objectKey,
+              // _objectKey drives the rotation maths, so the preview copy
+              // must not reuse it.
+              key: preview ? null : _objectKey,
               onPanStart: _onPanStart,
               onPanUpdate: _onPanUpdate,
               onPanEnd: _onPanEnd,
@@ -763,17 +883,20 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     _checkMatch();
   }
 
-  Widget _buildCheckButton() {
+  Widget _buildCheckButton({bool preview = false}) {
     final disabled = _isRotating || _isCompleting;
-    return GestureDetector(
-      onTap: _onCheckTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.all(6),
-        child: AnimatedOpacity(
-          opacity: disabled ? 0.6 : 1.0,
-          duration: const Duration(milliseconds: 150),
-          child: Image.asset(_btnCheck, width: 80),
+    return KeyedSubtree(
+      key: preview ? null : _checkKey,
+      child: GestureDetector(
+        onTap: _onCheckTap,
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: AnimatedOpacity(
+            opacity: disabled ? 0.6 : 1.0,
+            duration: const Duration(milliseconds: 150),
+            child: Image.asset(_btnCheck, width: 80),
+          ),
         ),
       ),
     );
@@ -787,27 +910,34 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     _animateSnapTo(next);
   }
 
-  Widget _buildRotateButton(String asset, int direction) {
+  Widget _buildRotateButton(
+      String asset,
+      int direction, {
+        bool preview = false,
+      }) {
     final disabled = _isRotating || _isCompleting;
-    return GestureDetector(
-      onTap: () => _onRotateButtonTap(direction),
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.all(6),
-        child: AnimatedOpacity(
-          opacity: disabled ? 0.6 : 1.0,
-          duration: const Duration(milliseconds: 150),
-          child: Image.asset(
-            asset,
-            width: 84,
-            height: 84,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Icon(
-              direction > 0
-                  ? Icons.rotate_right_rounded
-                  : Icons.rotate_left_rounded,
-              size: 60,
-              color: PuzzleColorTheme.goldenyellow,
+    return KeyedSubtree(
+      key: preview ? null : (direction > 0 ? _cwKey : _ccwKey),
+      child: GestureDetector(
+        onTap: () => _onRotateButtonTap(direction),
+        behavior: HitTestBehavior.opaque,
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: AnimatedOpacity(
+            opacity: disabled ? 0.6 : 1.0,
+            duration: const Duration(milliseconds: 150),
+            child: Image.asset(
+              asset,
+              width: 84,
+              height: 84,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Icon(
+                direction > 0
+                    ? Icons.rotate_right_rounded
+                    : Icons.rotate_left_rounded,
+                size: 60,
+                color: PuzzleColorTheme.goldenyellow,
+              ),
             ),
           ),
         ),
@@ -849,6 +979,7 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
     );
   }
 
+  // ── Win ────────────────────────────────────────────────────────────────────
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
@@ -863,13 +994,16 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
         );
       },
       onRestart: () {
+        cancelIdleTimer();
         setState(() {
           _round = 1;
           _showWinDialog = false;
           _hasSavedResult = false;
+          showHowToPlay = false;
           _tapTracker.startSession();
         });
         _startRound();
+        _armHint();
       },
       onBack: () {
         Navigator.pop(context);

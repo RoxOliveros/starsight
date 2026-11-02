@@ -18,6 +18,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_puzzle_object.dart';
 
 enum _ScreenPhase { intro, game }
@@ -52,7 +54,8 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
         RoxieReactionMixin<ShadowMatchScreen>,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<ShadowMatchScreen> {
+        AppAudioLifecycleMixin<ShadowMatchScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
@@ -78,7 +81,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
 
   // ── Round state ────────────────────────────────────────────────────────────
   int _round = 1;
-  int? _tappedIndex;
 
   late String _answerObject;
   late List<String> _choices;
@@ -130,6 +132,7 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -240,6 +243,7 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
     setState(() {
       _isInstructionPlaying = false;
     });
+    startIdleTimer();
   }
   
   int _choicesForRound(int round) {
@@ -255,7 +259,8 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
 
     _wrongFlash = false;
     _roundComplete = false;
-    _tappedIndex = null;
+    cancelIdleTimer();
+    showHowToPlay = false;
 
     _bounceCtrl.reset();
     _revealCtrl.reset();
@@ -271,7 +276,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
       _tapTracker.recordCorrectTap();
       _pulseCtrl.stop();
       setState(() {
-        _tappedIndex = index;
         _roundComplete = true;
       });
       _bounceCtrl.forward(from: 0);
@@ -301,23 +305,23 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
           _round++;
           _startRound();
         });
+        startIdleTimer();
       }
     } else {
       _tapTracker.recordMistake();
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showRoxieReaction(RoxieState.wrong);
       setState(() {
-        _tappedIndex = index;
         _wrongFlash = true;
       });
       setState(() {
         _wrongFlash = false;
-        _tappedIndex = null;
       });
     }
   }
 
   Future<void> _saveDataAndShowWinDialog() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -340,51 +344,180 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_canShowHint) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(),
+          gameBuilder: () => Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
+              ),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameLayer(),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
+
+                  buildRoxie(context),
                 ],
               ),
-            ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameLayer(),
-                      ),
 
-                      buildRoxie(context),
-                    ],
+              if (showHowToPlay && _canShowHint)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: _toAlignment(
+                      _demoChoiceCenter(screenSize),
+                      screenSize,
+                    ),
+                    handEndAlignment: _toAlignment(
+                      _demoCardCenter(screenSize),
+                      screenSize,
+                    ),
+                    handOffset: const Offset(0.15, 0.4),
+                    onDismiss: resetIdleTimer,
                   ),
+                ),
 
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  bool get _canShowHint =>
+      _screenPhase == _ScreenPhase.game &&
+          !_isInstructionPlaying &&
+          !_roundComplete &&
+          !_showWinDialog;
+
+  void _restartIdleAfterDrag() {
+    if (_canShowHint) startIdleTimer();
+  }
+
+  // Preview layout: [card 148] gap 20 [choice 82] gap 14 [choice 82],
+  // centered on the screen.
+  static const double _previewTotalW = 148 + 20 + 82 + 14 + 82;
+
+  Offset _demoCardCenter(Size s) {
+    final left = (s.width - _previewTotalW) / 2;
+    return Offset(left + 74, s.height / 2);
+  }
+
+  Offset _demoChoiceCenter(Size s) {
+    final left = (s.width - _previewTotalW) / 2;
+    return Offset(left + 148 + 20 + 41, s.height / 2);
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    // Sample objects that are not part of the current round, so the demo
+    // never reveals the real answer.
+    final pool = _kAllObjects.where((o) => !_choices.contains(o)).toList();
+    final demoObject = pool[0];
+    final otherObject = pool[1];
+
+    Widget choiceCard(String object) {
+      return Container(
+        width: 82,
+        height: 82,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
+            width: 2.5,
+          ),
+        ),
+        child: Center(
+          child: Image.asset(
+            'assets/images/objects/puzzle/$object.png',
+            width: 60,
+            height: 60,
+            fit: BoxFit.contain,
+          ),
+        ),
+      );
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
+        Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 148,
+                height: 148,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                      alpha: 0.35,
+                    ),
+                    width: 2.5,
+                  ),
+                ),
+                child: Center(
+                  child: Image.asset(
+                    'assets/images/objects/puzzle/$demoObject.png',
+                    width: 110,
+                    height: 110,
+                    color: PuzzleColorTheme.verydarkdesaturatedblue.withValues(
+                      alpha: 0.85,
+                    ),
+                    colorBlendMode: BlendMode.srcIn,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 20),
+              choiceCard(demoObject),
+              const SizedBox(width: 14),
+              choiceCard(otherObject),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -647,7 +780,6 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
   Widget _buildChoiceButton(int index) {
     final object = _choices[index];
     final isAnswer = object == _answerObject;
-    final isWrong = _wrongFlash && _tappedIndex == index;
     final isCorrect = _roundComplete && isAnswer;
 
     Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(
@@ -717,7 +849,10 @@ class _ShadowMatchScreenState extends State<ShadowMatchScreen>
       key: ValueKey(object),
       data: object,
       maxSimultaneousDrags:
-          (_roundComplete || _wrongFlash || _isInstructionPlaying) ? 0 : 1,
+      (_roundComplete || _wrongFlash || _isInstructionPlaying) ? 0 : 1,
+      onDragStarted: cancelIdleTimer,
+      onDraggableCanceled: (_, __) => _restartIdleAfterDrag(),
+      onDragCompleted: _restartIdleAfterDrag,
       feedback: Material(color: Colors.transparent, child: child),
       childWhenDragging: Container(
         width: 82,

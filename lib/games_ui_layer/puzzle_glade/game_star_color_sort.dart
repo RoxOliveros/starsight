@@ -19,6 +19,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -39,8 +41,8 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<StarColorSortScreen> {
-
+        AppAudioLifecycleMixin<StarColorSortScreen>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
 
@@ -53,11 +55,15 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _audioIntro = 'assets/audio/puzzle_glade/star_sort_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/star_sort_instruction.wav';
-  static const String _audioGameComplete = 'assets/audio/puzzle_glade/star_sort_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/star_sort_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/star_sort_instruction.wav';
+  static const String _audioGameComplete =
+      'assets/audio/puzzle_glade/star_sort_complete.wav';
 
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _starImage = 'assets/images/objects/puzzle/star_bnw.png';
   static const String _jarImage = 'assets/images/objects/puzzle/jar_bnw.png';
@@ -112,9 +118,6 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   bool _canDrag = false;
   bool _isTripleJar = false;
 
-  // ── Audio ──────────────────────────────────────────────────────────────────
-  final AudioPlayer _player = AudioPlayer();
-
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
   late AnimationController _roxieSlideCtrl;
@@ -156,6 +159,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -240,6 +244,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
     setState(() => _canDrag = true);
+    startIdleTimer();
   }
 
   Future<void> _precacheOne(ImageProvider p) => precacheImage(
@@ -307,6 +312,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
     final correct = ball.jarIndex == jarIndex;
 
     if (correct) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       setState(() {
         _poolBalls.remove(ball);
@@ -346,7 +352,12 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
             _round++;
             _startRound();
           });
+          showHowToPlay = false;
+          startIdleTimer();
         }
+      } else {
+        showHowToPlay = false;
+        startIdleTimer();
       }
     } else {
       _tapTracker.recordMistake();
@@ -369,6 +380,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
           _wrongFlashC = false;
         });
       }
+      startIdleTimer();
     }
   }
 
@@ -400,45 +412,136 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
-                children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                  ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
-                ],
+    return Listener(
+      onPointerDown: (_) {
+        if (_canDrag && !_roundComplete) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(),
+          gameBuilder: () => Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
               ),
-            ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : FadeTransition(opacity: _gameFade, child: _buildGameLayer()),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : FadeTransition(
+                      opacity: _gameFade,
+                      child: _buildGameLayer(),
+                    ),
 
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (showHowToPlay &&
+                  _canDrag &&
+                  !_roundComplete &&
+                  !_showWinDialog &&
+                  _poolBalls.isNotEmpty)
+                Positioned.fill(child: _buildHowToPlayOverlay()),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  Widget _buildHowToPlayOverlay() {
+    final sz = MediaQuery.of(context).size;
+    final sw = sz.width, sh = sz.height;
+
+    // sample color that is not used by any jar this round
+    final used = [_jarA, _jarB, if (_isTripleJar) _jarC];
+    final sample = _allPairs.firstWhere(
+          (p) => !used.contains(p),
+      orElse: () => _allPairs.first,
+    );
+
+    // same layout math as the real screen (pool flex 4 | jars flex 5)
+    const starSize = 54.0, jarW = 105.0, jarH = 120.0;
+    const poolLeft = 150.0;
+    final poolRight = sw * 4 / 9 - 12;
+    final poolCx = (poolLeft + poolRight) / 2;
+    final cy = sh / 2;
+    final jarCx = sw * 4 / 9 + (sw * 5 / 9) / 2;
+
+    Alignment al(double x, double y) =>
+        Alignment(2 * x / sw - 1, 2 * y / sh - 1);
+
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
+        Positioned(
+          left: poolLeft,
+          right: sw - poolRight,
+          top: cy - 60,
+          height: 120,
+          child: Container(
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: PuzzleColorTheme.vandecane,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.55),
+                width: 2.5,
+              ),
+            ),
+            child: Image(
+              image: _starProvider,
+              width: starSize,
+              height: starSize,
+              color: sample.ballColor,
+              colorBlendMode: BlendMode.modulate,
+            ),
+          ),
+        ),
+        Positioned(
+          left: jarCx - jarW / 2,
+          top: cy - jarH / 2,
+          width: jarW,
+          height: jarH,
+          child: Image(
+            image: _jarProvider,
+            fit: BoxFit.fill,
+            color: sample.jarColor.withValues(alpha: 0.85),
+            colorBlendMode: BlendMode.modulate,
+          ),
+        ),
+      ],
+    );
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: al(poolCx, cy),
+      handEndAlignment: al(jarCx, cy + 10),
+      handOffset: const Offset(0.05, 0.46),
+      onDismiss: resetIdleTimer,
+    );
+  }
   Widget _buildIntroLayer() {
     return Column(
       children: [
@@ -638,6 +741,8 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
       child: Draggable<_Ball>(
         data: ball,
         maxSimultaneousDrags: _canDrag ? 1 : 0,
+        onDragStarted: cancelIdleTimer,
+        onDraggableCanceled: (_, __) => startIdleTimer(),
         feedback: Material(color: Colors.transparent, child: starWidget(62)),
         childWhenDragging: Opacity(opacity: 0.25, child: starWidget(54)),
         child: Opacity(opacity: _canDrag ? 1 : 0.6, child: starWidget(54)),

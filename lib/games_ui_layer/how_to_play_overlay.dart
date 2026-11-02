@@ -161,6 +161,22 @@ class _HowToPlayOverlayState extends State<HowToPlayOverlay>
                             double pulse(double a, double b) => (t < a || t > b)
                                 ? 0.0
                                 : _tapValue((t - a) / (b - a));
+
+                            final p = pulse(0.0, 0.25) + pulse(0.5, 0.75);
+                            final toEnd = Curves.easeInOut.transform(
+                              ((t - 0.25) / 0.25).clamp(0.0, 1.0),
+                            );
+                            final back = Curves.easeInOut.transform(
+                              ((t - 0.8) / 0.2).clamp(0.0, 1.0),
+                            );
+
+                            align = Alignment.lerp(
+                              widget.handAlignment,
+                              widget.handEndAlignment!,
+                              toEnd - back,
+                            )!;
+                            liftY = -p * 16;
+                            scale = 1.0 - p * 0.08;
                           } else if (!_isDrag) {
                             final v = _tapValue(t);
                             liftY = -v * 16;

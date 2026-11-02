@@ -18,6 +18,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_hidden_object.dart';
 
 enum _ScreenPhase { intro, game }
@@ -50,7 +52,8 @@ class _MazePathScreenState extends State<MazePathScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<MazePathScreen> {
+        AppAudioLifecycleMixin<MazePathScreen>,
+        IdleHintMixin<MazePathScreen> {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
@@ -73,6 +76,14 @@ class _MazePathScreenState extends State<MazePathScreen>
   static const String _audioIntro = 'assets/audio/puzzle_glade/maze_path_intro.wav';
   static const String _audioInstructions = 'assets/audio/puzzle_glade/maze_path_instruction.wav';
   static const String _audioComplete = 'assets/audio/puzzle_glade/maze_path_complete.wav';
+
+  // ── How-to-play hint ──────────────────────────────────────────────────────
+  // Keys go on the live "right" and "down" arrow buttons only. While the
+  // overlay's preview copy is built, _previewing is true so no key is
+  // attached twice.
+  final GlobalKey _rightKey = GlobalKey();
+  final GlobalKey _downKey = GlobalKey();
+  bool _previewing = false;
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -128,6 +139,7 @@ class _MazePathScreenState extends State<MazePathScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -152,8 +164,8 @@ class _MazePathScreenState extends State<MazePathScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
+      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+    );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -199,8 +211,9 @@ class _MazePathScreenState extends State<MazePathScreen>
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
     setState(() => inputEnabled = true);
+    startIdleTimer(); // hint countdown starts once the child can play
   }
-  
+
   (int, int, int) _mazeConfigForRound(int round) {
     switch (round) {
       case 1:
@@ -321,8 +334,11 @@ class _MazePathScreenState extends State<MazePathScreen>
 
   Future<void> _onGoalReached() async {
     _isCompleting = true;
+    cancelIdleTimer(); // maze solved: no hint until the next round
+    setState(() => showHowToPlay = false);
     showRoxieReaction(RoxieState.correct);
     await Future.delayed(const Duration(milliseconds: 900));
+    if (!mounted) return;
     await _advanceRound();
   }
 
@@ -338,6 +354,7 @@ class _MazePathScreenState extends State<MazePathScreen>
       _round++;
       _startRound();
     });
+    startIdleTimer(); // new maze: restart the countdown
   }
 
   Future<void> _completeRound() async {
@@ -346,8 +363,8 @@ class _MazePathScreenState extends State<MazePathScreen>
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
 
     PuzzleProgressService.instance.markLevelComplete(widget.level).catchError((
-      e,
-    ) {
+        e,
+        ) {
       debugPrint("Database Error marking level complete: $e");
     });
     await _saveDataAndShowWinDialog();
@@ -356,6 +373,7 @@ class _MazePathScreenState extends State<MazePathScreen>
   Future<void> _saveDataAndShowWinDialog() async {
     if (_hasSavedResult) return;
     _hasSavedResult = true;
+    cancelIdleTimer();
     List<String> finalEmotions = stopAiCamera();
 
     PuzzleDatabaseService.saveGameData(
@@ -374,51 +392,119 @@ class _MazePathScreenState extends State<MazePathScreen>
     }
   }
 
+  /// True while the child can actually play.
+  bool get _canPlay =>
+      _screenPhase == _ScreenPhase.game &&
+          inputEnabled &&
+          !_isCompleting &&
+          !_showWinDialog;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: buildWithLoading(
         loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
+        gameBuilder: () => Listener(
+          // Finger down: hide the hint and pause the countdown.
+          // Finger up: restart the countdown.
+          onPointerDown: (_) {
+            _tapTracker.recordGenericTap();
+            if (showHowToPlay) setState(() => showHowToPlay = false);
+            cancelIdleTimer();
+          },
+          onPointerUp: (_) {
+            if (_canPlay) startIdleTimer();
+          },
+          onPointerCancel: (_) {
+            if (_canPlay) startIdleTimer();
+          },
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
+              ),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameLayer(),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                  buildRoxie(context),
                 ],
               ),
-            ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameLayer(),
-                      ),
-                      buildRoxie(context),
-                    ],
-                  ),
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (showHowToPlay && _canPlay)
+                Positioned.fill(child: _buildHowToPlay()),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  // ── How to play ───────────────────────────────────────────────────────────
+  Widget _buildHowToPlay() {
+    // Static copy of the current game screen. Keys are skipped so the live
+    // arrow buttons keep their GlobalKeys.
+    _previewing = true;
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(_bgImage, fit: BoxFit.cover),
+            Container(color: Colors.black.withValues(alpha: 0.15)),
+          ],
+        ),
+        _buildGameLayer(),
+        buildRoxie(context),
+      ],
+    );
+    _previewing = false;
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: _alignmentOf(_rightKey),
+      handEndAlignment: _alignmentOf(_downKey),
+      tapSequence: true,
+      handOffset: const Offset(0.15, 0.7),
+      onDismiss: resetIdleTimer,
+    );
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final c = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      c.dx / root.size.width * 2 - 1,
+      c.dy / root.size.height * 2 - 1,
     );
   }
 
@@ -513,7 +599,7 @@ class _MazePathScreenState extends State<MazePathScreen>
                   height: 46,
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) =>
-                      const Text('🐰', style: TextStyle(fontSize: 30)),
+                  const Text('🐰', style: TextStyle(fontSize: 30)),
                 ),
               ),
             ],
@@ -649,7 +735,7 @@ class _MazePathScreenState extends State<MazePathScreen>
                       _chickenImage,
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) =>
-                          const Text('🐰', style: TextStyle(fontSize: 28)),
+                      const Text('🐰', style: TextStyle(fontSize: 28)),
                     ),
                   ),
                 ),
@@ -662,11 +748,11 @@ class _MazePathScreenState extends State<MazePathScreen>
   }
 
   Widget _buildMazeIcon(
-    Cell cell,
-    double cellSize,
-    String assetPath, {
-    bool show = true,
-  }) {
+      Cell cell,
+      double cellSize,
+      String assetPath, {
+        bool show = true,
+      }) {
     if (!show) return const SizedBox.shrink();
     return Positioned(
       left: cell.$2 * cellSize,
@@ -703,6 +789,7 @@ class _MazePathScreenState extends State<MazePathScreen>
             ),
             const SizedBox(width: 56 + gap * 2), // center gap
             _DirButton(
+              key: _previewing ? null : _rightKey,
               icon: Icons.keyboard_arrow_right_rounded,
               onTap: () => _move(0, 1),
             ),
@@ -710,6 +797,7 @@ class _MazePathScreenState extends State<MazePathScreen>
         ),
         const SizedBox(height: gap),
         _DirButton(
+          key: _previewing ? null : _downKey,
           icon: Icons.keyboard_arrow_down_rounded,
           onTap: () => _move(1, 0),
         ),
@@ -737,6 +825,7 @@ class _MazePathScreenState extends State<MazePathScreen>
           _tapTracker.startSession();
         });
         _startRound();
+        startIdleTimer();
       },
       onBack: () {
         Navigator.pop(context);
@@ -755,12 +844,12 @@ class _MazePathScreenState extends State<MazePathScreen>
   }
 
   List<Cell> _generateMainPath(
-    int rows,
-    int cols,
-    Cell start,
-    Cell goal,
-    Random rng,
-  ) {
+      int rows,
+      int cols,
+      Cell start,
+      Cell goal,
+      Random rng,
+      ) {
     final path = <Cell>[start];
     final visited = <Cell>{start};
 
@@ -782,14 +871,14 @@ class _MazePathScreenState extends State<MazePathScreen>
   }
 
   void _addDeadEnds(
-    List<Cell> mainPath,
-    Set<Cell> occupiedCells,
-    Set<String> openEdges,
-    int rows,
-    int cols,
-    int count,
-    Random rng,
-  ) {
+      List<Cell> mainPath,
+      Set<Cell> occupiedCells,
+      Set<String> openEdges,
+      int rows,
+      int cols,
+      int count,
+      Random rng,
+      ) {
     if (mainPath.length <= 2) return;
     final candidates = mainPath.sublist(1, mainPath.length - 1)..shuffle(rng);
 
@@ -812,7 +901,7 @@ class _DirButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
 
-  const _DirButton({required this.icon, required this.onTap});
+  const _DirButton({super.key, required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

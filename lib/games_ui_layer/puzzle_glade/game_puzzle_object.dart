@@ -18,6 +18,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_basket_sort.dart';
 
 enum _ScreenPhase { intro, game }
@@ -47,7 +49,8 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<PuzzleObjectScreen> {
+        AppAudioLifecycleMixin<PuzzleObjectScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
@@ -141,6 +144,7 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -246,6 +250,7 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     setState(() {
       _isInstructionPlaying = false;
     });
+    startIdleTimer();
   }
   
   void _startRound() {
@@ -275,6 +280,8 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     _slotHighlight = List.filled(pieceCount, false);
     _heldPieceId = -1;
     _roundComplete = false;
+    cancelIdleTimer();
+    showHowToPlay = false;
 
     _bounceCtrl.reset();
     _completePulseCtrl.stop();
@@ -344,10 +351,12 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
               _round++;
               _startRound();
             });
+            startIdleTimer();
           }
         }
       }
     } else {
+      resetIdleTimer();
       _tapTracker.recordMistake();
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showRoxieReaction(RoxieState.wrong);
@@ -361,6 +370,7 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
   }
 
   Future<void> _saveDataAndShowWinDialog() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -383,51 +393,231 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_canShowHint) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(),
+          gameBuilder: () => Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
+              ),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameLayer(),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
+
+                  buildRoxie(context),
                 ],
               ),
-            ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameLayer(),
-                      ),
 
-                      buildRoxie(context),
-                    ],
+              if (showHowToPlay && _canShowHint)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: _toAlignment(
+                      _demoPieceCenter(screenSize),
+                      screenSize,
+                    ),
+                    handEndAlignment: _toAlignment(
+                      _demoSlotCenter(screenSize),
+                      screenSize,
+                    ),
+                    handOffset: const Offset(0.15, 0.4),
+                    onDismiss: resetIdleTimer,
                   ),
+                ),
 
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  bool get _canShowHint =>
+      _screenPhase == _ScreenPhase.game &&
+          !_isInstructionPlaying &&
+          !_roundComplete &&
+          !_showWinDialog;
+
+  void _restartIdleAfterDrag() {
+    if (_canShowHint) startIdleTimer();
+  }
+
+  // Preview layout (2x2): board 220, gap 32, tray 226, centered on screen.
+  // Board slot = 100, tray tile = 100, tray padding 5 / 12, tile spacing 8.
+  static const double _previewTotalW = 220 + 32 + 226;
+
+  Offset _demoSlotCenter(Size s) {
+    final left = (s.width - _previewTotalW) / 2;
+    return Offset(left + 60, s.height / 2 - 50);
+  }
+
+  Offset _demoPieceCenter(Size s) {
+    final left = (s.width - _previewTotalW) / 2;
+    return Offset(left + 252 + 55, s.height / 2 - 54);
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _demoPieceTile(String object, int index, double size) {
+    final col = index % 2;
+    final row = index ~/ 2;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: ClipRect(
+        child: OverflowBox(
+          maxWidth: size * 2,
+          maxHeight: size * 2,
+          alignment: Alignment(col == 0 ? -1.0 : 1.0, row == 0 ? -1.0 : 1.0),
+          child: Image.asset(
+            'assets/images/objects/puzzle/$object.png',
+            width: size * 2,
+            height: size * 2,
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final demoObject = _kAllObjects.firstWhere((o) => o != _currentObject);
+    const slot = 100.0;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
+        Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 220,
+                height: 220,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                      alpha: 0.35,
+                    ),
+                    width: 2.5,
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Opacity(
+                        opacity: 0.12,
+                        child: Image.asset(
+                          'assets/images/objects/puzzle/$demoObject.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                    GridView.count(
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      children: List.generate(
+                        4,
+                            (_) => Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: PuzzleColorTheme.darkdesaturatedblue
+                                  .withValues(alpha: 0.20),
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 32),
+              Container(
+                width: 226,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 5,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                      alpha: 0.28,
+                    ),
+                    width: 2.5,
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _demoPieceTile(demoObject, 0, slot),
+                        const SizedBox(width: 8),
+                        _demoPieceTile(demoObject, 1, slot),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _demoPieceTile(demoObject, 2, slot),
+                        const SizedBox(width: 8),
+                        _demoPieceTile(demoObject, 3, slot),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -900,9 +1090,18 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
     return Draggable<int>(
       data: piece.id,
       maxSimultaneousDrags: (_roundComplete || _isInstructionPlaying) ? 0 : 1,
-      onDragStarted: () => setState(() => _heldPieceId = piece.id),
-      onDraggableCanceled: (_, __) => setState(() => _heldPieceId = -1),
-      onDragCompleted: () => setState(() => _heldPieceId = -1),
+      onDragStarted: () {
+        cancelIdleTimer();
+        setState(() => _heldPieceId = piece.id);
+      },
+      onDraggableCanceled: (_, __) {
+        setState(() => _heldPieceId = -1);
+        _restartIdleAfterDrag();
+      },
+      onDragCompleted: () {
+        setState(() => _heldPieceId = -1);
+        _restartIdleAfterDrag();
+      },
       feedback: Material(
         color: Colors.transparent,
         child: Opacity(
@@ -961,6 +1160,7 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
           _tapTracker.startSession();
         });
         _startRound();
+        startIdleTimer();
       },
       onBack: () {
         Navigator.pop(context);

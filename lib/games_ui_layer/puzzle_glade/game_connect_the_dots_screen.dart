@@ -17,6 +17,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_copy_pattern.dart';
 
 enum _ScreenPhase { intro, game }
@@ -125,8 +127,8 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<ConnectTheDotsScreen> {
-
+        AppAudioLifecycleMixin<ConnectTheDotsScreen>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
 
@@ -139,12 +141,16 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/connect_the_dots_intro.wav';
-  static const String _audioInstruction = 'assets/audio/puzzle_glade/connect_the_dots_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/connect_the_dots_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/connect_the_dots_intro.wav';
+  static const String _audioInstruction =
+      'assets/audio/puzzle_glade/connect_the_dots_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/connect_the_dots_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -216,6 +222,7 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
 
@@ -246,8 +253,8 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
+      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+    );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -340,7 +347,7 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
 
     await _playInstructionAudio();
   }
-  
+
   Future<void> _playInstructionAudio() async {
     if (!mounted || _instructionPlayed) return;
     _instructionPlayed = true;
@@ -359,6 +366,7 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
       setState(() {
         _interactionDisabled = false;
       });
+      startIdleTimer();
     }
   }
 
@@ -374,6 +382,8 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
     _roundComplete = false;
     _showCompletedPicture = false;
     _interactionDisabled = !_instructionPlayed;
+    cancelIdleTimer();
+    showHowToPlay = false;
 
     _bounceCtrl.reset();
     _shakeCtrl.reset();
@@ -407,9 +417,11 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
 
     if (distanceFromActive > _dotHitRadius) {
       _tapTracker.recordMistake();
+      resetIdleTimer();
       return;
     }
 
+    cancelIdleTimer();
     setState(() {
       _isDragging = true;
       _dragPosition = positions[_activeDotIndex];
@@ -446,6 +458,7 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
       _isDragging = false;
       _dragPosition = null;
     });
+    _restartIdleAfterDrag();
   }
 
   Future<void> _handleCorrectConnection(int newDotIndex) async {
@@ -477,6 +490,7 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
   }
 
   Future<void> _handleRoundComplete() async {
+    cancelIdleTimer();
     setState(() {
       _roundComplete = true;
       _interactionDisabled = true;
@@ -504,10 +518,12 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
         _round++;
       });
       _startRound();
+      if (_instructionPlayed) startIdleTimer();
     }
   }
 
   Future<void> _saveDataAndShowWinDialog() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -536,50 +552,162 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
     }
   }
 
+  // ── How to play helpers ────────────────────────────────────────────────────
+  bool get _canShowHint =>
+      _screenPhase == _ScreenPhase.game &&
+          !_interactionDisabled &&
+          !_roundComplete &&
+          !_showWinDialog;
+
+  void _restartIdleAfterDrag() {
+    if (_canShowHint) startIdleTimer();
+  }
+
+  // Sample puzzle used only for the demo: 3 dots in a triangle.
+  static const List<Offset> _demoDots = [
+    Offset(0.15, 0.80),
+    Offset(0.50, 0.15),
+    Offset(0.85, 0.80),
+  ];
+  static const Size _demoBox = Size(420, 280);
+
+  // Demo box is centered on the screen.
+  Offset _demoDotPixel(Size s, int index) {
+    final left = (s.width - _demoBox.width) / 2;
+    final top = (s.height - _demoBox.height) / 2;
+    final p = _dotToPixel(_demoDots[index], _demoBox);
+    return Offset(left + p.dx, top + p.dy);
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _buildHowToPreview(Size s, double dragT) {
+    final progress = dragT * 3;
+    final reached = progress >= 3
+        ? 0
+        : progress >= 2
+        ? 2
+        : (progress >= 1 ? 1 : 0);
+    final closed = progress >= 3;
+
+    final pixelDots = List.generate(
+      _demoDots.length,
+          (i) => _dotToPixel(_demoDots[i], _demoBox),
+    );
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
+        Center(
+          child: SizedBox(
+            width: _demoBox.width,
+            height: _demoBox.height,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _DemoLinePainter(
+                      dots: pixelDots,
+                      progress: progress,
+                      lineColor: PuzzleColorTheme.sunnyhue,
+                    ),
+                  ),
+                ),
+                for (int i = 0; i < pixelDots.length; i++)
+                  Positioned(
+                    left: pixelDots[i].dx - 26,
+                    top: pixelDots[i].dy - 26,
+                    child: _ConnectDotMarker(
+                      number: i + 1,
+                      isActive: !closed && i == reached,
+                      isCompleted: closed || i < reached,
+                      isWrong: false,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_canShowHint) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(),
+          gameBuilder: () => Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
+              ),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameArea(),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                  buildRoxie(context),
                 ],
               ),
-            ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameArea(),
-                      ),
-                      buildRoxie(context),
+
+              if (showHowToPlay && _canShowHint)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewBuilder: (dragT) =>
+                        _buildHowToPreview(screenSize, dragT),
+                    handAlignment: _toAlignment(
+                      _demoDotPixel(screenSize, 0),
+                      screenSize,
+                    ),
+                    handPath: [
+                      for (int i = 0; i < _demoDots.length; i++)
+                        _toAlignment(_demoDotPixel(screenSize, i), screenSize),
+                      _toAlignment(_demoDotPixel(screenSize, 0), screenSize),
                     ],
+                    handOffset: const Offset(0.15, 0.4),
+                    onDismiss: resetIdleTimer,
                   ),
+                ),
 
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
     );
@@ -739,6 +867,7 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
                       _isDragging = false;
                       _dragPosition = null;
                     });
+                    _restartIdleAfterDrag();
                   },
                   child: Stack(
                     children: [
@@ -805,7 +934,7 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
       final isBouncing = _bounceDotIndex == index;
       final isCompleted =
           index < _activeDotIndex ||
-          (index == _activeDotIndex && _roundComplete);
+              (index == _activeDotIndex && _roundComplete);
 
       Widget dot = _ConnectDotMarker(
         number: index + 1,
@@ -992,6 +1121,42 @@ class _ConnectDotsPainter extends CustomPainter {
         oldDelegate.dragPosition != dragPosition ||
         oldDelegate.activeDotIndex != activeDotIndex ||
         oldDelegate.dotPositions != dotPositions;
+  }
+}
+
+class _DemoLinePainter extends CustomPainter {
+  final List<Offset> dots;
+  final double progress;
+  final Color lineColor;
+
+  _DemoLinePainter({
+    required this.dots,
+    required this.progress,
+    required this.lineColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (dots.length < 3) return;
+
+    final paint = Paint()
+      ..color = lineColor
+      ..strokeWidth = 7
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    for (int i = 0; i < 3; i++) {
+      final t = (progress - i).clamp(0.0, 1.0);
+      if (t <= 0) continue;
+      final from = dots[i];
+      final to = dots[(i + 1) % 3];
+      canvas.drawLine(from, Offset.lerp(from, to, t)!, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DemoLinePainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }
 
