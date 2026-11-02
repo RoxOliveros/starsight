@@ -19,6 +19,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 
 enum _ScreenPhase { intro, playing }
 
@@ -65,7 +67,8 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<SpotDifferenceScreen> {
+        AppAudioLifecycleMixin<SpotDifferenceScreen>,
+        IdleHintMixin<SpotDifferenceScreen> {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
@@ -132,6 +135,7 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -158,8 +162,8 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
+      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+    );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -187,7 +191,7 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
 
     _cellShakeCtrl = List.generate(
       8,
-      (_) => AnimationController(
+          (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 400),
       ),
@@ -195,10 +199,10 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     _cellShakeAnim = _cellShakeCtrl
         .map(
           (c) => Tween<double>(
-            begin: 0,
-            end: 1,
-          ).animate(CurvedAnimation(parent: c, curve: Curves.elasticOut)),
-        )
+        begin: 0,
+        end: 1,
+      ).animate(CurvedAnimation(parent: c, curve: Curves.elasticOut)),
+    )
         .toList();
   }
 
@@ -220,6 +224,7 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
     setState(() => _inputEnabled = true);
+    startIdleTimer();
   }
 
   void _buildRound() {
@@ -244,6 +249,9 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
 
     _highlightedCorrectIndex = null;
 
+    cancelIdleTimer();
+    showHowToPlay = false;
+
     for (final c in _cellShakeCtrl) {
       c.reset();
     }
@@ -259,6 +267,7 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     final isCorrect = cellIndex == _currentRound.diffIndex;
 
     if (isCorrect) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       showRoxieReaction(RoxieState.correct);
 
@@ -277,8 +286,8 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
         PuzzleProgressService.instance
             .markLevelComplete(widget.level)
             .catchError((e) {
-              debugPrint("Database Error marking level complete: $e");
-            });
+          debugPrint("Database Error marking level complete: $e");
+        });
         await _saveDataAndShowWinDialog();
       } else {
         await _roundEnterCtrl.reverse();
@@ -289,6 +298,7 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
           _phase = _ScreenPhase.playing;
         });
         _roundEnterCtrl.forward(from: 0);
+        startIdleTimer();
       }
     } else {
       _tapTracker.recordMistake();
@@ -303,6 +313,7 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
   }
 
   Future<void> _saveDataAndShowWinDialog() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -323,50 +334,92 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
     }
   }
 
+  // ── How to play helpers ────────────────────────────────────────────────────
+  bool get _canShowHint =>
+      _phase == _ScreenPhase.playing &&
+          _inputEnabled &&
+          _highlightedCorrectIndex == null &&
+          !_showWinDialog;
+
+  Widget _buildHowToPreview(Size s) {
+    // Sample objects that are not used in the current round.
+    final used = {..._currentRound.leftObjects, ..._currentRound.rightObjects};
+    var pool = _kAllObjects.where((o) => !used.contains(o)).toList();
+    if (pool.length < 5) pool = List<String>.from(_kAllObjects);
+
+    return _SpotDemo(
+      screen: s,
+      bgImage: _bgImage,
+      handAsset: 'assets/images/objects/lagoon/pointing_hand.png',
+      base: pool.take(4).toList(),
+      replacement: pool[4],
+      handOffset: const Offset(0.15, 0.55),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_canShowHint) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(),
+          gameBuilder: () => Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
+              ),
+              _phase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameLayer(),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                  buildRoxie(context),
                 ],
               ),
-            ),
-            _phase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameLayer(),
-                      ),
-                      buildRoxie(context),
-                    ],
+
+              if (showHowToPlay && _canShowHint)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: Alignment.center,
+                    showHand: false,
+                    onDismiss: resetIdleTimer,
                   ),
+                ),
 
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
     );
@@ -489,23 +542,23 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
                         color: isMarkCell
                             ? Colors.amber
                             : PuzzleColorTheme.darkdesaturatedblue.withValues(
-                                alpha: 0.2,
-                              ),
+                          alpha: 0.2,
+                        ),
                         width: isMarkCell ? 2 : 1,
                       ),
                     ),
                     child: isMarkCell
                         ? const Icon(
-                            Icons.star_rounded,
-                            color: Colors.amber,
-                            size: 22,
-                          )
+                      Icons.star_rounded,
+                      color: Colors.amber,
+                      size: 22,
+                    )
                         : Icon(
-                            Icons.image_outlined,
-                            color: PuzzleColorTheme.darkdesaturatedblue
-                                .withValues(alpha: 0.3),
-                            size: 20,
-                          ),
+                      Icons.image_outlined,
+                      color: PuzzleColorTheme.darkdesaturatedblue
+                          .withValues(alpha: 0.3),
+                      size: 20,
+                    ),
                   );
                 }),
               );
@@ -717,6 +770,223 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
       onBack: () {
         Navigator.pop(context);
       },
+    );
+  }
+}
+
+// ── How to play demo ─────────────────────────────────────────────────────────
+// Standalone looping animation: two sample panels, one item differs. The hand
+// moves to the different item on the right panel, taps it, and it lights up.
+
+class _SpotDemo extends StatefulWidget {
+  final Size screen;
+  final String bgImage;
+  final String handAsset;
+  final List<String> base; // 4 sample objects for the left panel
+  final String replacement; // replaces one object on the right panel
+  final Offset handOffset;
+
+  const _SpotDemo({
+    required this.screen,
+    required this.bgImage,
+    required this.handAsset,
+    required this.base,
+    required this.replacement,
+    this.handOffset = const Offset(0.15, 0.46),
+  });
+
+  @override
+  State<_SpotDemo> createState() => _SpotDemoState();
+}
+
+class _SpotDemoState extends State<_SpotDemo>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  static const double _handW = 100;
+  static const int _diffIndex = 1; // top-right cell of the right panel
+
+  // Real layout sizes: cell 88 + margin 5*2 = 98, panel padding 8, border 2.
+  static const double _cell = 98;
+  static const double _panelSize = _cell * 2 + 16 + 4; // 216
+  static const double _gap = 14 * 2 + 28; // 56
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Widget _demoCell(String object, {required double glow}) {
+    final lit = glow > 0;
+    return Container(
+      margin: const EdgeInsets.all(5),
+      width: 88,
+      height: 88,
+      decoration: BoxDecoration(
+        color: lit
+            ? Colors.green.withValues(alpha: 0.25 + 0.3 * glow)
+            : Colors.white.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: lit
+              ? Colors.green
+              : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.25),
+          width: lit ? 3 : 2,
+        ),
+        boxShadow: lit
+            ? [
+          BoxShadow(
+            color: Colors.green.withValues(alpha: 0.3 + glow * 0.3),
+            blurRadius: 10 + glow * 8,
+            spreadRadius: 2,
+          ),
+        ]
+            : [],
+      ),
+      padding: const EdgeInsets.all(10),
+      child: Image.asset(
+        'assets/images/objects/puzzle/$object.png',
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => const SizedBox(),
+      ),
+    );
+  }
+
+  Widget _demoPanel(List<String> objects, {required double glow}) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.35),
+          width: 2,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(2, (row) {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(2, (col) {
+              final i = row * 2 + col;
+              return _demoCell(
+                objects[i],
+                glow: (glow > 0 && i == _diffIndex) ? glow : 0.0,
+              );
+            }),
+          );
+        }),
+      ),
+    );
+  }
+
+  double _press(double t, double a, double b) {
+    if (t < a || t > b) return 0.0;
+    final m = (t - a) / (b - a);
+    return m < 0.5 ? m * 2 : (1 - m) * 2;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.screen;
+
+    final left = List<String>.from(widget.base);
+    final right = List<String>.from(widget.base);
+    right[_diffIndex] = widget.replacement;
+
+    // The panels row is centered on the screen. The right panel's center is
+    // half a panel plus half the gap to the right of center.
+    final cx = s.width / 2;
+    final cy = s.height / 2;
+    final rightPanelCx = cx + _gap / 2 + _panelSize / 2;
+    final target = Offset(rightPanelCx + _cell / 2, cy - _cell / 2);
+    final start = target + const Offset(130, 120);
+
+    return SizedBox(
+      width: s.width,
+      height: s.height,
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (_, __) {
+          final t = _ctrl.value;
+
+          // Hand: appear, move to the different item, tap, hold, fade.
+          final approach = Curves.easeOut.transform(
+            ((t - 0.12) / 0.26).clamp(0.0, 1.0),
+          );
+          final pos = Offset.lerp(start, target, approach)!;
+
+          final tapV = _press(t, 0.40, 0.52);
+          final handOpacity = t < 0.10
+              ? 0.0
+              : t < 0.18
+              ? (t - 0.10) / 0.08
+              : t < 0.88
+              ? 1.0
+              : t < 0.95
+              ? 1.0 - (t - 0.88) / 0.07
+              : 0.0;
+
+          // Highlight after the tap, pulsing a little.
+          final litWindow = t >= 0.46 && t < 0.93;
+          final glow = litWindow
+              ? 0.5 + 0.5 * sin((t - 0.46) * pi * 10)
+              : 0.0;
+
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(widget.bgImage, fit: BoxFit.cover),
+              Container(color: Colors.black.withValues(alpha: 0.15)),
+              Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _demoPanel(left, glow: 0),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Icon(
+                        Icons.compare_arrows_rounded,
+                        color: Colors.white.withValues(alpha: 0.7),
+                        size: 28,
+                      ),
+                    ),
+                    _demoPanel(right, glow: glow.clamp(0.0, 1.0)),
+                  ],
+                ),
+              ),
+              Positioned(
+                left: pos.dx - _handW / 2 + widget.handOffset.dx * _handW,
+                top:
+                pos.dy -
+                    _handW / 2 +
+                    widget.handOffset.dy * _handW -
+                    tapV * 20,
+                width: _handW,
+                height: _handW,
+                child: Opacity(
+                  opacity: handOpacity,
+                  child: Transform.scale(
+                    scale: 1.0 - tapV * 0.08,
+                    child: Image.asset(widget.handAsset, fit: BoxFit.contain),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

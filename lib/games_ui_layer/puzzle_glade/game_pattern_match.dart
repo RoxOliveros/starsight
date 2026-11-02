@@ -18,6 +18,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_memory_match.dart';
 
 enum _ScreenPhase { intro, game }
@@ -67,7 +69,8 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<PatternMatchScreen> {
+        AppAudioLifecycleMixin<PatternMatchScreen>,
+        IdleHintMixin<PatternMatchScreen> {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
@@ -86,6 +89,12 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
   static const String _audioIntro = 'assets/audio/puzzle_glade/pattern_match_intro.wav';
   static const String _audioInstructions = 'assets/audio/puzzle_glade/pattern_match_instruction.wav';
   static const String _audioComplete = 'assets/audio/puzzle_glade/pattern_match_complete.wav';
+
+  // ── How-to-play hint ──────────────────────────────────────────────────────
+  // Keys go on the two LIVE choice buttons only. While the overlay's preview
+  // copy is being built, _previewing is true so no key is attached twice.
+  final List<GlobalKey> _choiceKeys = List.generate(2, (_) => GlobalKey());
+  bool _previewing = false;
 
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
 
@@ -137,6 +146,7 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -163,8 +173,8 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
+      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+    );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -232,15 +242,16 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
     setState(() => _inputEnabled = true);
+    startIdleTimer(); // hint countdown starts once the child can play
   }
-  
+
   void _buildRound() {
     final rng = Random();
     final shuffled = List<_StarColor>.from(_allColors)..shuffle(rng);
 
     final colorA = shuffled[0];
     final colorB = shuffled.firstWhere(
-      (c) => c != colorA && _colorDistance(c.color, colorA.color) > 120,
+          (c) => c != colorA && _colorDistance(c.color, colorA.color) > 120,
       orElse: () => shuffled[1],
     );
 
@@ -281,9 +292,11 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
 
     if (tapped == _answerColor) {
       _tapTracker.recordCorrectTap();
+      cancelIdleTimer();
       setState(() {
         _rightFlash = true;
         _roundComplete = true;
+        showHowToPlay = false;
       });
 
       showRoxieReaction(RoxieState.correct);
@@ -293,6 +306,7 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
       showRoxieReaction(RoxieState.correct);
 
       await Future.delayed(const Duration(milliseconds: 1100));
+      if (!mounted) return;
 
       if (_round >= _kTotalRounds) {
         await _roxiePlayer.stop();
@@ -302,15 +316,17 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
         PuzzleProgressService.instance
             .markLevelComplete(widget.level)
             .catchError((e) {
-              debugPrint("Database Error marking level complete: $e");
-            });
+          debugPrint("Database Error marking level complete: $e");
+        });
         await _saveDataAndShowWinDialog();
       } else {
         await _enterCtrl.reverse();
+        if (!mounted) return;
         setState(() {
           _round++;
           _buildRound();
         });
+        startIdleTimer(); // new round: restart the countdown
       }
     } else {
       _tapTracker.recordMistake();
@@ -326,6 +342,7 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
   Future<void> _saveDataAndShowWinDialog() async {
     if (_hasSavedResult) return;
     _hasSavedResult = true;
+    cancelIdleTimer();
     List<String> finalEmotions = stopAiCamera();
 
     PuzzleDatabaseService.saveGameData(
@@ -349,41 +366,111 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     return Scaffold(
       body: buildWithLoading(
         loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
-                children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                  ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
-                ],
+        gameBuilder: () => Listener(
+          // Finger down: hide the hint and pause the countdown.
+          // Finger up: restart the countdown.
+          onPointerDown: (_) {
+            _tapTracker.recordGenericTap();
+            if (showHowToPlay) setState(() => showHowToPlay = false);
+            cancelIdleTimer();
+          },
+          onPointerUp: (_) {
+            if (_canPlay) startIdleTimer();
+          },
+          onPointerCancel: (_) {
+            if (_canPlay) startIdleTimer();
+          },
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
               ),
-            ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : FadeTransition(opacity: _gameFade, child: _buildGameLayer()),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : FadeTransition(opacity: _gameFade, child: _buildGameLayer()),
 
-            if (_screenPhase == _ScreenPhase.game) buildRoxie(context),
+              if (_screenPhase == _ScreenPhase.game) buildRoxie(context),
 
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (showHowToPlay && _canPlay)
+                Positioned.fill(child: _buildHowToPlay()),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  /// True while the child can actually answer.
+  bool get _canPlay =>
+      _screenPhase == _ScreenPhase.game &&
+          _inputEnabled &&
+          !_roundComplete &&
+          !_showWinDialog;
+
+  // ── How to play ───────────────────────────────────────────────────────────
+  Widget _buildHowToPlay() {
+    // Build a static copy of the current game screen. Keys are skipped so
+    // the live buttons keep their GlobalKeys.
+    _previewing = true;
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(_bgImage, fit: BoxFit.cover),
+            Container(color: Colors.black.withValues(alpha: 0.15)),
+          ],
+        ),
+        _buildGameLayer(),
+        buildRoxie(context),
+      ],
+    );
+    _previewing = false;
+
+    // The hand taps BOTH choices in turn, so the hint never reveals
+    // which one is the right answer.
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: _alignmentOf(_choiceKeys[0]),
+      handEndAlignment: _alignmentOf(_choiceKeys[1]),
+      tapSequence: true,
+      handOffset: const Offset(0.15, 0.65),
+      onDismiss: resetIdleTimer,
+    );
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final c = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      c.dx / root.size.width * 2 - 1,
+      c.dy / root.size.height * 2 - 1,
     );
   }
 
@@ -470,66 +557,66 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
                 angle: angle,
                 child: isQuestion
                     ? Container(
-                        width: 68,
-                        height: 68,
-                        decoration: BoxDecoration(
-                          color: PuzzleColorTheme.goldenyellow.withValues(
-                            alpha: 0.25,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: PuzzleColorTheme.sunnyhue,
-                            width: 2.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.10),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            '?',
-                            style: TextStyle(
-                              fontFamily: PuzzleAppTextStyles.fredoka,
-                              fontSize: 30,
-                              fontWeight: FontWeight.bold,
-                              color: PuzzleColorTheme.sunnyhue,
-                            ),
-                          ),
-                        ),
-                      )
-                    : Container(
-                        width: 68,
-                        height: 68,
-                        decoration: BoxDecoration(
-                          color: PuzzleColorTheme.vandecane,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: PuzzleColorTheme.darkdesaturatedblue
-                                .withValues(alpha: 0.30),
-                            width: 2.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.10),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Image.asset(
-                            'assets/images/objects/puzzle/star.png',
-                            width: 42,
-                            height: 42,
-                            color: previewColors[i],
-                            colorBlendMode: BlendMode.modulate,
-                          ),
-                        ),
+                  width: 68,
+                  height: 68,
+                  decoration: BoxDecoration(
+                    color: PuzzleColorTheme.goldenyellow.withValues(
+                      alpha: 0.25,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: PuzzleColorTheme.sunnyhue,
+                      width: 2.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.10),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
                       ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      '?',
+                      style: TextStyle(
+                        fontFamily: PuzzleAppTextStyles.fredoka,
+                        fontSize: 30,
+                        fontWeight: FontWeight.bold,
+                        color: PuzzleColorTheme.sunnyhue,
+                      ),
+                    ),
+                  ),
+                )
+                    : Container(
+                  width: 68,
+                  height: 68,
+                  decoration: BoxDecoration(
+                    color: PuzzleColorTheme.vandecane,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: PuzzleColorTheme.darkdesaturatedblue
+                          .withValues(alpha: 0.30),
+                      width: 2.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.10),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Image.asset(
+                      'assets/images/objects/puzzle/star.png',
+                      width: 42,
+                      height: 42,
+                      color: previewColors[i],
+                      colorBlendMode: BlendMode.modulate,
+                    ),
+                  ),
+                ),
               );
             }),
           ),
@@ -610,7 +697,7 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           ..._sequenceColors.map(
-            (c) => Padding(
+                (c) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6),
               child: _starWidget(c.color, 52),
             ),
@@ -668,16 +755,16 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
   Widget _buildChoicesRow() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: _choices.map((choice) {
+      children: _choices.asMap().entries.map((entry) {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: _buildChoiceButton(choice),
+          child: _buildChoiceButton(entry.value, entry.key),
         );
       }).toList(),
     );
   }
 
-  Widget _buildChoiceButton(_StarColor choice) {
+  Widget _buildChoiceButton(_StarColor choice, int index) {
     final isAnswer = choice == _answerColor;
     final showWrong = _wrongFlash && !isAnswer;
     final showRight = _rightFlash && isAnswer;
@@ -688,6 +775,7 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
     if (showRight) borderColor = PuzzleColorTheme.sunnyhue;
 
     return GestureDetector(
+      key: _previewing ? null : _choiceKeys[index],
       onTap: () => _onChoiceTapped(choice),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -748,6 +836,7 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
           _tapTracker.startSession();
         });
         _buildRound();
+        startIdleTimer();
       },
       onBack: () {
         Navigator.pop(context);

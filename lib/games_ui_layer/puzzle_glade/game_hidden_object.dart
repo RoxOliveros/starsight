@@ -18,6 +18,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_rotate_shape.dart';
 
 enum _ScreenPhase { intro, game }
@@ -133,6 +135,9 @@ const List<_HiddenObjectItem> _objectPool = [
   ),
 ];
 
+_HiddenObjectItem get _sampleItem =>
+    _objectPool.firstWhere((o) => o.id == 'compass');
+
 class _GrassTuft {
   final Offset topLeft;
   final double size;
@@ -176,7 +181,8 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<HiddenObjectScreen> {
+        AppAudioLifecycleMixin<HiddenObjectScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
@@ -216,6 +222,38 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
+  // ── How to play ────────────────────────────────────────────────────────────
+  final GlobalKey _sceneKey = GlobalKey();
+
+  /// The hint is useful once the child can tap and hasn't just found the object.
+  bool get _hintActive =>
+      _screenPhase == _ScreenPhase.game &&
+          _instructionsFinished &&
+          !_isCompleting &&
+          !_showWinDialog;
+
+  bool get _hintAllowed => showHowToPlay && _hintActive;
+
+  /// Hide any visible hint and restart the idle countdown.
+  void _armHint() {
+    if (!mounted) return;
+    setState(() => showHowToPlay = false);
+    startIdleTimer();
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final center =
+    box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
   late AnimationController _roxieSlideCtrl;
@@ -249,6 +287,7 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -273,8 +312,8 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
+      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+    );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -324,9 +363,13 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     if (mounted) setState(() => _screenPhase = _ScreenPhase.game);
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
-    setState(() => _instructionsFinished = true);
+    setState(() {
+      _instructionsFinished = true;
+      showHowToPlay = false;
+    });
+    startIdleTimer(); // hint countdown starts once the child can tap
   }
-  
+
   (int, int, double) _sceneConfigForRound(int round) {
     switch (round) {
       case 1:
@@ -352,15 +395,15 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     final target = pool.first;
 
     final similar =
-        _objectPool
-            .where(
-              (o) =>
-                  o.id != target.id &&
-                  (o.colorFamily == target.colorFamily ||
-                      o.shapeFamily == target.shapeFamily),
-            )
-            .toList()
-          ..shuffle(rng);
+    _objectPool
+        .where(
+          (o) =>
+      o.id != target.id &&
+          (o.colorFamily == target.colorFamily ||
+              o.shapeFamily == target.shapeFamily),
+    )
+        .toList()
+      ..shuffle(rng);
     final chosenSimilar = similar.take(similarCount).toList();
 
     final remainingSlots = (objectCount - 1 - chosenSimilar.length).clamp(
@@ -393,9 +436,9 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
   }
 
   List<_GrassTuft> _generateGrassTufts(
-    List<_PlacedObject> objects,
-    Random rng,
-  ) {
+      List<_PlacedObject> objects,
+      Random rng,
+      ) {
     final tufts = <_GrassTuft>[];
 
     for (final obj in objects) {
@@ -403,13 +446,13 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
       for (int i = 0; i < tuftCount; i++) {
         final tuftSize = obj.size * (0.28 + rng.nextDouble() * 0.18);
         final dx =
-            (obj.topLeft.dx + rng.nextDouble() * obj.size - tuftSize * 0.3)
-                .clamp(0.0, 1000.0 - tuftSize);
+        (obj.topLeft.dx + rng.nextDouble() * obj.size - tuftSize * 0.3)
+            .clamp(0.0, 1000.0 - tuftSize);
         final dy =
-            (obj.topLeft.dy +
-                    obj.size * (0.62 + rng.nextDouble() * 0.32) -
-                    tuftSize * 0.3)
-                .clamp(0.0, 600.0 - tuftSize);
+        (obj.topLeft.dy +
+            obj.size * (0.62 + rng.nextDouble() * 0.32) -
+            tuftSize * 0.3)
+            .clamp(0.0, 600.0 - tuftSize);
         tufts.add(
           _GrassTuft(
             topLeft: Offset(dx, dy),
@@ -441,11 +484,11 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
   }
 
   List<_PlacedObject> _layoutScene(
-    List<_HiddenObjectItem> items,
-    double targetSizeFactor,
-    String targetId,
-    Random rng,
-  ) {
+      List<_HiddenObjectItem> items,
+      double targetSizeFactor,
+      String targetId,
+      Random rng,
+      ) {
     const sceneWidth = 1000.0;
     const sceneHeight = 600.0;
     final aspect = sceneWidth / sceneHeight;
@@ -461,7 +504,7 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
 
     final chosenCells = List<int>.generate(
       items.length,
-      (i) => cellIndices[i % cellIndices.length],
+          (i) => cellIndices[i % cellIndices.length],
     );
 
     final placed = <_PlacedObject>[];
@@ -521,9 +564,11 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
   }
 
   Future<void> _handleCorrectTap(_PlacedObject obj) async {
+    cancelIdleTimer();
     setState(() {
       _isCompleting = true;
       _foundObjectId = obj.item.id;
+      showHowToPlay = false;
     });
     showRoxieReaction(RoxieState.correct);
     await Future.delayed(const Duration(milliseconds: 900));
@@ -540,15 +585,17 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     if (!mounted) return;
     setState(() => _round++);
     _startRound();
+    _armHint(); // new round, fresh hint countdown
   }
 
   Future<void> _completeRound() async {
+    cancelIdleTimer();
     await _roxiePlayer.stop();
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
 
     PuzzleProgressService.instance.markLevelComplete(widget.level).catchError((
-      e,
-    ) {
+        e,
+        ) {
       debugPrint("Database Error marking level complete: $e");
     });
     await _saveDataAndShowWinDialog();
@@ -575,54 +622,84 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     }
   }
 
+  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: buildWithLoading(
         loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
+        gameBuilder: () => Listener(
+          // Any touch hides the hint and restarts the idle countdown.
+          onPointerDown: (_) {
+            if (_hintActive) resetIdleTimer();
+          },
+          child: Stack(
+            children: [
+              Positioned.fill(child: _buildBackground()),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameLayer(),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                  buildRoxie(context),
                 ],
               ),
-            ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameLayer(),
-                      ),
-                      buildRoxie(context),
-                    ],
-                  ),
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (_hintAllowed) Positioned.fill(child: _buildHowToPlay()),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  Widget _buildBackground() {
+    return Stack(
+      children: [
+        Image.asset(
+          _bgImage,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+        ),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
+      ],
+    );
+  }
+
+  // ── How to play ────────────────────────────────────────────────────────────
+  Widget _buildHowToPlay() {
+    return HowToPlayOverlay(
+      handAlignment: _alignmentOf(_sceneKey),
+      handOffset: const Offset(0.15, 0.65),
+      onDismiss: resetIdleTimer,
+      previewChild: Stack(
+        fit: StackFit.expand,
+        children: [
+          _buildBackground(),
+          _buildGameLayer(preview: true),
+        ],
+      ),
+    );
+  }
+
+  // ── Intro ──────────────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     return Column(
       children: [
@@ -728,15 +805,15 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
                   children: previewItems
                       .map(
                         (e) => Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          child: Image.asset(
-                            e,
-                            width: 42,
-                            height: 42,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      )
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Image.asset(
+                        e,
+                        width: 42,
+                        height: 42,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  )
                       .toList(),
                 ),
               ),
@@ -754,7 +831,8 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     );
   }
 
-  Widget _buildGameLayer() {
+  // ── Game ───────────────────────────────────────────────────────────────────
+  Widget _buildGameLayer({bool preview = false}) {
     return FadeTransition(
       opacity: _enterAnim,
       child: Column(
@@ -766,7 +844,7 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
               children: [
                 Align(
                   alignment: Alignment.center,
-                  child: _buildFindInstruction(),
+                  child: _buildFindInstruction(preview ? _sampleItem : _targetItem),
                 ),
                 Align(
                   alignment: Alignment.centerRight,
@@ -775,7 +853,7 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
               ],
             ),
           ),
-          Expanded(child: Center(child: _buildSceneArea())),
+          Expanded(child: Center(child: _buildSceneArea(preview: preview))),
           Padding(
             padding: const EdgeInsets.only(bottom: 15),
             child: PuzzleProgressDots(
@@ -788,7 +866,7 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     );
   }
 
-  Widget _buildFindInstruction() {
+  Widget _buildFindInstruction(_HiddenObjectItem item) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       decoration: BoxDecoration(
@@ -807,16 +885,16 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           Image.asset(
-            _targetItem.asset,
+            item.asset,
             width: 32,
             height: 32,
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) =>
-                Text(_targetItem.emoji, style: const TextStyle(fontSize: 26)),
+                Text(item.emoji, style: const TextStyle(fontSize: 26)),
           ),
           const SizedBox(width: 6),
           Text(
-            _targetItem.name,
+            item.name,
             style: const TextStyle(
               fontFamily: PuzzleAppTextStyles.fredoka,
               fontSize: 20,
@@ -829,7 +907,7 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     );
   }
 
-  Widget _buildSceneArea() {
+  Widget _buildSceneArea({bool preview = false}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxW = constraints.maxWidth * 0.92;
@@ -844,13 +922,17 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
         final scale = sceneWidth / 1000.0;
 
         return SizedBox(
+          // The preview copy must not reuse the key the hint hand points at.
+          key: preview ? null : _sceneKey,
           width: sceneWidth,
           height: sceneHeight,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
             child: Stack(
               fit: StackFit.expand,
-              children: [
+              children: preview
+                  ? _buildSampleScene(sceneHeight)
+                  : [
                 ..._sceneObjects.map((obj) => _buildSceneObject(obj, scale)),
                 ..._grassTufts.map((tuft) => _buildGrassTuft(tuft, scale)),
               ],
@@ -859,6 +941,48 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
         );
       },
     );
+  }
+
+  /// What the how-to-play preview shows: one sample object in the middle of
+  /// the play area. The real objects and their grass are left out, so the hint
+  /// never shows where the real target is.
+  List<Widget> _buildSampleScene(double sceneHeight) {
+    final size = sceneHeight * 0.34;
+    final tuft = size * 0.45;
+
+    return [
+      for (final a in const [
+        Alignment(-0.55, 0.45),
+        Alignment(0.55, 0.50),
+        Alignment(0.0, 0.80),
+        Alignment(-0.45, -0.55),
+        Alignment(0.50, -0.50),
+      ])
+        Align(
+          alignment: a,
+          child: SizedBox(
+            width: tuft,
+            height: tuft,
+            child: Image.asset(_grassImage, fit: BoxFit.contain),
+          ),
+        ),
+      Center(
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Image.asset(
+            _sampleItem.asset,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => Center(
+              child: Text(
+                _sampleItem.emoji,
+                style: TextStyle(fontSize: size * 0.7),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ];
   }
 
   Widget _buildGrassTuft(_GrassTuft tuft, double scale) {
@@ -900,17 +1024,17 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
             child: Container(
               decoration: isFound
                   ? BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: PuzzleColorTheme.goldenyellow.withValues(
-                            alpha: 0.8,
-                          ),
-                          blurRadius: 18,
-                          spreadRadius: 4,
-                        ),
-                      ],
-                    )
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: PuzzleColorTheme.goldenyellow.withValues(
+                      alpha: 0.8,
+                    ),
+                    blurRadius: 18,
+                    spreadRadius: 4,
+                  ),
+                ],
+              )
                   : null,
               child: Image.asset(
                 obj.item.asset,
@@ -929,6 +1053,7 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
     );
   }
 
+  // ── Win ────────────────────────────────────────────────────────────────────
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
@@ -942,13 +1067,16 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
         );
       },
       onRestart: () {
+        cancelIdleTimer();
         setState(() {
           _round = 1;
           _showWinDialog = false;
           _hasSavedResult = false;
+          showHowToPlay = false;
           _tapTracker.startSession();
         });
         _startRound();
+        _armHint();
       },
       onBack: () {
         Navigator.pop(context);

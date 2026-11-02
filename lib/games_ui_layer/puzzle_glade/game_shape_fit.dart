@@ -19,6 +19,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_maze_path.dart';
 
 enum _ScreenPhase { intro, game }
@@ -75,7 +77,8 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<ShapeFitScreen> {
+        AppAudioLifecycleMixin<ShapeFitScreen>,
+        IdleHintMixin<ShapeFitScreen> {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
@@ -146,6 +149,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -170,8 +174,8 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
+      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+    );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -231,6 +235,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     setState(() {
       inputEnabled = true;
     });
+    startIdleTimer(); // hint countdown starts once the child can play
   }
 
   int _shapeCountForRound(int round) {
@@ -291,9 +296,11 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
 
     if (piece == slot) {
       _tapTracker.recordCorrectTap();
+      cancelIdleTimer();
       setState(() {
         _placed.add(piece);
         inputEnabled = false;
+        showHowToPlay = false;
       });
       showRoxieReaction(RoxieState.correct);
 
@@ -306,6 +313,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
         await _advanceRound();
       } else {
         setState(() => inputEnabled = true);
+        startIdleTimer(); // more pieces to place: restart the countdown
       }
     } else {
       _tapTracker.recordMistake();
@@ -328,11 +336,13 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
       _startRound();
       inputEnabled = true;
     });
+    startIdleTimer(); // new round: restart the countdown
   }
 
   Future<void> _saveDataAndShowWinDialog() async {
     if (_hasSavedResult) return;
     _hasSavedResult = true;
+    cancelIdleTimer();
     List<String> finalEmotions = stopAiCamera();
 
     PuzzleDatabaseService.saveGameData(
@@ -359,51 +369,183 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
     setState(() => _showWinDialog = true);
   }
 
+  /// True while the child can actually play.
+  bool get _canPlay =>
+      _screenPhase == _ScreenPhase.game && inputEnabled && !_showWinDialog;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: buildWithLoading(
         loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
+        gameBuilder: () => Listener(
+          // Finger down: hide the hint and pause the countdown (this also
+          // covers a long drag). Finger up: restart the countdown.
+          onPointerDown: (_) {
+            _tapTracker.recordGenericTap();
+            if (showHowToPlay) setState(() => showHowToPlay = false);
+            cancelIdleTimer();
+          },
+          onPointerUp: (_) {
+            if (_canPlay) startIdleTimer();
+          },
+          onPointerCancel: (_) {
+            if (_canPlay) startIdleTimer();
+          },
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
+              ),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameLayer(),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
                 ],
               ),
-            ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameLayer(),
-                      ),
-                    ],
-                  ),
 
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (showHowToPlay && _canPlay)
+                Positioned.fill(child: _buildHowToPlay()),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  // ── How to play ───────────────────────────────────────────────────────────
+  // Fixed demo that does not depend on the live round: two silhouettes on top
+  // (circle on the left, star on the right) and two pieces below (star on the
+  // left, circle on the right). The hand drags the circle piece up to the
+  // circle silhouette, so it teaches "match the shape" without revealing this
+  // round's answers. Everything is positioned from screen fractions, so the
+  // hand positions below are exact and need no GlobalKeys.
+  static const double _demoSlotSize = 100;
+  static const double _demoPieceSize = 88;
+  static const double _demoSlotGap = 18;
+  static const double _demoSlotCy = 0.35; // fraction of screen height
+  static const double _demoPieceCy = 0.70;
+
+  Widget _buildHowToPlay() {
+    final Size s = MediaQuery.of(context).size;
+    final double sw = s.width;
+    final double sh = s.height;
+
+    final double slotDx = (_demoSlotSize + _demoSlotGap) / 2;
+    final double pieceDx = (_demoPieceSize + _demoSlotGap) / 2;
+
+    // centers
+    final Offset circleSlot = Offset(sw / 2 - slotDx, sh * _demoSlotCy);
+    final Offset starSlot = Offset(sw / 2 + slotDx, sh * _demoSlotCy);
+    final Offset starPiece = Offset(sw / 2 - pieceDx, sh * _demoPieceCy);
+    final Offset circlePiece = Offset(sw / 2 + pieceDx, sh * _demoPieceCy);
+
+    Widget at(Offset center, double size, Widget child) => Positioned(
+      left: center.dx - size / 2,
+      top: center.dy - size / 2,
+      width: size,
+      height: size,
+      child: child,
+    );
+
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
+        at(circleSlot, _demoSlotSize, _demoSlot(ShapeType.circle)),
+        at(starSlot, _demoSlotSize, _demoSlot(ShapeType.star)),
+        at(starPiece, _demoPieceSize, _demoPiece(ShapeType.star)),
+        at(circlePiece, _demoPieceSize, _demoPiece(ShapeType.circle)),
+      ],
+    );
+
+    Alignment align(Offset c) => Alignment(c.dx / sw * 2 - 1, c.dy / sh * 2 - 1);
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: align(circlePiece),
+      handEndAlignment: align(circleSlot), // drag mode
+      handOffset: const Offset(0.15, 0.4),
+      onDismiss: resetIdleTimer,
+    );
+  }
+
+  Widget _demoSlot(ShapeType shape) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.30),
+          width: 2.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.10),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Transform.scale(
+          scale: 0.7,
+          child: _ShapeImage(
+            shape: shape,
+            size: 68,
+            silhouetteColor: PuzzleColorTheme.verydarkdesaturatedblue
+                .withValues(alpha: 0.35),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _demoPiece(ShapeType shape) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
+          width: 2.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Center(child: _ShapeImage(shape: shape, size: 58)),
     );
   }
 
@@ -564,10 +706,10 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
       children: _slotOrder
           .map(
             (shape) => KeyedSubtree(
-              key: ValueKey('slot_$shape'),
-              child: _buildSlot(shape),
-            ),
-          )
+          key: ValueKey('slot_$shape'),
+          child: _buildSlot(shape),
+        ),
+      )
           .toList(),
     );
   }
@@ -643,10 +785,10 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
       children: _pieceOrder
           .map(
             (shape) => KeyedSubtree(
-              key: ValueKey('piece_$shape'),
-              child: _buildPiece(shape),
-            ),
-          )
+          key: ValueKey('piece_$shape'),
+          child: _buildPiece(shape),
+        ),
+      )
           .toList(),
     );
   }
@@ -741,6 +883,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
           _tapTracker.startSession();
         });
         _startRound();
+        startIdleTimer();
       },
       onBack: () {
         Navigator.pop(context);

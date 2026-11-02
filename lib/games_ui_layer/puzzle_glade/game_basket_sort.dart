@@ -18,6 +18,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_size_sort.dart';
 
 enum _ScreenPhase { intro, game }
@@ -52,7 +54,8 @@ class _BasketSortScreenState extends State<BasketSortScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<BasketSortScreen> {
+        AppAudioLifecycleMixin<BasketSortScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
@@ -153,6 +156,7 @@ class _BasketSortScreenState extends State<BasketSortScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -276,6 +280,7 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     setState(() {
       _isInstructionPlaying = false;
     });
+    startIdleTimer();
   }
   
   void _startRound() {
@@ -318,6 +323,8 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     _flashC = false;
     _roundComplete = false;
     _itemHeld = false;
+    cancelIdleTimer();
+    showHowToPlay = false;
 
     _bounceACtrl.reset();
     _bounceBCtrl.reset();
@@ -337,6 +344,7 @@ class _BasketSortScreenState extends State<BasketSortScreen>
     final isCorrect = currentItem == basketObject;
 
     if (isCorrect) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       roxiePlayer.stop();
       GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
@@ -380,12 +388,15 @@ class _BasketSortScreenState extends State<BasketSortScreen>
               _round++;
               _startRound();
             });
+            startIdleTimer();
           }
         }
       } else {
         _itemEnterCtrl.forward(from: 0);
+        startIdleTimer();
       }
     } else {
+      resetIdleTimer();
       _tapTracker.recordMistake();
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showRoxieReaction(RoxieState.wrong);
@@ -413,6 +424,7 @@ class _BasketSortScreenState extends State<BasketSortScreen>
   }
 
   Future<void> _saveDataAndShowWinDialog() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -435,51 +447,168 @@ class _BasketSortScreenState extends State<BasketSortScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_canShowHint) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(),
+          gameBuilder: () => Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
+              ),
+
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameLayer(),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                  buildRoxie(context),
                 ],
               ),
-            ),
 
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameLayer(),
-                      ),
-                      buildRoxie(context),
-                    ],
+              if (showHowToPlay && _canShowHint)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: _toAlignment(
+                      _demoItemCenter(screenSize),
+                      screenSize,
+                    ),
+                    handEndAlignment: _toAlignment(
+                      _demoBasketCenter(screenSize),
+                      screenSize,
+                    ),
+                    handOffset: const Offset(0.15, 0.4),
+                    onDismiss: resetIdleTimer,
                   ),
+                ),
 
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  bool get _canShowHint =>
+      _screenPhase == _ScreenPhase.game &&
+          !_isInstructionPlaying &&
+          !_roundComplete &&
+          !_showWinDialog;
+
+  void _restartIdleAfterDrag() {
+    if (_canShowHint) startIdleTimer();
+  }
+
+  Offset _demoItemCenter(Size s) => Offset(s.width / 2, s.height / 2);
+
+  Offset _demoBasketCenter(Size s) =>
+      Offset(s.width / 2 - (40 + 12 + 110), s.height / 2);
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _demoBasket(String object) {
+    return SizedBox(
+      width: 220,
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          Image.asset(
+            'assets/images/objects/puzzle/basket.png',
+            width: 180,
+            fit: BoxFit.contain,
+          ),
+          Positioned(
+            top: -16,
+            child: Container(
+              width: 45,
+              height: 45,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.92),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                    alpha: 0.25,
+                  ),
+                  width: 2,
+                ),
+              ),
+              padding: const EdgeInsets.all(4),
+              child: Image.asset(
+                'assets/images/objects/puzzle/$object.png',
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final pool = _kAllObjects
+        .where(
+          (o) =>
+      o != _basketObjectA &&
+          o != _basketObjectB &&
+          o != _basketObjectC,
+    )
+        .toList();
+    final demoA = pool[0];
+    final demoB = pool[1];
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
+        Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _demoBasket(demoA),
+              const SizedBox(width: 12),
+              _buildItemTile(demoA, size: 80),
+              const SizedBox(width: 12),
+              _demoBasket(demoB),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -711,11 +840,13 @@ class _BasketSortScreenState extends State<BasketSortScreen>
 
         onDragStarted: () {
           if (_isInstructionPlaying) return;
+          cancelIdleTimer();
           setState(() => _itemHeld = true);
         },
 
         onDraggableCanceled: (_, __) {
           setState(() => _itemHeld = false);
+          _restartIdleAfterDrag();
         },
 
         onDragCompleted: () {
@@ -818,16 +949,32 @@ class _BasketSortScreenState extends State<BasketSortScreen>
                 children: [
                   Stack(
                     alignment: Alignment.center,
+                    clipBehavior: Clip.none,
                     children: [
                       Image.asset(
                         'assets/images/objects/puzzle/basket.png',
                         width: 180,
                         fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) =>
-                            const Text('🧺', style: TextStyle(fontSize: 40)),
+                        const Text('🧺', style: TextStyle(fontSize: 40)),
                       ),
+                      if (placedCount > 0)
+                        Positioned.fill(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(32, 38, 32, 34),
+                            child: Center(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: _buildPlacedItems(
+                                  objectName,
+                                  placedCount,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       Positioned(
-                        top: 0,
+                        top: -16,
                         child: Container(
                           width: 45,
                           height: 45,
@@ -845,15 +992,10 @@ class _BasketSortScreenState extends State<BasketSortScreen>
                             'assets/images/objects/puzzle/$objectName.png',
                             fit: BoxFit.contain,
                             errorBuilder: (_, __, ___) =>
-                                const Text('?', style: TextStyle(fontSize: 14)),
+                            const Text('?', style: TextStyle(fontSize: 14)),
                           ),
                         ),
                       ),
-                      if (placedCount > 0)
-                        Positioned(
-                          bottom: 18,
-                          child: _buildPlacedItems(objectName, placedCount),
-                        ),
                     ],
                   ),
                 ],
@@ -868,8 +1010,8 @@ class _BasketSortScreenState extends State<BasketSortScreen>
   Widget _buildPlacedItems(String objectName, int count) {
     Widget item() => Image.asset(
       'assets/images/objects/puzzle/$objectName.png',
-      width: 60,
-      height: 60,
+      width: 44,
+      height: 44,
       fit: BoxFit.contain,
     );
 
@@ -907,6 +1049,7 @@ class _BasketSortScreenState extends State<BasketSortScreen>
           _tapTracker.startSession();
         });
         _startRound();
+        startIdleTimer();
       },
       onBack: () {
         Navigator.pop(context);

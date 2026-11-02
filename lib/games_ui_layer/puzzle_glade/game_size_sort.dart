@@ -18,6 +18,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_whats_missing.dart';
 
 enum _ScreenPhase { intro, game }
@@ -70,8 +72,8 @@ class _SizeSortScreenState extends State<SizeSortScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<SizeSortScreen> {
-
+        AppAudioLifecycleMixin<SizeSortScreen>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
 
@@ -84,12 +86,16 @@ class _SizeSortScreenState extends State<SizeSortScreen>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/size_sort_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/size_sort_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/size_sort_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/size_sort_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/size_sort_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/size_sort_complete.wav';
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -145,6 +151,7 @@ class _SizeSortScreenState extends State<SizeSortScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -172,8 +179,8 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
+      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+    );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -202,7 +209,7 @@ class _SizeSortScreenState extends State<SizeSortScreen>
 
     _slotBounceCtrl = List.generate(
       4,
-      (_) => AnimationController(
+          (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 450),
       ),
@@ -210,10 +217,10 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     _slotBounceAnim = _slotBounceCtrl
         .map(
           (c) => Tween<double>(
-            begin: 1.0,
-            end: 1.15,
-          ).animate(CurvedAnimation(parent: c, curve: Curves.elasticOut)),
-        )
+        begin: 1.0,
+        end: 1.15,
+      ).animate(CurvedAnimation(parent: c, curve: Curves.elasticOut)),
+    )
         .toList();
 
     _completePulseCtrl = AnimationController(
@@ -248,8 +255,9 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     setState(() {
       _isInstructionPlaying = false;
     });
+    startIdleTimer();
   }
-  
+
   void _startRound() {
     final rng = Random();
     final shuffled = List<String>.from(_kAllObjects)..shuffle(rng);
@@ -262,7 +270,7 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     do {
       items = List.generate(
         itemCount,
-        (i) => _SizeItem(
+            (i) => _SizeItem(
           objectName: _currentObject,
           sizeIndex: i,
           displaySize: sizes[i],
@@ -270,11 +278,13 @@ class _SizeSortScreenState extends State<SizeSortScreen>
       )..shuffle(rng);
     } while (List.generate(
       itemCount,
-      (i) => items[i].sizeIndex == i,
+          (i) => items[i].sizeIndex == i,
     ).every((b) => b));
 
     _slots = List.generate(itemCount, (i) => items[i]);
     _roundComplete = false;
+    cancelIdleTimer();
+    showHowToPlay = false;
 
     for (final c in _slotBounceCtrl) {
       c.reset();
@@ -306,27 +316,28 @@ class _SizeSortScreenState extends State<SizeSortScreen>
 
     final sorted = List.generate(
       _slots.length,
-      (i) => _slots[i]?.sizeIndex == i,
+          (i) => _slots[i]?.sizeIndex == i,
     ).every((b) => b);
 
     if (sorted) {
+      cancelIdleTimer();
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
       setState(() => _roundComplete = true);
+      cancelIdleTimer();
       _completePulseCtrl.repeat(reverse: true);
       showRoxieReaction(RoxieState.correct);
       await Future.delayed(const Duration(milliseconds: 1400));
       if (!mounted) return;
 
       if (_round >= _kTotalRounds) {
-
         await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
 
         PuzzleProgressService.instance
             .markLevelComplete(widget.level)
             .catchError((e) {
-              debugPrint("Database Error marking level complete: $e");
-            });
+          debugPrint("Database Error marking level complete: $e");
+        });
 
         await _saveDataAndShowWinDialog();
       } else {
@@ -336,12 +347,16 @@ class _SizeSortScreenState extends State<SizeSortScreen>
             _round++;
             _startRound();
           });
+          startIdleTimer();
         }
       }
+    } else {
+      startIdleTimer();
     }
   }
 
   Future<void> _saveDataAndShowWinDialog() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -362,50 +377,158 @@ class _SizeSortScreenState extends State<SizeSortScreen>
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
+  // ── How to play helpers ────────────────────────────────────────────────────
+  bool get _canShowHint =>
+      _screenPhase == _ScreenPhase.game &&
+          !_isInstructionPlaying &&
+          !_roundComplete &&
+          !_showWinDialog;
+
+  void _restartIdleAfterDrag() {
+    if (_canShowHint) startIdleTimer();
+  }
+
+  Offset _demoSlotCenter(Size s, int index) {
+    return Offset(s.width / 2 + (index - 1) * 140, s.height / 2 - 7);
+  }
+
+  Alignment _toAlignment(Offset c, Size s) {
+    return Alignment((2 * c.dx / s.width) - 1, (2 * c.dy / s.height) - 1);
+  }
+
+  Widget _demoSlot(String object, double itemSize) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Container(
+        width: _kSlotSize,
+        height: _kSlotSize,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.90),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.30),
+            width: 2,
+          ),
+        ),
+        padding: const EdgeInsets.all(8),
+        child: Center(
+          child: Image.asset(
+            'assets/images/objects/puzzle/$object.png',
+            width: itemSize,
+            height: itemSize,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final demoObject = _kAllObjects.firstWhere((o) => o != _currentObject);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
+        Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                  ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                  _demoSlot(demoObject, _kSizes3[0]),
+                  _demoSlot(demoObject, _kSizes3[2]),
+                  _demoSlot(demoObject, _kSizes3[1]),
                 ],
               ),
-            ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameLayer(),
-                      ),
-                      buildRoxie(context),
-                    ],
+              Container(
+                width: 400,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFB5845A),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_canShowHint) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(),
+          gameBuilder: () => Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
+              ),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
+                children: [
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameLayer(),
                   ),
-
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
-
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
+                  buildRoxie(context),
+                ],
               ),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (showHowToPlay && _canShowHint)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: _toAlignment(
+                      _demoSlotCenter(screenSize, 1),
+                      screenSize,
+                    ),
+                    handEndAlignment: _toAlignment(
+                      _demoSlotCenter(screenSize, 2),
+                      screenSize,
+                    ),
+                    handOffset: const Offset(0.15, 0.4),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
     );
@@ -605,7 +728,10 @@ class _SizeSortScreenState extends State<SizeSortScreen>
                 return Draggable<int>(
                   data: slotIndex,
                   maxSimultaneousDrags:
-                      (_roundComplete || _isInstructionPlaying) ? 0 : 1,
+                  (_roundComplete || _isInstructionPlaying) ? 0 : 1,
+                  onDragStarted: cancelIdleTimer,
+                  onDraggableCanceled: (_, __) => _restartIdleAfterDrag(),
+                  onDragCompleted: _restartIdleAfterDrag,
                   feedback: Material(
                     color: Colors.transparent,
                     child: Opacity(
@@ -631,13 +757,13 @@ class _SizeSortScreenState extends State<SizeSortScreen>
                         padding: const EdgeInsets.all(8),
                         child: placedItem != null
                             ? Center(
-                                child: Image.asset(
-                                  'assets/images/objects/puzzle/${placedItem.objectName}.png',
-                                  width: sizes[placedItem.sizeIndex],
-                                  height: sizes[placedItem.sizeIndex],
-                                  fit: BoxFit.contain,
-                                ),
-                              )
+                          child: Image.asset(
+                            'assets/images/objects/puzzle/${placedItem.objectName}.png',
+                            width: sizes[placedItem.sizeIndex],
+                            height: sizes[placedItem.sizeIndex],
+                            fit: BoxFit.contain,
+                          ),
+                        )
                             : const SizedBox.shrink(),
                       ),
                     ),
@@ -669,21 +795,21 @@ class _SizeSortScreenState extends State<SizeSortScreen>
                         color: isHovered
                             ? PuzzleColorTheme.sunnyhue
                             : PuzzleColorTheme.darkdesaturatedblue.withValues(
-                                alpha: 0.30,
-                              ),
+                          alpha: 0.30,
+                        ),
                         width: isHovered ? 3 : 2,
                       ),
                     ),
                     padding: const EdgeInsets.all(8),
                     child: placedItem != null
                         ? Center(
-                            child: Image.asset(
-                              'assets/images/objects/puzzle/${placedItem.objectName}.png',
-                              width: sizes[placedItem.sizeIndex],
-                              height: sizes[placedItem.sizeIndex],
-                              fit: BoxFit.contain,
-                            ),
-                          )
+                      child: Image.asset(
+                        'assets/images/objects/puzzle/${placedItem.objectName}.png',
+                        width: sizes[placedItem.sizeIndex],
+                        height: sizes[placedItem.sizeIndex],
+                        fit: BoxFit.contain,
+                      ),
+                    )
                         : const SizedBox.shrink(),
                   ),
                 );
@@ -714,6 +840,7 @@ class _SizeSortScreenState extends State<SizeSortScreen>
           _tapTracker.startSession();
         });
         _startRound();
+        startIdleTimer();
       },
       onBack: () {
         Navigator.pop(context);

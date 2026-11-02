@@ -18,6 +18,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_which_belongs_here.dart';
 
 enum _ScreenPhase { intro, game }
@@ -203,7 +205,8 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<SameOrDifferentScreen> {
+        AppAudioLifecycleMixin<SameOrDifferentScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
@@ -225,6 +228,11 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
   static const String _audioIntro = 'assets/audio/puzzle_glade/same_or_different_intro.wav';
   static const String _audioInstructions = 'assets/audio/puzzle_glade/same_or_different_instruction.wav';
   static const String _audioComplete = 'assets/audio/puzzle_glade/same_or_different_complete.wav';
+
+  // ── How-to-play layout constants ───────────────────────────────────────────
+  // Height of PuzzleProgressDots. If the hand sits a little too high or low
+  // on the "=" button, tune this value.
+  static const double _howToDotsHeight = 12;
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -282,9 +290,12 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
 
   @override
   void dispose() {
+    disposeIdleTimer();
     disposeAiCamera();
+
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
+
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
     _previewPulseCtrl.dispose();
@@ -311,8 +322,8 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
+      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+    );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -386,8 +397,9 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
     setState(() => inputEnabled = true);
+    startIdleTimer();
   }
-  
+
   void _startRound() {
     if (!mounted) return;
 
@@ -418,6 +430,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     final isCorrect = answeredSame == _question.isSame;
 
     if (isCorrect) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       setState(() {
         _selectedAnswer = answeredSame;
@@ -442,8 +455,8 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
         PuzzleProgressService.instance
             .markLevelComplete(widget.level)
             .catchError((e) {
-              debugPrint("Database Error marking level complete: $e");
-            });
+          debugPrint("Database Error marking level complete: $e");
+        });
         await _saveDataAndShowWinDialog();
       } else {
         await _enterCtrl.reverse();
@@ -454,6 +467,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
           _round++;
           _startRound();
         });
+        startIdleTimer();
       }
     } else {
       _tapTracker.recordMistake();
@@ -478,6 +492,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
   }
 
   Future<void> _saveDataAndShowWinDialog() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -498,49 +513,167 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
+  // ── How-to-play preview ────────────────────────────────────────────────────
+
+  // Centre of the "=" button, based on the real game layer:
+  // bottom padding 15 + dots, bottom padding 22, button height 68.
+  // The two buttons are 190 wide with a 24 gap, centred on screen.
+  Alignment _howToHandAlignment(Size s) {
+    final double cx = s.width / 2 - (190 + 24) / 2;
+    final double cy = s.height - 15 - _howToDotsHeight - 22 - 68 / 2;
+    return Alignment((2 * cx / s.width) - 1, (2 * cy / s.height) - 1);
+  }
+
+  Widget _buildHowToCard(String object) {
+    return Container(
+      width: 130,
+      height: 130,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
+          width: 2.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Image.asset(
+          '$_objectAssetPath/$object.png',
+          width: 88,
+          height: 88,
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+  }
+
+  // Same structure as _buildGameLayer, but with a fixed sample (apple vs apple).
+  Widget _buildHowToPreview() {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
+        Column(
           children: [
-            Positioned.fill(
+            Padding(
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
               child: Stack(
+                alignment: Alignment.topCenter,
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: PuzzleLevelBadge(level: widget.level),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
                 ],
               ),
             ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameLayer(),
-                      ),
-                      buildRoxie(context),
-                    ],
-                  ),
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
-
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
+            Expanded(
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildHowToCard('apple'),
+                    const SizedBox(width: 26),
+                    _buildCompareIndicator(),
+                    const SizedBox(width: 26),
+                    _buildHowToCard('apple'),
+                  ],
+                ),
               ),
-
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 22),
+              child: _buildAnswerButtons(),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 15),
+              child: PuzzleProgressDots(
+                currentRound: _round,
+                totalRounds: _kTotalRounds,
+              ),
+            ),
           ],
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (inputEnabled && !_roundComplete && !_showWinDialog) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(),
+          gameBuilder: () => Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
+              ),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
+                children: [
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameLayer(),
+                  ),
+                  buildRoxie(context),
+                ],
+              ),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
+              if (showHowToPlay &&
+                  _screenPhase == _ScreenPhase.game &&
+                  inputEnabled &&
+                  !_roundComplete &&
+                  !_showWinDialog)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(),
+                    handAlignment: _howToHandAlignment(screenSize),
+                    handOffset: const Offset(0.15, 0.65),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
     );
@@ -866,6 +999,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
           _tapTracker.startSession();
         });
         _startRound();
+        startIdleTimer();
       },
       onBack: () {
         Navigator.pop(context);

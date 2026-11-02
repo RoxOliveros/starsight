@@ -18,6 +18,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_same_or_different.dart';
 
 enum _ScreenPhase { intro, game }
@@ -69,7 +71,8 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<OddOneOutScreen> {
+        AppAudioLifecycleMixin<OddOneOutScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
@@ -127,6 +130,12 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
   late Animation<double> _shakeAnim;
   late AnimationController _revealCtrl;
 
+  // ── How-to-play sample ─────────────────────────────────────────────────────
+  static const List<String> _howToObjects = ['apple', 'banana', 'orange', 'ball'];
+  static const String _howToOdd = 'ball';
+  static const double _howToCardSize = 100;
+  static const double _howToGap = 20;
+
   @override
   void initState() {
     super.initState();
@@ -146,9 +155,9 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
 
   @override
   void dispose() {
+    disposeIdleTimer();
     disposeAiCamera();
     _audioPlayer.dispose();
-    _roxiePlayer.dispose();
     _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
     _roxieSlideCtrl.dispose();
@@ -175,8 +184,8 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
+      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+    );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -250,8 +259,9 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
     setState(() => inputEnabled = true);
+    startIdleTimer();
   }
-  
+
   void _startRound() {
     final rng = Random();
     final question = _kQuestions[_round - 1];
@@ -273,6 +283,7 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     if (_roundComplete || _wrongFlash || !inputEnabled) return;
 
     if (tapped == _oddObject) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       setState(() {
         _roundComplete = true;
@@ -289,8 +300,8 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
         PuzzleProgressService.instance
             .markLevelComplete(widget.level)
             .catchError((e) {
-              debugPrint("Database Error marking level complete: $e");
-            });
+          debugPrint("Database Error marking level complete: $e");
+        });
         await _saveDataAndShowWinDialog();
       } else {
         await _enterCtrl.reverse();
@@ -298,6 +309,7 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
           _round++;
           _startRound();
         });
+        startIdleTimer();
       }
     } else {
       _tapTracker.recordMistake();
@@ -318,6 +330,7 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
   }
 
   Future<void> _saveDataAndShowWinDialog() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -338,49 +351,138 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
     }
   }
 
+  // ── How-to-play preview ────────────────────────────────────────────────────
+
+  // The sample row is centred on screen, so the ball (4th card) sits
+  // (3 * (card + gap)) / 2 to the right of the centre.
+  Alignment _howToHandAlignment(Size s) {
+    final double offsetX = (3 * (_howToCardSize + _howToGap)) / 2;
+    return Alignment(offsetX / (s.width / 2), 0);
+  }
+
+  Widget _buildHowToCard(String object) {
+    final bool isOdd = object == _howToOdd;
+
+    return Container(
+      width: _howToCardSize,
+      height: _howToCardSize,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isOdd
+              ? PuzzleColorTheme.sunnyhue
+              : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
+          width: 2.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Image.asset(
+          '$_objectAssetPath/$object.png',
+          width: 72,
+          height: 72,
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHowToPreview() {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
+        Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int i = 0; i < _howToObjects.length; i++) ...[
+                if (i > 0) const SizedBox(width: _howToGap),
+                _buildHowToCard(_howToObjects[i]),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (inputEnabled && !_roundComplete && !_showWinDialog) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(),
+          gameBuilder: () => Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
+              ),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameLayer(),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                  buildRoxie(context),
                 ],
               ),
-            ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameLayer(),
-                      ),
-                      buildRoxie(context),
-                    ],
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
+              if (showHowToPlay &&
+                  _screenPhase == _ScreenPhase.game &&
+                  inputEnabled &&
+                  !_roundComplete &&
+                  !_showWinDialog)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(),
+                    handAlignment: _howToHandAlignment(screenSize),
+                    handOffset: const Offset(0.15, 0.65),
+                    onDismiss: resetIdleTimer,
                   ),
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+                ),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
     );
@@ -471,8 +573,8 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
                 color: isOdd
                     ? PuzzleColorTheme.sunnyhue
                     : PuzzleColorTheme.darkdesaturatedblue.withValues(
-                        alpha: 0.30,
-                      ),
+                  alpha: 0.30,
+                ),
                 width: isOdd ? 3 : 2.5,
               ),
               boxShadow: [
@@ -541,7 +643,7 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
         runSpacing: 20,
         children: List.generate(
           _choices.length,
-          (i) => KeyedSubtree(
+              (i) => KeyedSubtree(
             key: ValueKey(_choices[i]),
             child: _buildObjectCard(i),
           ),
@@ -637,6 +739,7 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
           _tapTracker.startSession();
         });
         _startRound();
+        startIdleTimer();
       },
       onBack: () {
         Navigator.pop(context);

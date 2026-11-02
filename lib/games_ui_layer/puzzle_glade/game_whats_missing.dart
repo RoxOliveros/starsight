@@ -18,6 +18,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_connect_the_dots_screen.dart';
 
 enum _ScreenPhase { intro, game }
@@ -55,8 +57,8 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<WhatsMissingScreen> {
-
+        AppAudioLifecycleMixin<WhatsMissingScreen>,
+        IdleHintMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
 
@@ -69,12 +71,16 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage =
+      'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
 
-  static const String _audioIntro = 'assets/audio/puzzle_glade/whats_missing_intro.wav';
-  static const String _audioInstructions = 'assets/audio/puzzle_glade/whats_missing_instruction.wav';
-  static const String _audioComplete = 'assets/audio/puzzle_glade/whats_missing_complete.wav';
+  static const String _audioIntro =
+      'assets/audio/puzzle_glade/whats_missing_intro.wav';
+  static const String _audioInstructions =
+      'assets/audio/puzzle_glade/whats_missing_instruction.wav';
+  static const String _audioComplete =
+      'assets/audio/puzzle_glade/whats_missing_complete.wav';
 
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
   _GamePhase _gamePhase = _GamePhase.showing;
@@ -134,6 +140,7 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _countdownTimer?.cancel();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
@@ -162,8 +169,8 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
+      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+    );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -259,6 +266,8 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     _tappedChoice = null;
     _countdown = showSeconds;
     _gamePhase = _GamePhase.showing;
+    cancelIdleTimer();
+    showHowToPlay = false;
 
     _countdownTimer?.cancel();
     _missingPulseCtrl.stop();
@@ -271,7 +280,9 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
   }
 
   void _startCountdown() {
-    _countdownRingCtrl.duration = Duration(seconds: _showSecondsForRound(_round));
+    _countdownRingCtrl.duration = Duration(
+      seconds: _showSecondsForRound(_round),
+    );
     _countdownRingCtrl.forward(from: 0);
 
     _countdownTimer?.cancel();
@@ -292,6 +303,7 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     if (!mounted) return;
     setState(() => _gamePhase = _GamePhase.guessing);
     _missingPulseCtrl.repeat(reverse: true);
+    startIdleTimer();
   }
 
   Future<void> _onChoiceTapped(String choice) async {
@@ -305,12 +317,13 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     });
 
     if (isCorrect) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       showRoxieReaction(RoxieState.correct);
 
       _correctBounceCtrl.forward(from: 0);
       _missingPulseCtrl.stop();
-      
+
       await Future.delayed(const Duration(milliseconds: 1000));
       if (!mounted) return;
 
@@ -333,19 +346,20 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
         }
       }
     } else {
+      resetIdleTimer();
       _tapTracker.recordMistake();
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showRoxieReaction(RoxieState.wrong);
 
-        setState(() {
-          _tappedChoice = null;
-          _gamePhase = _GamePhase.guessing;
-        });
-
+      setState(() {
+        _tappedChoice = null;
+        _gamePhase = _GamePhase.guessing;
+      });
     }
   }
 
   Future<void> _saveDataAndShowWinDialog() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -362,8 +376,8 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     });
 
     PuzzleProgressService.instance.markLevelComplete(widget.level).catchError((
-      e,
-    ) {
+        e,
+        ) {
       debugPrint("Database Error marking level complete: $e");
     });
 
@@ -372,50 +386,90 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
     }
   }
 
+  // ── How to play helpers ────────────────────────────────────────────────────
+  bool get _canShowHint =>
+      _screenPhase == _ScreenPhase.game &&
+          _inputEnabled &&
+          _gamePhase == _GamePhase.guessing &&
+          !_showWinDialog;
+
+  Widget _buildHowToPreview(Size s) {
+    final pool = _kAllObjects
+        .where((o) => !_shownObjects.contains(o) && !_choices.contains(o))
+        .toList();
+
+    return _MissingDemo(
+      screen: s,
+      bgImage: _bgImage,
+      handAsset: 'assets/images/objects/lagoon/pointing_hand.png',
+      objectA: pool[0],
+      objectB: pool[1],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_canShowHint) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(),
+          gameBuilder: () => Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
+              ),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameLayer(),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                  buildRoxie(context),
                 ],
               ),
-            ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameLayer(),
-                      ),
-                      buildRoxie(context),
-                    ],
+
+              if (showHowToPlay && _canShowHint)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: Alignment.center,
+                    showHand: false,
+                    onDismiss: resetIdleTimer,
                   ),
+                ),
 
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
     );
@@ -506,16 +560,16 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
                     decoration: BoxDecoration(
                       color: isMiddle
                           ? PuzzleColorTheme.goldenyellow.withValues(
-                              alpha: 0.25,
-                            )
+                        alpha: 0.25,
+                      )
                           : Colors.white.withValues(alpha: 0.88),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: isMiddle
                             ? PuzzleColorTheme.sunnyhue
                             : PuzzleColorTheme.darkdesaturatedblue.withValues(
-                                alpha: 0.25,
-                              ),
+                          alpha: 0.25,
+                        ),
                         width: 2.5,
                       ),
                       boxShadow: [
@@ -529,23 +583,23 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
                     padding: const EdgeInsets.all(10),
                     child: isMiddle
                         ? Center(
-                            child: Text(
-                              '?',
-                              style: TextStyle(
-                                fontSize: 36,
-                                fontWeight: FontWeight.bold,
-                                color: PuzzleColorTheme.sunnyhue,
-                              ),
-                            ),
-                          )
+                      child: Text(
+                        '?',
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: PuzzleColorTheme.sunnyhue,
+                        ),
+                      ),
+                    )
                         : Image.asset(
-                            'assets/images/objects/puzzle/${sampleObjects[i]}.png',
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, __, ___) => const Text(
-                              '🔭',
-                              style: TextStyle(fontSize: 28),
-                            ),
-                          ),
+                      'assets/images/objects/puzzle/${sampleObjects[i]}.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Text(
+                        '🔭',
+                        style: TextStyle(fontSize: 28),
+                      ),
+                    ),
                   ),
                 ),
               );
@@ -650,7 +704,7 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
         'assets/images/objects/puzzle/$objectName.png',
         fit: BoxFit.contain,
         errorBuilder: (_, __, ___) =>
-            const Text('📦', style: TextStyle(fontSize: 28)),
+        const Text('📦', style: TextStyle(fontSize: 28)),
       ),
     );
   }
@@ -747,9 +801,7 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
   Widget _buildChoices() {
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: [
-        ..._choices.map((choice) => _buildChoiceTile(choice)),
-      ],
+      children: [..._choices.map((choice) => _buildChoiceTile(choice))],
     );
   }
 
@@ -792,7 +844,7 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
                 'assets/images/objects/puzzle/$objectName.png',
                 fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) =>
-                    const Text('📦', style: TextStyle(fontSize: 24)),
+                const Text('📦', style: TextStyle(fontSize: 24)),
               ),
             ),
           ],
@@ -828,6 +880,262 @@ class _WhatsMissingScreenState extends State<WhatsMissingScreen>
       onBack: () {
         Navigator.pop(context);
       },
+    );
+  }
+}
+
+class _MissingDemo extends StatefulWidget {
+  final Size screen;
+  final String bgImage;
+  final String handAsset;
+  final String objectA; // shown, then missing, and the correct answer
+  final String objectB; // wrong choice
+
+  const _MissingDemo({
+    required this.screen,
+    required this.bgImage,
+    required this.handAsset,
+    required this.objectA,
+    required this.objectB,
+  });
+
+  @override
+  State<_MissingDemo> createState() => _MissingDemoState();
+}
+
+class _MissingDemoState extends State<_MissingDemo>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  static const double _handW = 100;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 7),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Widget _objectTile(String object) {
+    return Container(
+      width: 96,
+      height: 96,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.90),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
+          width: 2.5,
+        ),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Image.asset(
+        'assets/images/objects/puzzle/$object.png',
+        fit: BoxFit.contain,
+      ),
+    );
+  }
+
+  Widget _missingSlot() {
+    return Container(
+      width: 96,
+      height: 96,
+      decoration: BoxDecoration(
+        color: PuzzleColorTheme.goldenyellow.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: PuzzleColorTheme.sunnyhue, width: 3),
+      ),
+      child: Center(
+        child: Text(
+          '?',
+          style: TextStyle(
+            fontSize: 44,
+            fontWeight: FontWeight.bold,
+            color: PuzzleColorTheme.sunnyhue,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _choiceTile(String object, {required bool selected}) {
+    return Transform.scale(
+      scale: selected ? 1.12 : 1.0,
+      child: Container(
+        width: 130,
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected
+              ? PuzzleColorTheme.goldenyellow.withValues(alpha: 0.28)
+              : Colors.white.withValues(alpha: 0.90),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected
+                ? PuzzleColorTheme.sunnyhue
+                : PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
+            width: 2.5,
+          ),
+        ),
+        child: Center(
+          child: SizedBox(
+            width: 80,
+            height: 80,
+            child: Image.asset(
+              'assets/images/objects/puzzle/$object.png',
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _countdown(double t) {
+    final number = (3 - (t / 0.40 * 3).floor()).clamp(1, 3);
+    final value = 1.0 - (t / 0.40).clamp(0.0, 1.0);
+    final color = PuzzleColorTheme.darkdesaturatedblue;
+
+    return SizedBox(
+      width: 90,
+      height: 90,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: 90,
+            height: 90,
+            child: CircularProgressIndicator(
+              value: value,
+              strokeWidth: 7,
+              backgroundColor: color.withValues(alpha: 0.15),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+          Text(
+            '$number',
+            style: TextStyle(
+              fontFamily: PuzzleAppTextStyles.fredoka,
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.screen;
+
+    // Top choice center (layout: slot 112, gap 100, choices column 130,
+    // all centered on the screen).
+    final target = Offset(s.width / 2 + 106, s.height / 2 - 56);
+    final start = target + const Offset(120, 110);
+
+    return SizedBox(
+      width: s.width,
+      height: s.height,
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (_, __) {
+          final t = _ctrl.value;
+
+          // Phases: 0.00-0.40 showing, 0.40+ guessing, 0.50-0.90 hand taps.
+          final showing = t < 0.40;
+          final choicesOpacity = ((t - 0.40) / 0.08).clamp(0.0, 1.0);
+
+          final u = ((t - 0.50) / 0.40).clamp(0.0, 1.0);
+          final handVisible = t >= 0.50 && t < 0.92;
+          final approach = Curves.easeOut.transform((u / 0.35).clamp(0.0, 1.0));
+          final tapV = u < 0.35
+              ? 0.0
+              : u < 0.5
+              ? (u - 0.35) / 0.15
+              : u < 0.65
+              ? 1.0 - (u - 0.5) / 0.15
+              : 0.0;
+          final selected = u >= 0.5 && handVisible;
+          final handOpacity = !handVisible
+              ? 0.0
+              : u < 0.1
+              ? u / 0.1
+              : u > 0.9
+              ? (1 - u) / 0.1
+              : 1.0;
+
+          final pos = Offset.lerp(start, target, approach)!;
+
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(widget.bgImage, fit: BoxFit.cover),
+              Container(color: Colors.black.withValues(alpha: 0.15)),
+              Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: showing
+                          ? _objectTile(widget.objectA)
+                          : _missingSlot(),
+                    ),
+                    const SizedBox(width: 100),
+                    SizedBox(
+                      width: 130,
+                      height: 234,
+                      child: Center(
+                        child: showing
+                            ? _countdown(t)
+                            : Opacity(
+                          opacity: choicesOpacity,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _choiceTile(
+                                widget.objectA,
+                                selected: selected,
+                              ),
+                              _choiceTile(
+                                widget.objectB,
+                                selected: false,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                left: pos.dx - _handW / 2 + 0.15 * _handW,
+                top: pos.dy - _handW / 2 + 0.4 * _handW - tapV * 20,
+                width: _handW,
+                height: _handW,
+                child: Opacity(
+                  opacity: handOpacity,
+                  child: Transform.scale(
+                    scale: 1.0 - tapV * 0.08,
+                    child: Image.asset(widget.handAsset, fit: BoxFit.contain),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

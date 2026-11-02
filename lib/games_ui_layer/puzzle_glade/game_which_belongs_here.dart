@@ -18,7 +18,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
-import 'game_connect_the_dots_screen.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -141,7 +142,8 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<WhichBelongsHereScreen> {
+        AppAudioLifecycleMixin<WhichBelongsHereScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
@@ -170,6 +172,11 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
   static const String _audioLivingRoom = 'assets/audio/puzzle_glade/which_belongs_here_living_room.wav';
   static const String _audioPark = 'assets/audio/puzzle_glade/which_belongs_here_park.wav';
   static const String _audioBedroom = 'assets/audio/puzzle_glade/which_belongs_here_bedroom.wav';
+
+  // ── How-to-play layout constants ───────────────────────────────────────────
+  // Tune these if the hand sits a little high or low on the toothbrush.
+  static const double _howToBadgeRowHeight = 50;
+  static const double _howToDotsHeight = 12;
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -230,9 +237,9 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
 
   @override
   void dispose() {
+    disposeIdleTimer();
     disposeAiCamera();
     _audioPlayer.dispose();
-    _roxiePlayer.dispose();
     _roxiePlayer.dispose();
 
     _roxieFloatCtrl.dispose();
@@ -262,8 +269,8 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
+      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+    );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -362,7 +369,7 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
 
     await _playCurrentSceneAudio();
   }
-  
+
   String? _getAudioForScene(String scene) {
     switch (scene) {
       case 'bg_lumi_bathroom':
@@ -396,6 +403,7 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
         setState(() {
           _buttonsDisabled = false;
         });
+        startIdleTimer();
       }
       return;
     }
@@ -414,6 +422,7 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
       setState(() {
         _buttonsDisabled = false;
       });
+      startIdleTimer();
     }
   }
 
@@ -451,6 +460,7 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
     final isCorrect = index == _correctIndex;
 
     if (isCorrect) {
+      cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       setState(() {
         _selectedIndex = index;
@@ -477,8 +487,8 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
         await PuzzleProgressService.instance
             .markLevelComplete(widget.level)
             .catchError((e) {
-              debugPrint("Database Error marking level complete: $e");
-            });
+          debugPrint("Database Error marking level complete: $e");
+        });
         await _saveDataAndShowWinDialog();
       } else {
         await _sceneEnterCtrl.reverse();
@@ -517,6 +527,7 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
   }
 
   Future<void> _saveDataAndShowWinDialog() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -537,49 +548,201 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
+  // ── How-to-play preview ────────────────────────────────────────────────────
+
+  // Centre of choice card [index] in the real layout:
+  // top padding 25 + badge row, bottom padding 8 + 15 + dots,
+  // choices are 80x80 with 16 gaps, centred vertically, right edge at width - 40.
+  Alignment _howToHandAlignment(Size s, {int index = 0}) {
+    final double top = 25 + _howToBadgeRowHeight;
+    final double bottom = 8 + 15 + _howToDotsHeight;
+    final double availH = s.height - top - bottom;
+    const double columnH = 3 * 80 + 2 * 16;
+    final double columnTop = top + (availH - columnH) / 2;
+
+    final double cx = s.width - 40 - 40;
+    final double cy = columnTop + 40 + index * 96;
+    return Alignment((2 * cx / s.width) - 1, (2 * cy / s.height) - 1);
+  }
+
+  Widget _buildHowToChoice(String object) {
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.28),
+          width: 2.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.09),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Image.asset(
+          '$_objectAssetPath/$object.png',
+          width: 60,
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+  }
+
+  // Same structure as _buildGameArea, with a fixed sample.
+  Widget _buildHowToPreview() {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
+        Column(
           children: [
-            Positioned.fill(
+            Padding(
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 25),
               child: Stack(
+                alignment: Alignment.topCenter,
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: PuzzleLevelBadge(level: widget.level),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
                 ],
               ),
             ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameArea(),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 110, right: 40, bottom: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: PuzzleColorTheme.goldenyellow,
+                            width: 8,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 15,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.asset(
+                            '$_sceneAssetPath/bg_lumi_bathroom.png',
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          ),
+                        ),
                       ),
-                      buildRoxie(context),
-                    ],
-                  ),
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
-
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
+                    ),
+                    const SizedBox(width: 24),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildHowToChoice('toothbrush'),
+                        const SizedBox(height: 16),
+                        _buildHowToChoice('ball'),
+                        const SizedBox(height: 16),
+                        _buildHowToChoice('pan'),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 15),
+              child: PuzzleProgressDots(
+                currentRound: _round,
+                totalRounds: _kTotalRounds,
+              ),
+            ),
           ],
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (!_buttonsDisabled && !_roundComplete && !_showWinDialog) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(),
+          gameBuilder: () => Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
+              ),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
+                children: [
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameArea(),
+                  ),
+                  buildRoxie(context),
+                ],
+              ),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
+
+              if (showHowToPlay &&
+                  _screenPhase == _ScreenPhase.game &&
+                  !_buttonsDisabled &&
+                  !_roundComplete &&
+                  !_showWinDialog)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(),
+                    handAlignment: _howToHandAlignment(screenSize),
+                    handOffset: const Offset(0.15, 0.65),
+                    onDismiss: resetIdleTimer,
+                  ),
+                ),
+
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
     );
@@ -729,7 +892,7 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
   Widget _buildTarget() {
     Widget image = Image.asset(
       '$_sceneAssetPath/${_question.scene}.png',
-      fit: BoxFit.cover, // CHANGED: fill the frame
+      fit: BoxFit.cover,
       width: double.infinity,
       height: double.infinity,
     );
@@ -874,6 +1037,7 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
           _tapTracker.startSession();
         });
         _startRound();
+        startIdleTimer();
       },
       onBack: () {
         Navigator.pop(context);

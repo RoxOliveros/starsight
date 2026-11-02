@@ -18,6 +18,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_spot_the_difference.dart';
 
 enum _ScreenPhase { intro, memorize, recall, result }
@@ -56,7 +58,8 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<CopyPatternScreen> {
+        AppAudioLifecycleMixin<CopyPatternScreen>,
+        IdleHintMixin<CopyPatternScreen> {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
@@ -131,6 +134,7 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _memorizeTimer?.cancel();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
@@ -162,8 +166,8 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
+      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+    );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -193,7 +197,7 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
 
     _slotShakeCtrl = List.generate(
       _kMaxGridSize,
-      (_) => AnimationController(
+          (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 400),
       ),
@@ -201,15 +205,15 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     _slotShakeAnim = _slotShakeCtrl
         .map(
           (c) => Tween<double>(
-            begin: 0,
-            end: 1,
-          ).animate(CurvedAnimation(parent: c, curve: Curves.elasticOut)),
-        )
+        begin: 0,
+        end: 1,
+      ).animate(CurvedAnimation(parent: c, curve: Curves.elasticOut)),
+    )
         .toList();
 
     _slotBounceCtrl = List.generate(
       _kMaxGridSize,
-      (_) => AnimationController(
+          (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 450),
       ),
@@ -217,10 +221,10 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     _slotBounceAnim = _slotBounceCtrl
         .map(
           (c) => Tween<double>(
-            begin: 1.0,
-            end: 1.18,
-          ).animate(CurvedAnimation(parent: c, curve: Curves.elasticOut)),
-        )
+        begin: 1.0,
+        end: 1.18,
+      ).animate(CurvedAnimation(parent: c, curve: Curves.elasticOut)),
+    )
         .toList();
   }
 
@@ -246,7 +250,7 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
 
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
   }
-  
+
   void _startRound() {
     if (!mounted) return;
 
@@ -273,6 +277,9 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
 
     _correctPulseCtrl.stop();
     _correctPulseCtrl.reset();
+
+    cancelIdleTimer();
+    showHowToPlay = false;
 
     _memorizeCountdown = _memorizeSecondsMax;
     _phaseCtrl.forward(from: 0);
@@ -301,6 +308,7 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     if (!mounted) return;
     setState(() => _phase = _ScreenPhase.recall);
     _phaseCtrl.forward(from: 0);
+    startIdleTimer();
   }
 
   void _onChoiceTapped(String object) async {
@@ -315,6 +323,7 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     _slotBounceCtrl[emptyIndex].forward(from: 0);
 
     if (_answerSlots.every((s) => s != null)) {
+      cancelIdleTimer();
       await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
       _checkAnswer();
@@ -329,6 +338,8 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
   }
 
   void _checkAnswer() async {
+    cancelIdleTimer();
+
     bool correct = true;
     for (int i = 0; i < _gridSize; i++) {
       if (_answerSlots[i] != _patternObjects[i]) {
@@ -351,14 +362,14 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
 
       if (_round >= _kTotalRounds) {
         await _roxiePlayer.stop();
-        
+
         await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
         if (!mounted) return;
         PuzzleProgressService.instance
             .markLevelComplete(widget.level)
             .catchError((e) {
-              debugPrint("Database Error marking level complete: $e");
-            });
+          debugPrint("Database Error marking level complete: $e");
+        });
         await _saveDataAndShowWinDialog();
       } else {
         if (!mounted) return;
@@ -389,11 +400,13 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
             }
           }
         });
+        startIdleTimer();
       }
     }
   }
 
   Future<void> _saveDataAndShowWinDialog() async {
+    cancelIdleTimer();
     if (_hasSavedResult) return;
     _hasSavedResult = true;
     List<String> finalEmotions = stopAiCamera();
@@ -414,50 +427,87 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     }
   }
 
+  // ── How to play helpers ────────────────────────────────────────────────────
+  bool get _canShowHint =>
+      _phase == _ScreenPhase.recall &&
+          !_showWinDialog &&
+          !_answerSlots.every((s) => s != null);
+
+  Widget _buildHowToPreview(Size s) {
+    // Sample objects that are not part of the current round.
+    final pool = _kAllObjects.where((o) => !_choices.contains(o)).toList();
+
+    return _PatternDemo(
+      screen: s,
+      bgImage: _bgImage,
+      handAsset: 'assets/images/objects/lagoon/pointing_hand.png',
+      objects: [pool[0], pool[1], pool[2]],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: buildWithLoading(
-        loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
+    final Size screenSize = MediaQuery.of(context).size;
+
+    return Listener(
+      onPointerDown: (_) {
+        if (_canShowHint) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: buildWithLoading(
+          loadingScreen: LoadingScreen.puzzleGlade(),
+          gameBuilder: () => Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
+              ),
+              _phase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameLayer(),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                  buildRoxie(context),
                 ],
               ),
-            ),
-            _phase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameLayer(),
-                      ),
-                      buildRoxie(context),
-                    ],
+
+              if (showHowToPlay && _canShowHint)
+                Positioned.fill(
+                  child: HowToPlayOverlay(
+                    previewChild: _buildHowToPreview(screenSize),
+                    handAlignment: Alignment.center,
+                    showHand: false,
+                    onDismiss: resetIdleTimer,
                   ),
+                ),
 
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
     );
@@ -569,18 +619,18 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
               padding: const EdgeInsets.all(10),
               child: revealed
                   ? Image.asset(
-                      'assets/images/objects/puzzle/star.png',
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.star, color: Colors.amber),
-                    )
+                'assets/images/objects/puzzle/star.png',
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) =>
+                const Icon(Icons.star, color: Colors.amber),
+              )
                   : Icon(
-                      Icons.question_mark_rounded,
-                      color: PuzzleColorTheme.darkdesaturatedblue.withValues(
-                        alpha: 0.4,
-                      ),
-                      size: 28,
-                    ),
+                Icons.question_mark_rounded,
+                color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                  alpha: 0.4,
+                ),
+                size: 28,
+              ),
             );
           }),
         ),
@@ -733,11 +783,11 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
     final item = _answerSlots[index];
     final isCorrect =
         _phase == _ScreenPhase.result &&
-        _answerSlots[index] == _patternObjects[index];
+            _answerSlots[index] == _patternObjects[index];
     final isWrong =
         _phase == _ScreenPhase.result &&
-        _answerSlots[index] != null &&
-        _answerSlots[index] != _patternObjects[index];
+            _answerSlots[index] != null &&
+            _answerSlots[index] != _patternObjects[index];
 
     return AnimatedBuilder(
       animation: Listenable.merge([
@@ -781,22 +831,22 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
           padding: const EdgeInsets.all(12),
           child: item != null
               ? Image.asset(
-                  'assets/images/objects/puzzle/$item.png',
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const SizedBox(),
-                )
+            'assets/images/objects/puzzle/$item.png',
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const SizedBox(),
+          )
               : Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      fontFamily: PuzzleAppTextStyles.fredoka,
-                      fontSize: 28,
-                      color: PuzzleColorTheme.darkdesaturatedblue.withValues(
-                        alpha: 0.3,
-                      ),
-                    ),
-                  ),
+            child: Text(
+              '${index + 1}',
+              style: TextStyle(
+                fontFamily: PuzzleAppTextStyles.fredoka,
+                fontSize: 28,
+                color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                  alpha: 0.3,
                 ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -861,6 +911,327 @@ class _CopyPatternScreenState extends State<CopyPatternScreen>
       onBack: () {
         Navigator.pop(context);
       },
+    );
+  }
+}
+
+// ── How to play demo ─────────────────────────────────────────────────────────
+// Looping standalone animation:
+//   1. memorize: the pattern is shown with its countdown number and bar
+//   2. recall: the hand taps the correct items in pattern order and the
+//      two answer slots fill in. No result is shown.
+
+class _PatternDemo extends StatefulWidget {
+  final Size screen;
+  final String bgImage;
+  final String handAsset;
+  final List<String> objects; // 3 sample objects, none from the current round
+
+  const _PatternDemo({
+    required this.screen,
+    required this.bgImage,
+    required this.handAsset,
+    required this.objects,
+  });
+
+  @override
+  State<_PatternDemo> createState() => _PatternDemoState();
+}
+
+class _PatternDemoState extends State<_PatternDemo>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  static const double _handW = 100;
+  static const int _memSeconds = 4;
+
+  // Timeline (fractions of the loop)
+  static const double _memEnd = 0.34; // countdown finishes
+  static const double _memFadeEnd = 0.40; // memorize view gone
+  static const double _recallFadeEnd = 0.46; // recall view fully visible
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 12),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  // ── Memorize view ──────────────────────────────────────────────────────────
+  Widget _memorizeView(int countdown, double barFactor) {
+    final objs = widget.objects;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$countdown',
+          style: TextStyle(
+            fontFamily: PuzzleAppTextStyles.fredoka,
+            fontSize: 28,
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          width: 260,
+          height: 10,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.25),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: barFactor.clamp(0.0, 1.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: PuzzleColorTheme.sunnyhue,
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(2, (i) {
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 10),
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: PuzzleColorTheme.sunnyhue.withValues(alpha: 0.6),
+                  width: 3,
+                ),
+              ),
+              padding: const EdgeInsets.all(12),
+              child: Image.asset(
+                'assets/images/objects/puzzle/${objs[i]}.png',
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const SizedBox(),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  // ── Recall view ────────────────────────────────────────────────────────────
+  Widget _slot(String? object, int index) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+      width: 100,
+      height: 100,
+      decoration: BoxDecoration(
+        color: object != null
+            ? Colors.white.withValues(alpha: 0.90)
+            : Colors.white.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+            alpha: object != null ? 0.4 : 0.2,
+          ),
+          width: 2,
+        ),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: object != null
+          ? Image.asset(
+        'assets/images/objects/puzzle/$object.png',
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => const SizedBox(),
+      )
+          : Center(
+        child: Text(
+          '${index + 1}',
+          style: TextStyle(
+            fontFamily: PuzzleAppTextStyles.fredoka,
+            fontSize: 28,
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+              alpha: 0.3,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _choice(String object, {required bool used}) {
+    return Opacity(
+      opacity: used ? 0.3 : 1.0,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: used ? 0.4 : 0.92),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: PuzzleColorTheme.darkdesaturatedblue.withValues(alpha: 0.3),
+            width: 2,
+          ),
+        ),
+        padding: const EdgeInsets.all(10),
+        child: Image.asset(
+          'assets/images/objects/puzzle/$object.png',
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => const SizedBox(),
+        ),
+      ),
+    );
+  }
+
+  Widget _recallView(bool filled1, bool filled2) {
+    final objs = widget.objects;
+    // Choice row order: [objs[1], objs[2], objs[0]], so the hand taps the
+    // third tile first (pattern item 1), then the first tile (pattern item 2).
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _slot(filled1 ? objs[0] : null, 0),
+            _slot(filled2 ? objs[1] : null, 1),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _choice(objs[1], used: filled2),
+            _choice(objs[2], used: false),
+            _choice(objs[0], used: filled1),
+          ],
+        ),
+      ],
+    );
+  }
+
+  double _press(double t, double a, double b) {
+    if (t < a || t > b) return 0.0;
+    final m = (t - a) / (b - a);
+    return m < 0.5 ? m * 2 : (1 - m) * 2;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.screen;
+
+    // Recall layout mirrors the real screen, centered:
+    // slots 100 + gap 14 + choices 80 = 194 tall; choice tiles are 96 wide
+    // including margins, so their centers are at cx - 96, cx, cx + 96.
+    final cx = s.width / 2;
+    final cy = s.height / 2;
+    final choiceY = cy - 97 + 100 + 14 + 40;
+    final tapA = Offset(cx + 96, choiceY); // objs[0], third tile
+    final tapB = Offset(cx - 96, choiceY); // objs[1], first tile
+    final start = tapA + const Offset(120, 110);
+
+    return SizedBox(
+      width: s.width,
+      height: s.height,
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (_, __) {
+          final t = _ctrl.value;
+
+          // Memorize phase
+          final memProgress = (t / _memEnd).clamp(0.0, 1.0);
+          final countdown = (_memSeconds - (memProgress * _memSeconds).floor())
+              .clamp(1, _memSeconds);
+          final memOpacity = t < _memEnd
+              ? 1.0
+              : (1.0 - (t - _memEnd) / (_memFadeEnd - _memEnd)).clamp(0.0, 1.0);
+
+          // Recall phase
+          var recallOpacity =
+          ((t - _memFadeEnd) / (_recallFadeEnd - _memFadeEnd)).clamp(
+            0.0,
+            1.0,
+          );
+          if (t > 0.97) recallOpacity *= (1 - (t - 0.97) / 0.03);
+
+          final filled1 = t >= 0.63 && t < 0.97;
+          final filled2 = t >= 0.83 && t < 0.97;
+
+          // Hand: tap tile 1, slide to tile 2, tap it
+          Offset pos;
+          if (t < 0.60) {
+            final a = Curves.easeOut.transform(
+              ((t - 0.48) / 0.12).clamp(0.0, 1.0),
+            );
+            pos = Offset.lerp(start, tapA, a)!;
+          } else if (t < 0.70) {
+            pos = tapA;
+          } else if (t < 0.80) {
+            final a = Curves.easeInOut.transform(
+              ((t - 0.70) / 0.10).clamp(0.0, 1.0),
+            );
+            pos = Offset.lerp(tapA, tapB, a)!;
+          } else {
+            pos = tapB;
+          }
+
+          final tapV = max(_press(t, 0.58, 0.68), _press(t, 0.78, 0.88));
+          final handOpacity = t < 0.48
+              ? 0.0
+              : t < 0.52
+              ? (t - 0.48) / 0.04
+              : t < 0.92
+              ? 1.0
+              : t < 0.97
+              ? 1.0 - (t - 0.92) / 0.05
+              : 0.0;
+
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(widget.bgImage, fit: BoxFit.cover),
+              Container(color: Colors.black.withValues(alpha: 0.15)),
+              if (memOpacity > 0)
+                Center(
+                  child: Opacity(
+                    opacity: memOpacity,
+                    child: _memorizeView(countdown, 1.0 - memProgress),
+                  ),
+                ),
+              if (recallOpacity > 0)
+                Center(
+                  child: Opacity(
+                    opacity: recallOpacity,
+                    child: _recallView(filled1, filled2),
+                  ),
+                ),
+              Positioned(
+                left: pos.dx - _handW / 2 + 0.15 * _handW,
+                top: pos.dy - _handW / 2 + 0.46 * _handW - tapV * 20,
+                width: _handW,
+                height: _handW,
+                child: Opacity(
+                  opacity: handOpacity,
+                  child: Transform.scale(
+                    scale: 1.0 - tapV * 0.08,
+                    child: Image.asset(widget.handAsset, fit: BoxFit.contain),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

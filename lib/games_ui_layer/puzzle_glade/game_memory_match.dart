@@ -18,11 +18,11 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_shape_fit.dart';
 
 enum _ScreenPhase { intro, game }
-
-enum _IntroPhase { playingIntro, playingWelcome, done }
 
 const _kAllObjects = [
   'compass',
@@ -65,7 +65,8 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<MemoryMatchScreen> {
+        AppAudioLifecycleMixin<MemoryMatchScreen>,
+        IdleHintMixin<MemoryMatchScreen> {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
@@ -86,6 +87,13 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
   static const String _audioIntro = 'assets/audio/puzzle_glade/memory_match_intro.wav';
   static const String _audioInstructions = 'assets/audio/puzzle_glade/memory_match_instruction.wav';
   static const String _audioComplete = 'assets/audio/puzzle_glade/memory_match_complete.wav';
+
+  // ── How-to-play hint ──────────────────────────────────────────────────────
+  // Keys go on the first two LIVE cards only (top row, always present).
+  // While the overlay's preview is being built, _previewing is true: the
+  // preview shows plain face-down cards with no keys and no gestures.
+  final List<GlobalKey> _cardKeys = List.generate(2, (_) => GlobalKey());
+  bool _previewing = false;
 
   // ── Phase state ────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -141,6 +149,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
     _roxieFloatCtrl.dispose();
@@ -169,8 +178,8 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
+      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+    );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -225,8 +234,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioInstructions);
     if (!mounted) return;
     setState(() => _inputEnabled = true);
+    startIdleTimer(); // hint countdown starts once the child can play
   }
-  
+
   int _pairsForRound(int round) {
     if (round <= 2) return 2;
     if (round <= 4) return 3;
@@ -252,7 +262,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     }
     _flipCtrls = List.generate(
       _cards.length,
-      (_) => AnimationController(
+          (_) => AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 380),
       ),
@@ -260,10 +270,10 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     _flipAnims = _flipCtrls
         .map(
           (ctrl) => Tween<double>(
-            begin: 0.0,
-            end: 1.0,
-          ).animate(CurvedAnimation(parent: ctrl, curve: Curves.easeInOut)),
-        )
+        begin: 0.0,
+        end: 1.0,
+      ).animate(CurvedAnimation(parent: ctrl, curve: Curves.easeInOut)),
+    )
         .toList();
 
     _peekedIds.clear();
@@ -309,13 +319,20 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
       });
 
       if (_matchesFound == _pairsForRound(_round)) {
+        cancelIdleTimer(); // round solved: no hint until the next round
         await Future.delayed(const Duration(milliseconds: 300));
-        setState(() => _roundComplete = true);
+        if (!mounted) return;
+        setState(() {
+          _roundComplete = true;
+          showHowToPlay = false;
+        });
         _celebCtrl.forward();
         await Future.delayed(const Duration(milliseconds: 1200));
+        if (!mounted) return;
 
         if (_round >= _kTotalRounds) {
           await Future.delayed(const Duration(milliseconds: 300));
+          if (!mounted) return;
           await _roxiePlayer.stop();
 
           await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioComplete);
@@ -323,15 +340,17 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
           PuzzleProgressService.instance
               .markLevelComplete(widget.level)
               .catchError((e) {
-                debugPrint("Database Error marking level complete: $e");
-              });
+            debugPrint("Database Error marking level complete: $e");
+          });
           await _saveDataAndShowWinDialog();
         } else {
           await _enterCtrl.reverse();
+          if (!mounted) return;
           setState(() {
             _round++;
             _buildRound();
           });
+          startIdleTimer(); // new round: restart the countdown
         }
       }
     } else {
@@ -339,6 +358,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showRoxieReaction(RoxieState.wrong);
       await Future.delayed(_kPeekDuration);
+      if (!mounted) return;
       setState(() {
         cardA.isFaceUp = false;
         cardB.isFaceUp = false;
@@ -354,6 +374,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
   Future<void> _saveDataAndShowWinDialog() async {
     if (_hasSavedResult) return;
     _hasSavedResult = true;
+    cancelIdleTimer();
     List<String> finalEmotions = stopAiCamera();
 
     PuzzleDatabaseService.saveGameData(
@@ -372,52 +393,122 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     }
   }
 
+  /// True while the child can actually play.
+  bool get _canPlay =>
+      _screenPhase == _ScreenPhase.game &&
+          _inputEnabled &&
+          !_roundComplete &&
+          !_showWinDialog;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: buildWithLoading(
         loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
+        gameBuilder: () => Listener(
+          // Finger down: hide the hint and pause the countdown.
+          // Finger up: restart the countdown.
+          onPointerDown: (_) {
+            _tapTracker.recordGenericTap();
+            if (showHowToPlay) setState(() => showHowToPlay = false);
+            cancelIdleTimer();
+          },
+          onPointerUp: (_) {
+            if (_canPlay) startIdleTimer();
+          },
+          onPointerCancel: (_) {
+            if (_canPlay) startIdleTimer();
+          },
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    Image.asset(
+                      _bgImage,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                    Container(color: Colors.black.withValues(alpha: 0.15)),
+                  ],
+                ),
+              ),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameLayer(),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                  buildRoxie(context),
                 ],
               ),
-            ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameLayer(),
-                      ),
-                      buildRoxie(context),
-                    ],
-                  ),
 
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (showHowToPlay && _canPlay)
+                Positioned.fill(child: _buildHowToPlay()),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  // ── How to play ───────────────────────────────────────────────────────────
+  Widget _buildHowToPlay() {
+    // Static copy of the game with every card face down, so the preview
+    // never reveals where the pairs are. Keys and gestures are skipped.
+    _previewing = true;
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(_bgImage, fit: BoxFit.cover),
+            Container(color: Colors.black.withValues(alpha: 0.15)),
+          ],
+        ),
+        _buildGameLayer(),
+        buildRoxie(context),
+      ],
+    );
+    _previewing = false;
+
+    // The hand taps two cards in turn, which is the whole idea of the game:
+    // flip two cards to find a match.
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: _alignmentOf(_cardKeys[0]),
+      handEndAlignment: _alignmentOf(_cardKeys[1]),
+      tapSequence: true,
+      handOffset: const Offset(0.15, 0.65),
+      onDismiss: resetIdleTimer,
+    );
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final c = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      c.dx / root.size.width * 2 - 1,
+      c.dy / root.size.height * 2 - 1,
     );
   }
 
@@ -571,7 +662,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
     final topIndices = List.generate(pairsThisRound, (i) => i);
     final bottomIndices = List.generate(
       pairsThisRound,
-      (i) => pairsThisRound + i,
+          (i) => pairsThisRound + i,
     );
 
     return Center(
@@ -599,10 +690,15 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
   }
 
   Widget _buildCard(int index) {
+    // Hint preview: plain face-down card, same size, no gestures, no key.
+    if (_previewing) return _cardBack();
+
     final card = _cards[index];
     final anim = _flipAnims[index];
 
     return GestureDetector(
+      // Only the first two cards (top row) carry keys for the hand position.
+      key: index < 2 ? _cardKeys[index] : null,
       onTap: () => _onCardTap(index),
       child: AnimatedBuilder(
         animation: anim,
@@ -722,6 +818,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
           _tapTracker.startSession();
         });
         _buildRound();
+        startIdleTimer();
       },
       onBack: () {
         Navigator.pop(context);

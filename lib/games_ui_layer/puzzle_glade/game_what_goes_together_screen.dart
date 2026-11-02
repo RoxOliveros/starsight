@@ -18,6 +18,8 @@ import '../../ui_layer/puzzle_glade/puzzle_buttons.dart';
 import '../../ui_layer/puzzle_glade/puzzle_theme.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
+import '../how_to_play_overlay.dart';
+import '../idle_hint_mixin.dart';
 import 'game_odd_one_out_screen.dart';
 
 enum _ScreenPhase { intro, game }
@@ -151,7 +153,8 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
         RoxieReactionMixin,
         GameLoadingMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<WhatGoesTogetherScreen> {
+        AppAudioLifecycleMixin<WhatGoesTogetherScreen>,
+        IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _roxiePlayer = AudioPlayer();
@@ -192,6 +195,45 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+
+  // ── How to play ────────────────────────────────────────────────────────────
+  // The hint demo uses a fixed sample, never the real question: the preview
+  // shows the sample with its matching choice first, and the hand taps the
+  // first choice slot.
+  static const String _sampleTarget = 'toothbrush';
+  static const List<String> _sampleChoices = ['toothpaste', 'ball', 'spoon'];
+
+  final GlobalKey _choiceKey = GlobalKey();
+
+  /// The hint is useful once the child can answer and hasn't just done so.
+  bool get _hintActive =>
+      _screenPhase == _ScreenPhase.game &&
+          _instructionPlayed &&
+          !_buttonsDisabled &&
+          !_roundComplete &&
+          !_showWinDialog;
+
+  bool get _hintAllowed => showHowToPlay && _hintActive;
+
+  /// Hide any visible hint and restart the idle countdown.
+  void _armHint() {
+    if (!mounted) return;
+    setState(() => showHowToPlay = false);
+    startIdleTimer();
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final center =
+    box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
 
   // ── Animations ─────────────────────────────────────────────────────────────
   late AnimationController _roxieFloatCtrl;
@@ -234,6 +276,7 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
   @override
   void dispose() {
     disposeAiCamera();
+    disposeIdleTimer();
     _audioPlayer.dispose();
     _roxiePlayer.dispose();
 
@@ -263,8 +306,8 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     );
     _roxieSlide = Tween<Offset>(begin: const Offset(0, 1.6), end: Offset.zero)
         .animate(
-          CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
-        );
+      CurvedAnimation(parent: _roxieSlideCtrl, curve: Curves.elasticOut),
+    );
     _roxieFade = CurvedAnimation(
       parent: _roxieSlideCtrl,
       curve: const Interval(0, 0.4),
@@ -362,7 +405,7 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
 
     await _playInstructionAudio();
   }
-  
+
   Future<void> _playInstructionAudio() async {
     if (!mounted || _instructionPlayed) return;
     _instructionPlayed = true;
@@ -380,7 +423,9 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     if (!_roundComplete) {
       setState(() {
         _buttonsDisabled = false;
+        showHowToPlay = false;
       });
+      startIdleTimer(); // hint countdown starts once the child can answer
     }
   }
 
@@ -419,10 +464,12 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
 
     if (isCorrect) {
       _tapTracker.recordCorrectTap();
+      cancelIdleTimer();
       setState(() {
         _selectedIndex = index;
         _buttonsDisabled = true;
         _roundComplete = true;
+        showHowToPlay = false;
       });
 
       _bounceCtrl.forward(from: 0);
@@ -443,8 +490,8 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
         PuzzleProgressService.instance
             .markLevelComplete(widget.level)
             .catchError((e) {
-              debugPrint("Database Error marking level complete: $e");
-            });
+          debugPrint("Database Error marking level complete: $e");
+        });
         await _saveDataAndShowWinDialog();
       } else {
         await _targetEnterCtrl.reverse();
@@ -456,6 +503,7 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
         });
 
         _startRound();
+        _armHint();
       }
     } else {
       _tapTracker.recordMistake();
@@ -480,6 +528,7 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
   Future<void> _saveDataAndShowWinDialog() async {
     if (_hasSavedResult) return;
     _hasSavedResult = true;
+    cancelIdleTimer();
     List<String> finalEmotions = stopAiCamera();
 
     PuzzleDatabaseService.saveGameData(
@@ -498,54 +547,87 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     }
   }
 
+  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: buildWithLoading(
         loadingScreen: LoadingScreen.puzzleGlade(),
-        gameBuilder: () => Stack(
-          children: [
-            Positioned.fill(
-              child: Stack(
+        gameBuilder: () => Listener(
+          // Any touch hides the hint and restarts the idle countdown.
+          onPointerDown: (_) {
+            if (_hintActive) resetIdleTimer();
+          },
+          child: Stack(
+            children: [
+              Positioned.fill(child: _buildBackground()),
+              _screenPhase == _ScreenPhase.intro
+                  ? _buildIntroLayer()
+                  : Stack(
                 children: [
-                  Image.asset(
-                    _bgImage,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+                  FadeTransition(
+                    opacity: _gameFade,
+                    child: _buildGameArea(),
                   ),
-                  Container(color: Colors.black.withValues(alpha: 0.15)),
+                  buildRoxie(context),
                 ],
               ),
-            ),
-            _screenPhase == _ScreenPhase.intro
-                ? _buildIntroLayer()
-                : Stack(
-                    children: [
-                      FadeTransition(
-                        opacity: _gameFade,
-                        child: _buildGameArea(),
-                      ),
-                      buildRoxie(context),
-                    ],
-                  ),
-            Positioned(top: 25, left: 25, child: PuzzleXButton()),
+              Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
-            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-              LightingPromptCard(
-                onClose: () {
-                  setState(() => _hideLightingCard = true);
-                  releaseFaceGate();
-                },
-              ),
+              if (_hintAllowed) Positioned.fill(child: _buildHowToPlay()),
 
-            if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
-          ],
+              if (hasCapturedFirstFrame &&
+                  !isFaceDetected &&
+                  !_hideLightingCard)
+                LightingPromptCard(
+                  onClose: () {
+                    setState(() => _hideLightingCard = true);
+                    releaseFaceGate();
+                  },
+                ),
+
+              if (_showWinDialog) Positioned.fill(child: _buildWinOverlay()),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  Widget _buildBackground() {
+    return Stack(
+      children: [
+        Image.asset(
+          _bgImage,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+        ),
+        Container(color: Colors.black.withValues(alpha: 0.15)),
+      ],
+    );
+  }
+
+  // ── How to play ────────────────────────────────────────────────────────────
+  /// The preview is the same layout with a fixed sample (toothbrush, with its
+  /// matching choice first), and the hand taps the first choice slot. That
+  /// slot is only a position, so the real answer is never shown.
+  Widget _buildHowToPlay() {
+    return HowToPlayOverlay(
+      handAlignment: _alignmentOf(_choiceKey),
+      handOffset: const Offset(0.15, 0.65),
+      onDismiss: resetIdleTimer,
+      previewChild: Stack(
+        fit: StackFit.expand,
+        children: [
+          _buildBackground(),
+          _buildGameArea(preview: true),
+        ],
+      ),
+    );
+  }
+
+  // ── Intro ──────────────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
     return Column(
       children: [
@@ -649,7 +731,8 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     );
   }
 
-  Widget _buildGameArea() {
+  // ── Game ───────────────────────────────────────────────────────────────────
+  Widget _buildGameArea({bool preview = false}) {
     return Column(
       children: [
         Padding(
@@ -664,10 +747,10 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
             ],
           ),
         ),
-        Expanded(child: _buildTarget()),
+        Expanded(child: _buildTarget(preview: preview)),
         Padding(
           padding: const EdgeInsets.only(top: 15, bottom: 15),
-          child: _buildChoiceRow(),
+          child: _buildChoiceRow(preview: preview),
         ),
         Padding(
           padding: const EdgeInsets.only(bottom: 15),
@@ -680,76 +763,86 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     );
   }
 
-  Widget _buildTarget() {
+  Widget _buildTarget({bool preview = false}) {
+    final object = preview ? _sampleTarget : _question.targetObject;
+
     Widget image = Image.asset(
-      '$_objectAssetPath/${_question.targetObject}.png',
+      '$_objectAssetPath/$object.png',
       fit: BoxFit.contain,
     );
 
-    if (_roundComplete) {
+    if (!preview && _roundComplete) {
       image = ScaleTransition(scale: _bounceAnim, child: image);
     }
 
-    return Center(
-      child: FadeTransition(
-        opacity: _targetFade,
-        child: ScaleTransition(
-          scale: _targetScale,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 180,
-                height: 150,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: PuzzleColorTheme.darkdesaturatedblue.withValues(
-                      alpha: 0.28,
-                    ),
-                    width: 2.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: PuzzleColorTheme.darkdesaturatedblue.withValues(
-                        alpha: 0.09,
-                      ),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+    final card = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 180,
+          height: 150,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                alpha: 0.28,
+              ),
+              width: 2.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: PuzzleColorTheme.darkdesaturatedblue.withValues(
+                  alpha: 0.09,
                 ),
-                padding: const EdgeInsets.all(20),
-                child: image,
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
+          padding: const EdgeInsets.all(20),
+          child: image,
         ),
+      ],
+    );
+
+    return Center(
+      child: preview
+          ? card
+          : FadeTransition(
+        opacity: _targetFade,
+        child: ScaleTransition(scale: _targetScale, child: card),
       ),
     );
   }
 
-  Widget _buildChoiceRow() {
+  Widget _buildChoiceRow({bool preview = false}) {
+    final choices = preview ? _sampleChoices : _shuffledChoices;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        for (int i = 0; i < _shuffledChoices.length; i++) ...[
+        for (int i = 0; i < choices.length; i++) ...[
           if (i > 0) const SizedBox(width: 24),
           KeyedSubtree(
-            key: ValueKey('${_round}_${i}_${_shuffledChoices[i]}'),
-            child: _buildChoiceCard(i),
+            // Marks the first slot (a position only, never the answer).
+            // The preview copy must not reuse the key.
+            key: (!preview && i == 0) ? _choiceKey : null,
+            child: KeyedSubtree(
+              key: ValueKey('${preview ? 'p' : '$_round'}_${i}_${choices[i]}'),
+              child: _buildChoiceCard(i, choices[i], preview: preview),
+            ),
           ),
         ],
       ],
     );
   }
 
-  Widget _buildChoiceCard(int index) {
-    final object = _shuffledChoices[index];
-    final isCorrectSelected = _roundComplete && index == _selectedIndex;
-    final isWrongTap = _wrongIndex == index;
-    final isDimmed = _roundComplete && index != _selectedIndex;
+  Widget _buildChoiceCard(int index, String object, {bool preview = false}) {
+    final isCorrectSelected =
+        !preview && _roundComplete && index == _selectedIndex;
+    final isWrongTap = !preview && _wrongIndex == index;
+    final isDimmed = !preview && _roundComplete && index != _selectedIndex;
 
     Color borderColor = PuzzleColorTheme.darkdesaturatedblue.withValues(
       alpha: 0.28,
@@ -796,6 +889,9 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
       child: Center(child: image),
     );
 
+    // The preview card is plain: no entrance, shake or tap handling.
+    if (preview) return card;
+
     if (isWrongTap) {
       card = AnimatedBuilder(
         animation: _shakeAnim,
@@ -822,6 +918,7 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
     return GestureDetector(onTap: () => _onChoiceTapped(index), child: card);
   }
 
+  // ── Win ────────────────────────────────────────────────────────────────────
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
@@ -834,13 +931,16 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
         );
       },
       onRestart: () {
+        cancelIdleTimer();
         setState(() {
           _round = 1;
           _showWinDialog = false;
           _hasSavedResult = false;
+          showHowToPlay = false;
           _tapTracker.startSession();
         });
         _startRound();
+        _armHint();
       },
       onBack: () {
         Navigator.pop(context);
