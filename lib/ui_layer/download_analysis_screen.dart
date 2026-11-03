@@ -371,8 +371,8 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
           color: _DlPalette.teal,
           title: 'NO REPORTS YET',
           message:
-              'There is nothing to download for your selected subjects yet. '
-              'Play at least one level in any of the selected subjects, open '
+              'There is nothing to download for your selected categories yet. '
+              'Play at least one level in any of the selected categories, open '
               "its report from your child's profile, then come back and try "
               'again.',
         );
@@ -731,7 +731,7 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'The PDF includes the selected subjects\' insights. It is a '
+              'The PDF includes the selected categories\' insights. It is a '
               'helpful guide based on gameplay, not a formal assessment.',
               style: TextStyle(
                 fontFamily: 'Nunito',
@@ -792,7 +792,7 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
                 ? 'CREATING PDF...'
                 : enabled
                 ? 'DOWNLOAD PDF  (${_selected.length})'
-                : 'SELECT A SUBJECT',
+                : 'SELECT A CATEGORY',
             style: const TextStyle(
               fontFamily: _DlFonts.fredoka,
               fontSize: 15,
