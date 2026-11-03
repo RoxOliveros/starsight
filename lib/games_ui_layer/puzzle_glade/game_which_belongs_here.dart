@@ -115,7 +115,7 @@ const List<_WhichBelongsQuestion> _kRound5Pool = [
   _WhichBelongsQuestion(
     scene: 'bg_living_room',
     correctObject: 'sofa',
-    choices: ['sofa', 'room_lamp', 'bucket'],
+    choices: ['sofa', 'spatula', 'bucket'],
   ),
 ];
 
@@ -1025,10 +1025,6 @@ class _WhichBelongsHereScreenState extends State<WhichBelongsHereScreen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      onNext: () {
-        // Just an example; update when a subsequent level exists
-        Navigator.pop(context);
-      },
       onRestart: () {
         setState(() {
           _round = 1;
