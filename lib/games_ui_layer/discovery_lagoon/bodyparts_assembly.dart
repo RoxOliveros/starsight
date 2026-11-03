@@ -45,7 +45,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
         IdleHintMixin {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _kikiPlayer= AudioPlayer();
+  final AudioPlayer _kikiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
@@ -138,7 +138,8 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   void _resetGame() {
     setState(() {
       _matchedParts.clear();
-      _availableParts = List.from(_allParts)..shuffle();
+      _availableParts = List.from(_allParts)
+        ..shuffle();
       _hasSavedResult = false;
       _tapTracker.startSession();
     });
@@ -174,85 +175,90 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   @override
   Widget build(BuildContext context) {
     return Listener(
-        onPointerDown: (_) {
-          _tapTracker.recordGenericTap();
-          if (_screenPhase == LagoonScreenPhase.game && !_showOverlay) {
-            resetIdleTimer();
-          }
-        },
-        child:  Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (_screenPhase == LagoonScreenPhase.game && !_showOverlay) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
 
-          Positioned(top: 25, left: 25, child: const LagoonXButton()),
-          Positioned(
-            top: 25,
-            right: 25,
-            child: LagoonLevelBadge(level: widget.level),
-          ),
+            Positioned(top: 25, left: 25, child: const LagoonXButton()),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LagoonLevelBadge(level: widget.level),
+            ),
 
-          Positioned.fill(
-            top: 50,
-            child: _screenPhase == LagoonScreenPhase.intro
-                ? buildLagoonIntroCharacter()
-                : _buildGameContent(),
-          ),
-
-          if (showHowToPlay &&
-              _screenPhase == LagoonScreenPhase.game &&
-              !_showOverlay &&
-              _matchedParts.length < _allParts.length)
             Positioned.fill(
-              child: Builder(
-                builder: (context) {
-                  final sz = MediaQuery.of(context).size;
-                  final g = _hintGeometry();
-                  Alignment toAlign(Offset p) =>
-                      Alignment(p.dx / sz.width * 2 - 1, p.dy / sz.height * 2 - 1);
-                  return HowToPlayOverlay(
-                    previewChild: _buildHowToPreview(),
-                    handAlignment: toAlign(g.card),
-                    handEndAlignment: toAlign(g.box),
-                    handOffset: const Offset(0.15, 0.46),
-                    onDismiss: resetIdleTimer,
-                  );
-                },
+              top: 50,
+              child: _screenPhase == LagoonScreenPhase.intro
+                  ? buildLagoonIntroCharacter()
+                  : _buildGameContent(),
+            ),
+
+            if (showHowToPlay &&
+                _screenPhase == LagoonScreenPhase.game &&
+                !_showOverlay &&
+                _matchedParts.length < _allParts.length)
+              Positioned.fill(
+                child: Builder(
+                  builder: (context) {
+                    final sz = MediaQuery
+                        .of(context)
+                        .size;
+                    final g = _hintGeometry();
+                    Alignment toAlign(Offset p) =>
+                        Alignment(
+                            p.dx / sz.width * 2 - 1, p.dy / sz.height * 2 - 1);
+                    return HowToPlayOverlay(
+                      previewChild: _buildHowToPreview(),
+                      handAlignment: toAlign(g.card),
+                      handEndAlignment: toAlign(g.box),
+                      handOffset: const Offset(0.15, 0.46),
+                      onDismiss: resetIdleTimer,
+                    );
+                  },
+                ),
               ),
-            ),
-          
-          if (_showOverlay)
-            GoodJobOverlay(
-              characterImage: _kikiFishboneImage,
-              characterSizeFactor: 0.9,
-              onNext: () {
-                if (context.mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => TreeGameScreen(level: widget.level + 1),
-                    ),
-                  );
-                }
-              },
-              onRestart: () {
-                setState(() {
-                  _showOverlay = false;
-                  _screenPhase = LagoonScreenPhase.game;
-                  _resetGame();
-                });
-                startIdleTimer();
-              },
-              onBack: () => Navigator.of(context).pop(),
-            ),
-        ],
-      ),
+
+            if (_showOverlay)
+              GoodJobOverlay(
+                characterImage: _kikiFishboneImage,
+                characterSizeFactor: 0.9,
+                onNext: () {
+                  if (context.mounted) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TreeGameScreen(level: widget.level + 1),
+                      ),
+                    );
+                  }
+                },
+                onRestart: () {
+                  setState(() {
+                    _showOverlay = false;
+                    _screenPhase = LagoonScreenPhase.game;
+                    _resetGame();
+                  });
+                  startIdleTimer();
+                },
+                onBack: () => Navigator.of(context).pop(),
+              ),
+          ],
         ),
+      ),
     );
   }
 
   ({Offset card, Offset box}) _hintGeometry() {
-    final sz = MediaQuery.of(context).size;
+    final sz = MediaQuery
+        .of(context)
+        .size;
     final h = sz.height - 50; // game area sits 50px below the top
     final dw = sz.width * 0.62;
     final ow = sz.width * 0.38;
@@ -263,7 +269,9 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   }
 
   Widget _buildHowToPreview() {
-    final sz = MediaQuery.of(context).size;
+    final sz = MediaQuery
+        .of(context)
+        .size;
     final h = sz.height - 50;
     final dw = sz.width * 0.62;
     final cx = dw / 2;
@@ -331,215 +339,215 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   }
 
   Widget _buildGameContent() {
-    return Expanded(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final double h = constraints.maxHeight;
-          final double w = constraints.maxWidth;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double h = constraints.maxHeight;
+        final double w = constraints.maxWidth;
 
-          // Left side = diagram
-          final double diagramWidth = w * 0.62;
-          final double diagramHeight = h;
+        // Left side = diagram
+        final double diagramWidth = w * 0.62;
+        final double diagramHeight = h;
 
-          final double optionsWidth = w * 0.38;
+        final double optionsWidth = w * 0.38;
 
-          return Row(
-            children: [
-              // =========================
-              // LEFT: BODY DIAGRAM
-              // =========================
-              SizedBox(
-                width: diagramWidth,
-                height: diagramHeight,
-                child: LayoutBuilder(
-                  builder: (context, diagramConstraints) {
-                    final double dh = diagramConstraints.maxHeight;
-                    final double dw = diagramConstraints.maxWidth;
+        return Row(
+          children: [
+            // =========================
+            // LEFT: BODY DIAGRAM
+            // =========================
+            SizedBox(
+              width: diagramWidth,
+              height: diagramHeight,
+              child: LayoutBuilder(
+                builder: (context, diagramConstraints) {
+                  final double dh = diagramConstraints.maxHeight;
+                  final double dw = diagramConstraints.maxWidth;
 
-                    final double cx = dw / 2;
-                    final double cy = dh / 2;
+                  final double cx = dw / 2;
+                  final double cy = dh / 2;
 
-                    final double boxSize = dh * 0.20;
+                  final double boxSize = dh * 0.20;
 
-                    final double boyHeight = dh * 0.95;
-                    final double boyWidth = boyHeight * 0.6;
+                  final double boyHeight = dh * 0.95;
+                  final double boyWidth = boyHeight * 0.6;
 
-                    final double boyLeft = cx - boyWidth / 2;
-                    final double boyTop = cy - boyHeight / 2;
+                  final double boyLeft = cx - boyWidth / 2;
+                  final double boyTop = cy - boyHeight / 2;
 
-                    final Offset headTarget = Offset(
-                      boyLeft + boyWidth * 0.20,
-                      boyTop + boyHeight * 0.15,
-                    );
+                  final Offset headTarget = Offset(
+                    boyLeft + boyWidth * 0.20,
+                    boyTop + boyHeight * 0.15,
+                  );
 
-                    final Offset shoulderTarget = Offset(
-                      boyLeft + boyWidth * 0.71,
-                      boyTop + boyHeight * 0.44,
-                    );
+                  final Offset shoulderTarget = Offset(
+                    boyLeft + boyWidth * 0.71,
+                    boyTop + boyHeight * 0.44,
+                  );
 
-                    final Offset kneeTarget = Offset(
-                      boyLeft + boyWidth * 0.68,
-                      boyTop + boyHeight * 0.80,
-                    );
+                  final Offset kneeTarget = Offset(
+                    boyLeft + boyWidth * 0.68,
+                    boyTop + boyHeight * 0.80,
+                  );
 
-                    final Offset feetTarget = Offset(
-                      boyLeft + boyWidth * 0.29,
-                      boyTop + boyHeight * 0.92,
-                    );
+                  final Offset feetTarget = Offset(
+                    boyLeft + boyWidth * 0.29,
+                    boyTop + boyHeight * 0.92,
+                  );
 
-                    // Left/right target boxes around the boy
-                    final Offset headBoxCenter = Offset(
-                      cx - dh * 0.32,
-                      cy - dh * 0.25,
-                    );
+                  // Left/right target boxes around the boy
+                  final Offset headBoxCenter = Offset(
+                    cx - dh * 0.32,
+                    cy - dh * 0.25,
+                  );
 
-                    final Offset shoulderBoxCenter = Offset(
-                      cx + dh * 0.32,
-                      cy - dh * 0.20,
-                    );
+                  final Offset shoulderBoxCenter = Offset(
+                    cx + dh * 0.32,
+                    cy - dh * 0.20,
+                  );
 
-                    final Offset feetBoxCenter = Offset(
-                      cx - dh * 0.32,
-                      cy + dh * 0.25,
-                    );
+                  final Offset feetBoxCenter = Offset(
+                    cx - dh * 0.32,
+                    cy + dh * 0.25,
+                  );
 
-                    final Offset kneeBoxCenter = Offset(
-                      cx + dh * 0.32,
-                      cy + dh * 0.25,
-                    );
+                  final Offset kneeBoxCenter = Offset(
+                    cx + dh * 0.32,
+                    cy + dh * 0.25,
+                  );
 
-                    return Stack(
-                      children: [
-                        // Boy
-                        Center(
-                          child: Image.asset(
-                            _boyImage,
-                            height: boyHeight,
-                            fit: BoxFit.contain,
+                  return Stack(
+                    children: [
+                      // Boy
+                      Center(
+                        child: Image.asset(
+                          _boyImage,
+                          height: boyHeight,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+
+                      // Connecting lines
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: ConnectingLinesPainter(
+                            headBox: headBoxCenter,
+                            headTarget: headTarget,
+                            shoulderBox: shoulderBoxCenter,
+                            shoulderTarget: shoulderTarget,
+                            feetBox: feetBoxCenter,
+                            feetTarget: feetTarget,
+                            kneeBox: kneeBoxCenter,
+                            kneeTarget: kneeTarget,
                           ),
                         ),
+                      ),
 
-                        // Connecting lines
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: ConnectingLinesPainter(
-                              headBox: headBoxCenter,
-                              headTarget: headTarget,
-                              shoulderBox: shoulderBoxCenter,
-                              shoulderTarget: shoulderTarget,
-                              feetBox: feetBoxCenter,
-                              feetTarget: feetTarget,
-                              kneeBox: kneeBoxCenter,
-                              kneeTarget: kneeTarget,
-                            ),
-                          ),
+                      // HEAD
+                      Positioned(
+                        left: headBoxCenter.dx - boxSize / 2,
+                        top: headBoxCenter.dy - boxSize / 2,
+                        child: _buildTargetBox('head', boxSize),
+                      ),
+
+                      // SHOULDER
+                      Positioned(
+                        left: shoulderBoxCenter.dx - boxSize / 2,
+                        top: shoulderBoxCenter.dy - boxSize / 2,
+                        child: _buildTargetBox('shoulder', boxSize),
+                      ),
+
+                      // FEET
+                      Positioned(
+                        left: feetBoxCenter.dx - boxSize / 2,
+                        top: feetBoxCenter.dy - boxSize / 2,
+                        child: _buildTargetBox('feet', boxSize),
+                      ),
+
+                      // KNEE
+                      Positioned(
+                        left: kneeBoxCenter.dx - boxSize / 2,
+                        top: kneeBoxCenter.dy - boxSize / 2,
+                        child: _buildTargetBox('knee', boxSize),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+
+            // =========================
+            // RIGHT: 2x2 OPTIONS
+            // =========================
+            SizedBox(
+              width: optionsWidth,
+              height: diagramHeight,
+              child: Center(
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(20),
+                  gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 18,
+                    mainAxisSpacing: 18,
+                    childAspectRatio: 1,
+                  ),
+                  itemCount: _availableParts.length,
+                  itemBuilder: (context, index) {
+                    final part = _availableParts[index];
+
+                    if (_matchedParts.contains(part.id)) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return Center(
+                      child: Draggable<String>(
+                        data: part.id,
+                        onDragStarted: cancelIdleTimer,
+                        onDragEnd: (details) {
+                          if (!details.wasAccepted) {
+                            startIdleTimer();
+                            _tapTracker.recordMistake();
+                            GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+                            showKikiReaction(KikiState.wrong);
+                          }
+                        },
+
+                        feedback: _DraggableImage(
+                          imagePath: part.imagePath,
+                          isDragging: true,
                         ),
 
-                        // HEAD
-                        Positioned(
-                          left: headBoxCenter.dx - boxSize / 2,
-                          top: headBoxCenter.dy - boxSize / 2,
-                          child: _buildTargetBox('head', boxSize),
+                        childWhenDragging: Opacity(
+                          opacity: 0.3,
+                          child: _DraggableImage(imagePath: part.imagePath),
                         ),
 
-                        // SHOULDER
-                        Positioned(
-                          left: shoulderBoxCenter.dx - boxSize / 2,
-                          top: shoulderBoxCenter.dy - boxSize / 2,
-                          child: _buildTargetBox('shoulder', boxSize),
-                        ),
-
-                        // FEET
-                        Positioned(
-                          left: feetBoxCenter.dx - boxSize / 2,
-                          top: feetBoxCenter.dy - boxSize / 2,
-                          child: _buildTargetBox('feet', boxSize),
-                        ),
-
-                        // KNEE
-                        Positioned(
-                          left: kneeBoxCenter.dx - boxSize / 2,
-                          top: kneeBoxCenter.dy - boxSize / 2,
-                          child: _buildTargetBox('knee', boxSize),
-                        ),
-                      ],
+                        child: _DraggableImage(imagePath: part.imagePath),
+                      ),
                     );
                   },
                 ),
               ),
-
-              // =========================
-              // RIGHT: 2x2 OPTIONS
-              // =========================
-              SizedBox(
-                width: optionsWidth,
-                height: diagramHeight,
-                child: Center(
-                  child: GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(20),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 18,
-                          mainAxisSpacing: 18,
-                          childAspectRatio: 1,
-                        ),
-                    itemCount: _availableParts.length,
-                    itemBuilder: (context, index) {
-                      final part = _availableParts[index];
-
-                      if (_matchedParts.contains(part.id)) {
-                        return const SizedBox.shrink();
-                      }
-
-                      return Center(
-                        child: Draggable<String>(
-                          data: part.id,
-                          onDragStarted: cancelIdleTimer,
-                          onDragEnd: (details) {
-                            if (!details.wasAccepted) {
-                              startIdleTimer();
-                              _tapTracker.recordMistake();
-                              GamesSfxPlayer.instance.play(GameSfx.bubblePop);
-                              showKikiReaction(KikiState.wrong);
-                            }
-                          },
-
-                          feedback: _DraggableImage(
-                            imagePath: part.imagePath,
-                            isDragging: true,
-                          ),
-
-                          childWhenDragging: Opacity(
-                            opacity: 0.3,
-                            child: _DraggableImage(imagePath: part.imagePath),
-                          ),
-
-                          child: _DraggableImage(imagePath: part.imagePath),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildTargetBox(String targetId, double size) {
     bool isMatched = _matchedParts.contains(targetId);
     String? matchedImagePath = isMatched
-        ? _allParts.firstWhere((p) => p.id == targetId).imagePath
+        ? _allParts
+        .firstWhere((p) => p.id == targetId)
+        .imagePath
         : null;
 
     return DragTarget<String>(
       onWillAcceptWithDetails: (details) =>
-          details.data == targetId && !isMatched,
+      details.data == targetId && !isMatched,
       onAcceptWithDetails: (details) async {
         _tapTracker.recordCorrectTap();
         showKikiReaction(KikiState.correct);
@@ -549,7 +557,8 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
         });
 
         if (_matchedParts.length == _allParts.length) {
-          await playVoiceRestartingOnFaceLoss(_audioPlayer, _partAudio[targetId]!);
+          await playVoiceRestartingOnFaceLoss(
+              _audioPlayer, _partAudio[targetId]!);
           if (!mounted) return;
 
           await playVoiceRestartingOnFaceLoss(_audioPlayer, _winAudio);
@@ -557,7 +566,8 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
             await _saveDataAndShowSuccessDialog();
           }
         } else {
-          await playVoiceRestartingOnFaceLoss(_audioPlayer, _partAudio[targetId]!);
+          await playVoiceRestartingOnFaceLoss(
+              _audioPlayer, _partAudio[targetId]!);
           if (mounted) startIdleTimer();
         }
       },
@@ -585,9 +595,9 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
           ),
           child: isMatched
               ? Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Image.asset(matchedImagePath!, fit: BoxFit.contain),
-                )
+            padding: const EdgeInsets.all(8.0),
+            child: Image.asset(matchedImagePath!, fit: BoxFit.contain),
+          )
               : null,
         );
       },
@@ -634,6 +644,7 @@ class _DraggableImage extends StatelessWidget {
 
 class _SampleLinePainter extends CustomPainter {
   final Offset box, target;
+
   _SampleLinePainter(this.box, this.target);
 
   @override
@@ -643,7 +654,8 @@ class _SampleLinePainter extends CustomPainter {
       ..strokeWidth = 4.0
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(box, target, paint);
-    canvas.drawCircle(target, 6.0, Paint()..color = Colors.black87);
+    canvas.drawCircle(target, 6.0, Paint()
+      ..color = Colors.black87);
   }
 
   @override
