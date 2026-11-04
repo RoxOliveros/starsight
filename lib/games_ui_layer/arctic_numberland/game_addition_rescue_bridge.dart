@@ -56,6 +56,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
   static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
   static const String _babyFoxAsset = 'assets/images/characters/baby_arctic_fox.png';
   static const String _beamAsset = 'assets/images/objects/arctic/beam.png';
+  static const double _beamAspect = 865 / 135;
 
   static const String _audioBase = 'assets/audio/arctic_numberland';
   static const String _audioIntro = '$_audioBase/rescue_bridge_intro.wav';
@@ -550,7 +551,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
     final ph = h * 0.25;
 
     final beamW = w * 0.55;
-    const beamH = 30.0;
+    final beamH = beamW / _beamAspect;
 
     final panAlignX = (beamW - pw) / (w - pw);
     final panCy = h / 2 + (-0.2) * (h - ph) / 2;
@@ -563,7 +564,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
         ),
         Positioned(
           left: (w - beamW) / 2,
-          top: panBottom - beamH / 2,
+          top: panBottom - beamH * 0.2,
           child: Image.asset(
             _beamAsset,
             width: beamW,
@@ -819,6 +820,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
         : maxPanSizeForWidth;
     const double beamLengthFactor = 1.3;
     final beamWidth = ((w - panSize) * beamLengthFactor).clamp(150.0, w - 8);
+    final beamHeight = beamWidth / _beamAspect;
     final balanced = _currentTotal == _target;
 
     return Align(
@@ -870,7 +872,7 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                                 _beamAsset,
                                 key: _beamKey,
                                 width: beamWidth,
-                                height: 30,
+                                height: beamHeight,
                                 fit: BoxFit.fill,
                                 errorBuilder: (_, __, ___) => Container(
                                   height: 6,
@@ -880,12 +882,12 @@ class _AdditionRescueBridgeGameState extends State<AdditionRescueBridgeGame>
                               ),
                               Positioned(
                                 left: 0,
-                                top: -panSize * 0.35,
+                                top: -panSize * 0.35 - (beamHeight - 30) / 2,
                                 child: _buildLeftPan(panSize),
                               ),
                               Positioned(
                                 right: 0,
-                                top: -panSize * 0.35,
+                                top: -panSize * 0.35 - (beamHeight - 30) / 2,
                                 child: _buildRightPan(panSize),
                               ),
                             ],
