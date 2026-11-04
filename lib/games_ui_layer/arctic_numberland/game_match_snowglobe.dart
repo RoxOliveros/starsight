@@ -41,9 +41,8 @@ class _Number1to5MatchSnowglobesScreenState
         AiCameraMixin<Number1to5MatchSnowglobesScreen>,
         AppAudioLifecycleMixin<Number1to5MatchSnowglobesScreen>,
         IdleHintMixin {
-
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _domaPlayer= AudioPlayer();
+  final AudioPlayer _domaPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
@@ -56,8 +55,10 @@ class _Number1to5MatchSnowglobesScreenState
   static const int _globeCount = 3;
 
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
-  static const String _characterImage = 'assets/images/characters/doma_the_penguin.png';
-  static const String _snowglobeAsset = 'assets/images/objects/arctic/empty_snowglobe.png';
+  static const String _characterImage =
+      'assets/images/characters/doma_the_penguin.png';
+  static const String _snowglobeAsset =
+      'assets/images/objects/arctic/empty_snowglobe.png';
 
   // Objects that can appear inside snowglobes
   static const List<String> _insideObjects = [
@@ -68,7 +69,13 @@ class _Number1to5MatchSnowglobesScreenState
     'assets/images/objects/arctic/ice_skates.png',
   ];
 
-  static const String _audioIntro = 'assets/audio/arctic_numberland/level20/intro.wav';
+  static const String _audioIntro =
+      'assets/audio/arctic_numberland/level20/intro.wav';
+
+  static const int _demoTarget = 2;
+  static const List<int> _demoCounts = [1, 2, 3];
+  static const int _demoTapIndex = 1; // the globe that holds 2
+  static const String _demoObject = 'assets/images/objects/arctic/snowball.png';
 
   // ── Tracking Variables ─────────────────────────────────────────────────────
   final GameTapTracker _tapTracker = GameTapTracker();
@@ -89,7 +96,10 @@ class _Number1to5MatchSnowglobesScreenState
 
   int? _shakingIndex;
 
-  final List<GlobalKey> _globeKeys = List.generate(_globeCount, (_) => GlobalKey());
+  final List<GlobalKey> _globeKeys = List.generate(
+    _globeCount,
+    (_) => GlobalKey(),
+  );
 
   // ── Animations ─────────────────────────────────────────────────────────────
 
@@ -265,7 +275,10 @@ class _Number1to5MatchSnowglobesScreenState
       setState(() => _tappedIndex = index);
       _correctPulseCtrl.forward(from: 0);
       showDomaReaction(DomaState.correct);
-      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/arctic_numberland/$_targetNumber.wav');
+      await playVoiceRestartingOnFaceLoss(
+        _audioPlayer,
+        'assets/audio/arctic_numberland/$_targetNumber.wav',
+      );
 
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
@@ -400,7 +413,10 @@ class _Number1to5MatchSnowglobesScreenState
     final root = context.findRenderObject() as RenderBox?;
     if (box == null || root == null || !box.hasSize) return Alignment.center;
 
-    final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    final center = box.localToGlobal(
+      box.size.center(Offset.zero),
+      ancestor: root,
+    );
     return Alignment(
       center.dx / root.size.width * 2 - 1,
       center.dy / root.size.height * 2 - 1,
@@ -409,7 +425,7 @@ class _Number1to5MatchSnowglobesScreenState
 
   Widget _buildHowToPlayOverlay() {
     return HowToPlayOverlay(
-      handAlignment: _alignmentOf(_globeKeys[0]),
+      handAlignment: _alignmentOf(_globeKeys[_demoTapIndex]),
       handOffset: const Offset(0.16, 0.48),
       onDismiss: resetIdleTimer,
       previewChild: Stack(
@@ -598,10 +614,11 @@ class _Number1to5MatchSnowglobesScreenState
 
   // ── Target Panel ───────────────────────────────────────────────────────────
   _buildTargetPanel(double h, bool preview) {
+    final number = preview ? _demoTarget : _targetNumber;
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Target number card
         ScaleTransition(
           scale: _targetEnter,
           child: Container(
@@ -621,14 +638,12 @@ class _Number1to5MatchSnowglobesScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                preview
-                    ? SizedBox(width: h * 0.15, height: h * 0.25)
-                    : Image.asset(
-                  'assets/fonts/game_numbers/$_targetNumber.png',
+                Image.asset(
+                  'assets/fonts/game_numbers/$number.png',
                   height: (h * 0.25),
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) => Text(
-                    '$_targetNumber',
+                    '$number',
                     style: TextStyle(
                       fontFamily: ArcticAppTextStyles.fredoka,
                       fontSize: (h * 0.13).clamp(36.0, 60.0),
@@ -653,7 +668,7 @@ class _Number1to5MatchSnowglobesScreenState
         crossAxisAlignment: CrossAxisAlignment.center,
         children: List.generate(
           _globeCount,
-              (i) => _buildSingleGlobe(i, h, preview),
+          (i) => _buildSingleGlobe(i, h, preview),
         ),
       ),
     );
@@ -664,6 +679,8 @@ class _Number1to5MatchSnowglobesScreenState
     final isShaking = _shakingIndex == index;
     final globeSize = (h * 0.47);
     final objectSize = (globeSize * 0.16).clamp(16.0, 30.0);
+    final count = preview ? _demoCounts[index] : _globeCounts[index];
+    final object = preview ? _demoObject : _globeObjects[index];
 
     return AnimatedBuilder(
       animation: _shakeCtrl[index],
@@ -682,29 +699,24 @@ class _Number1to5MatchSnowglobesScreenState
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                // Snowglobe base image
-                Image.asset(
-                  _snowglobeAsset,
-                  width: globeSize,
-                  height: globeSize,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) =>
-                      SizedBox(width: globeSize, height: globeSize),
-                ),
+                  // Snowglobe base image
+                  Image.asset(
+                    _snowglobeAsset,
+                    width: globeSize,
+                    height: globeSize,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) =>
+                        SizedBox(width: globeSize, height: globeSize),
+                  ),
 
-                  if (!preview)
-                    Positioned(
-                      top: globeSize * 0.18,
-                      left: globeSize * 0.15,
-                      right: globeSize * 0.15,
-                      bottom: globeSize * 0.30,
-                      child: _buildObjectsInsideGlobe(
-                        _globeCounts[index],
-                        _globeObjects[index],
-                        objectSize,
-                      ),
-                    ),
-              ],
+                  Positioned(
+                    top: globeSize * 0.18,
+                    left: globeSize * 0.15,
+                    right: globeSize * 0.15,
+                    bottom: globeSize * 0.30,
+                    child: _buildObjectsInsideGlobe(count, object, objectSize),
+                  ),
+                ],
               ),
             ),
           ),

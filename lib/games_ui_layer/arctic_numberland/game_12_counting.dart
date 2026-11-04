@@ -42,9 +42,8 @@ class _Number12CountingObjectsScreenState
         AiCameraMixin,
         AppAudioLifecycleMixin<Number12CountingObjectsScreen>,
         IdleHintMixin {
-
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _domaPlayer= AudioPlayer();
+  final AudioPlayer _domaPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _domaPlayer];
@@ -57,6 +56,10 @@ class _Number12CountingObjectsScreenState
 
   static const String _audioIntro = 'assets/audio/arctic_numberland/012_counting_intro.wav';
   static const String _audioInstruction = 'assets/audio/arctic_numberland/012_counting_instruction.wav';
+
+  static const String _sampleObject = 'assets/images/objects/arctic/snowman.png';
+  static const int _sampleCount = 2;
+  static const List<int> _sampleChoices = [1, 2];
 
   late int _correctCount;
   late List<int> _choices;
@@ -198,7 +201,10 @@ class _Number12CountingObjectsScreenState
 
       setState(() => _tappedIndex = index);
       showDomaReaction(DomaState.correct);
-      await playVoiceRestartingOnFaceLoss(_audioPlayer, 'assets/audio/arctic_numberland/$_correctCount.wav');
+      await playVoiceRestartingOnFaceLoss(
+        _audioPlayer,
+        'assets/audio/arctic_numberland/$_correctCount.wav',
+      );
       await Future.delayed(const Duration(milliseconds: 900));
       if (_round >= _totalRounds) {
         List<String> finalEmotions = stopAiCamera();
@@ -323,12 +329,13 @@ class _Number12CountingObjectsScreenState
                     child: HowToPlayOverlay(
                       previewChild: _buildHintPreview(),
                       handAlignment: _choiceHintAlignment(),
-                      handOffset: const Offset(0.15, 0.46),
+                      handOffset: const Offset(0.15, 0.65),
                       onDismiss: resetIdleTimer,
                     ),
                   ),
 
-                if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
+                if (_showWinDialog)
+                  Positioned.fill(child: _buildGoodJobOverlay()),
               ],
             );
             return reactiveNeedsLightingPrompt
@@ -348,9 +355,14 @@ class _Number12CountingObjectsScreenState
   Alignment _choiceHintAlignment() {
     final box = _choiceKey.currentContext?.findRenderObject() as RenderBox?;
     final root = context.findRenderObject() as RenderBox?;
-    if (box == null || root == null || !box.hasSize) return Alignment.centerRight;
+    if (box == null || root == null || !box.hasSize) {
+      return Alignment.centerRight;
+    }
 
-    final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
+    final center = box.localToGlobal(
+      box.size.center(Offset.zero),
+      ancestor: root,
+    );
     return Alignment(
       center.dx / root.size.width * 2 - 1,
       center.dy / root.size.height * 2 - 1,
@@ -360,6 +372,7 @@ class _Number12CountingObjectsScreenState
   Widget _buildHintPreview() {
     return Stack(
       children: [
+        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
         Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
         _buildMiniGameContent(preview: true),
       ],
@@ -373,10 +386,7 @@ class _Number12CountingObjectsScreenState
           children: [
             // HEADER
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 25,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
               child: Stack(
                 alignment: Alignment.topCenter,
                 children: [
@@ -410,10 +420,7 @@ class _Number12CountingObjectsScreenState
                       flex: 3,
                       child: Container(
                         height: double.infinity,
-                        margin: const EdgeInsets.only(
-                          bottom: 16,
-                          left: 12,
-                        ),
+                        margin: const EdgeInsets.only(bottom: 16, left: 12),
                         decoration: BoxDecoration(
                           color: ArcticColorTheme.cotton,
                           borderRadius: BorderRadius.circular(24),
@@ -423,8 +430,9 @@ class _Number12CountingObjectsScreenState
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: ArcticColorTheme.pictonblue
-                                  .withValues(alpha: 0.3),
+                              color: ArcticColorTheme.pictonblue.withValues(
+                                alpha: 0.3,
+                              ),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -432,7 +440,7 @@ class _Number12CountingObjectsScreenState
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(16),
-                          child: _buildObjectGrid(),
+                          child: _buildObjectGrid(preview: preview),
                         ),
                       ),
                     ),
@@ -443,58 +451,55 @@ class _Number12CountingObjectsScreenState
                     Expanded(
                       flex: 2,
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 16,
-                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         child: Column(
-                          mainAxisAlignment:
-                          MainAxisAlignment.center,
-                          children: List.generate(_choices.length, (
-                              index,
-                              ) {
-                            return Expanded(
-                              child: Padding(
-                                padding:
-                                const EdgeInsets.symmetric(
-                                  vertical: 7,
-                                ),
-                                child: GestureDetector(
-                                  onTap: _canTapChoices
-                                      ? () => _onChoiceTap(index)
-                                      : null,
-                                  child: AnimatedContainer(
-                                    key: (!preview && index == 0) ? _choiceKey : null,
-                                    duration: const Duration(milliseconds: 250),
-                                    width: double.infinity,
-                                    decoration: BoxDecoration(
-                                      color: _choiceColor(index),
-                                      borderRadius:
-                                      BorderRadius.circular(
-                                        18,
-                                      ),
-                                      border: Border.all(
-                                        color: _choiceBorderColor(
-                                          index,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            preview ? _sampleChoices.length : _choices.length,
+                                (index) {
+                              final int value = preview
+                                  ? _sampleChoices[index]
+                                  : _choices[index];
+
+                              return Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 7,
+                                  ),
+                                  child: GestureDetector(
+                                    onTap: _canTapChoices
+                                        ? () => _onChoiceTap(index)
+                                        : null,
+                                    child: AnimatedContainer(
+                                      key: (!preview && index == 1)
+                                          ? _choiceKey
+                                          : null,
+                                      duration:
+                                      const Duration(milliseconds: 250),
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        color: _choiceColor(index),
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: _choiceBorderColor(index),
+                                          width: 3,
                                         ),
-                                        width: 3,
                                       ),
-                                    ),
-                                    child: Center(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(10),
-                                        child: preview
-                                            ? const SizedBox.shrink()
-                                            : Image.asset(
-                                          'assets/fonts/game_numbers/${_choices[index]}.png',
-                                          fit: BoxFit.contain,
+                                      child: Center(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(10),
+                                          child: Image.asset(
+                                            'assets/fonts/game_numbers/$value.png',
+                                            fit: BoxFit.contain,
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            );
-                          }),
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),
@@ -515,23 +520,26 @@ class _Number12CountingObjectsScreenState
     );
   }
 
-  Widget _buildObjectGrid() {
+  Widget _buildObjectGrid({bool preview = false}) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final objSize = MediaQuery.of(context).size.height * 0.30;
+        final int count = preview ? _sampleCount : _correctCount;
+        final String asset = preview ? _sampleObject : _currentObject;
+
         return Wrap(
           alignment: WrapAlignment.center,
           runAlignment: WrapAlignment.center,
           spacing: 12,
           runSpacing: 12,
-          children: List.generate(_correctCount, (i) {
+          children: List.generate(count, (i) {
             return Image.asset(
-              _currentObject,
+              asset,
               width: objSize,
               height: objSize,
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) =>
-                  const Text('🍎', style: TextStyle(fontSize: 48)),
+              const Text('🍎', style: TextStyle(fontSize: 48)),
             );
           }),
         );
