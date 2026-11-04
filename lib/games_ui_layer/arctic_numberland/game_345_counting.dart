@@ -62,9 +62,11 @@ class _Number345CountingObjectsScreenState
 
   static const String _audioIntro = 'assets/audio/arctic_numberland/level14/intro.wav';
 
+  // ── How-to-play sample (fixed): 3 objects → tap "3" ────────────────────────
+  static const String _hintObjectAsset = 'assets/images/objects/arctic/snowball.png';
+  static const List<int> _hintChoices = [5, 3, 4];
+
   final GameTapTracker _tapTracker = GameTapTracker();
-  final GlobalKey _correctKey = GlobalKey();
-  final GlobalKey _choiceKey = GlobalKey();
 
   bool _hideLightingCard = false;
   bool _loadingScreenElapsed = false;
@@ -261,7 +263,7 @@ class _Number345CountingObjectsScreenState
     final isCorrect = _choices[index] == _correctCount;
 
     if (isCorrect) {
-      _tapTracker.recordCorrectTap(); 
+      _tapTracker.recordCorrectTap();
 
       _correctPulseCtrl.forward(from: 0);
       showDomaReaction(DomaState.correct);
@@ -285,8 +287,8 @@ class _Number345CountingObjectsScreenState
         await ArcticProgressService.instance
             .markLevelComplete(widget.level)
             .catchError((e) {
-              debugPrint("Database Error marking level complete: $e");
-            });
+          debugPrint("Database Error marking level complete: $e");
+        });
         cancelIdleTimer();
         setState(() => _showWinDialog = true);
       } else {
@@ -295,6 +297,7 @@ class _Number345CountingObjectsScreenState
           _generateRound();
         });
         _animateRoundIn();
+        showHowToPlay = false;
         startIdleTimer();
       }
     } else {
@@ -370,14 +373,7 @@ class _Number345CountingObjectsScreenState
             _screenPhase == _ScreenPhase.miniGame &&
             _tappedIndex == null &&
             !_showWinDialog)
-          Positioned.fill(
-            child: HowToPlayOverlay(
-              previewChild: _buildHintPreview(),
-              handAlignment: _alignmentOf(_choiceKey),
-              handOffset: const Offset(0.15, 0.46),
-              onDismiss: resetIdleTimer,
-            ),
-          ),
+          Positioned.fill(child: _buildHowToPlayOverlay()),
 
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
       ],
@@ -385,11 +381,11 @@ class _Number345CountingObjectsScreenState
 
     final contentWithOverlay = reactiveNeedsLightingPrompt
         ? Stack(
-            children: [
-              Positioned.fill(child: gameContent),
-              Positioned.fill(child: reactiveLightingCard()),
-            ],
-          )
+      children: [
+        Positioned.fill(child: gameContent),
+        Positioned.fill(child: reactiveLightingCard()),
+      ],
+    )
         : gameContent;
 
     final loadingSlot = (_loadingScreenElapsed && gateNeedsLightingPrompt)
@@ -408,89 +404,198 @@ class _Number345CountingObjectsScreenState
           loadingScreen: loadingSlot,
           gameBuilder: () => gateNeedsLightingPrompt
               ? Stack(
-                  children: [
-                    Positioned.fill(child: gameContent),
-                    Positioned.fill(child: gateLightingCard()),
-                  ],
-                )
+            children: [
+              Positioned.fill(child: gameContent),
+              Positioned.fill(child: gateLightingCard()),
+            ],
+          )
               : contentWithOverlay,
         ),
       ),
     );
   }
 
-  Alignment _alignmentOf(GlobalKey key) {
-    final box = key.currentContext?.findRenderObject() as RenderBox?;
-    final root = context.findRenderObject() as RenderBox?;
-    if (box == null || root == null || !box.hasSize) return Alignment.center;
+  // ── How to play (fixed sample: 3 objects, tap the "3") ────────────────────
+  Widget _buildHowToPlayOverlay() {
+    final sz = MediaQuery.of(context).size;
+    final sw = sz.width, sh = sz.height;
 
-    final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
-    return Alignment(
-      center.dx / root.size.width * 2 - 1,
-      center.dy / root.size.height * 2 - 1,
+    // objects box
+    final boxW = sw * 0.52, boxH = sh * 0.58;
+    final boxLeft = sw * 0.06, boxTop = sh * 0.22;
+    final objSize = min(boxW / 3 - 24, boxH * 0.6);
+
+    // choices (2 columns, same 1.4 ratio as the real cards)
+    const gap = 12.0;
+    final cardW = sw * 0.14;
+    final cardH = cardW / 1.4;
+    final gridW = cardW * 2 + gap;
+    final gridH = cardH * 2 + gap;
+    final gridLeft = sw * 0.66;
+    final gridTop = (sh - gridH) / 2;
+
+    // "3" is the second card (top right)
+    final tapX = gridLeft + cardW + gap + cardW / 2;
+    final tapY = gridTop + cardH / 2;
+
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgImage, fit: BoxFit.cover),
+        Positioned(
+          left: boxLeft,
+          top: boxTop,
+          width: boxW,
+          height: boxH,
+          child: Container(
+            decoration: BoxDecoration(
+              color: ArcticColorTheme.cotton,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: ArcticColorTheme.pictonblue, width: 4),
+              boxShadow: [
+                BoxShadow(
+                  color: ArcticColorTheme.pictonblue.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(
+                  3,
+                      (_) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Image.asset(
+                      _hintObjectAsset,
+                      width: objSize,
+                      height: objSize,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: gridLeft,
+          top: gridTop,
+          width: gridW,
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: gap,
+            runSpacing: gap,
+            children: _hintChoices
+                .map((n) => _hintNumberCard(n, cardW, cardH))
+                .toList(),
+          ),
+        ),
+      ],
+    );
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: Alignment(2 * tapX / sw - 1, 2 * tapY / sh - 1),
+      handOffset: const Offset(0.15, 0.65),
+      onDismiss: resetIdleTimer,
     );
   }
 
-  Widget _buildHintPreview() {
-    return Stack(
-      children: [
-        Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
-        _buildGameContent(preview: true),
-      ],
+  Widget _hintNumberCard(int number, double w, double h) {
+    return Container(
+      width: w,
+      height: h,
+      decoration: BoxDecoration(
+        color: ArcticColorTheme.pictonblue,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: ArcticColorTheme.slateblue, width: 3),
+        boxShadow: [
+          BoxShadow(
+            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.35),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(h * 0.12),
+        child: Image.asset(
+          'assets/fonts/game_numbers/$number.png',
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              '$number',
+              style: const TextStyle(
+                fontFamily: ArcticAppTextStyles.fredoka,
+                fontSize: 36,
+                fontWeight: FontWeight.bold,
+                color: ArcticColorTheme.cotton,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   // ── Intro ──────────────────────────────────────────────────────────────────
   Widget _buildIntroLayer() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 5),
+    return SafeArea(
       child: Stack(
         children: [
-          Positioned(top: 25, left: 25, child: ArcticXButton()),
+          Positioned(top: 20, left: 20, child: ArcticXButton()),
           Positioned(
-            top: 25,
-            right: 25,
+            top: 20,
+            right: 20,
             child: ArcticLevelBadge(level: widget.level),
           ),
           Positioned.fill(
-            top: 40,
+            top: 50,
             child: Row(
               children: [
-                // Doma
+                // Doma – scales down to whatever space is available
                 Expanded(
-                  child: Center(
-                    child: Image.asset(
-                      _characterImage,
-                      height: MediaQuery.of(context).size.height * 0.65,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
-                          const Text('🐧', style: TextStyle(fontSize: 60)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Center(
+                      child: Image.asset(
+                        _characterImage,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                        const Text('🐧', style: TextStyle(fontSize: 60)),
+                      ),
                     ),
                   ),
                 ),
-                // Dancing numbers 3, 4, 5
+                // Dancing numbers – FittedBox guarantees no horizontal overflow
                 Expanded(
-                  child: Center(
-                    child: AnimatedBuilder(
-                      animation: _numberDanceCtrl,
-                      builder: (_, __) {
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(3, (i) {
-                            final angle =
-                                _numberDance.value * ((i % 2 == 0) ? 1 : -1);
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              child: Transform.rotate(
-                                angle: angle,
-                                child: _buildIntroNumberCard(i),
-                              ),
-                            );
-                          }),
-                        );
-                      },
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: AnimatedBuilder(
+                        animation: _numberDanceCtrl,
+                        builder: (_, __) {
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(3, (i) {
+                              final angle =
+                                  _numberDance.value * ((i % 2 == 0) ? 1 : -1);
+                              return Padding(
+                                padding:
+                                const EdgeInsets.symmetric(horizontal: 12),
+                                child: Transform.rotate(
+                                  angle: angle,
+                                  child: _buildIntroNumberCard(i),
+                                ),
+                              );
+                            }),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -499,6 +604,207 @@ class _Number345CountingObjectsScreenState
           ),
         ],
       ),
+    );
+  }
+
+  // ── Game Content ───────────────────────────────────────────────────────────
+  Widget _buildGameContent() {
+    return Column(
+        children: [
+          // ── HEADER ──────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 25),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ArcticXButton(),
+                ArcticLevelBadge(level: widget.level),
+              ],
+            ),
+          ),
+
+          // ── MAIN ROW ────────────────────────────
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(25, 0, 25, 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    flex: 6,
+                    child: ScaleTransition(
+                      scale: _objectsEnter,
+                      child: _buildObjectsBox(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 3,
+                    child: ScaleTransition(
+                      scale: _choicesEnter,
+                      child: _buildChoicesGrid(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── PROGRESS DOTS ───────────────────────
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _buildProgressDots(),
+          ),
+        ],
+    );
+  }
+
+  Widget _buildObjectsBox() {
+    return Container(
+      decoration: BoxDecoration(
+        color: ArcticColorTheme.cotton,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: ArcticColorTheme.pictonblue, width: 4),
+        boxShadow: [
+          BoxShadow(
+            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: _buildObjectGrid(),
+      ),
+    );
+  }
+
+  /// Finds the largest square size at which [count] items fit inside
+  /// [maxW] x [maxH] (trying every possible column count).
+  double _bestFitSize(int count, double maxW, double maxH, double spacing) {
+    double best = 0;
+    for (int cols = 1; cols <= count; cols++) {
+      final rows = (count / cols).ceil();
+      final byW = (maxW - spacing * (cols - 1)) / cols;
+      final byH = (maxH - spacing * (rows - 1)) / rows;
+      best = max(best, min(byW, byH));
+    }
+    return max(best, 0);
+  }
+
+  Widget _buildObjectGrid() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 12.0;
+        final objSize = _bestFitSize(
+          _correctCount,
+          constraints.maxWidth,
+          constraints.maxHeight,
+          spacing,
+        ).clamp(0.0, 140.0).toDouble();
+
+        return Center(
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            runAlignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: spacing,
+            runSpacing: spacing,
+            children: List.generate(_correctCount, (i) {
+              return Image.asset(
+                _currentObjectAsset,
+                width: objSize,
+                height: objSize,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Text(
+                  '❄️',
+                  style: TextStyle(fontSize: objSize * 0.6),
+                ),
+              );
+            }),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildChoicesGrid() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 12.0;
+        const ratio = 1.4; // width / height of each card
+
+        // 2 columns x 2 rows must fit in BOTH width and height
+        final byWidth = (constraints.maxWidth - gap) / 2;
+        final byHeight = ((constraints.maxHeight - gap) / 2) * ratio;
+        final cardW = max(0.0, min(byWidth, byHeight)).clamp(0.0, 200.0).toDouble();
+        final cardH = cardW / ratio;
+
+        return Center(
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            runAlignment: WrapAlignment.center,
+            spacing: gap,
+            runSpacing: gap,
+            children: List.generate(_choices.length, (index) {
+              final isCorrect = _choices[index] == _correctCount;
+              final isTappedCorrect = _tappedIndex == index && isCorrect;
+
+              return SizedBox(
+                width: cardW,
+                height: cardH,
+                child: GestureDetector(
+                  onTap: () => _onChoiceTap(index),
+                  child: ScaleTransition(
+                    scale: isTappedCorrect
+                        ? _correctPulse
+                        : const AlwaysStoppedAnimation(1.0),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      decoration: BoxDecoration(
+                        color: _choiceColor(index),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: _choiceBorderColor(index),
+                          width: 3,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                            _choiceColor(index).withValues(alpha: 0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.all(cardH * 0.12),
+                        child: Image.asset(
+                          'assets/fonts/game_numbers/${_choices[index]}.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '${_choices[index]}',
+                              style: const TextStyle(
+                                fontFamily: ArcticAppTextStyles.fredoka,
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                color: ArcticColorTheme.cotton,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        );
+      },
     );
   }
 
@@ -551,176 +857,6 @@ class _Number345CountingObjectsScreenState
     );
   }
 
-  // ── Game Content ───────────────────────────────────────────────────────────
-  Widget _buildGameContent({bool preview = false}) {
-    return Column(
-      children: [
-        // ── HEADER ──────────────────────────────
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
-          child: Stack(
-            alignment: Alignment.topCenter,
-            children: [
-              Align(alignment: Alignment.centerLeft, child: ArcticXButton()),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ArcticLevelBadge(level: widget.level),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 10),
-
-        // ── MAIN ROW ────────────────────────────
-        Expanded(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                flex: 6,
-                child: ScaleTransition(
-                  scale: _objectsEnter,
-                  child: _buildObjectsBox(preview: preview),
-                ),
-              ),
-              Expanded(
-                flex: 3,
-                child: ScaleTransition(
-                  scale: _choicesEnter,
-                  child: _buildChoicesGrid(preview: preview),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // ── PROGRESS DOTS ───────────────────────
-        Padding(
-          padding: const EdgeInsets.only(bottom: 15),
-          child: _buildProgressDots(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildObjectsBox({bool preview = false}) {
-    return Container(
-      height: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16, left: 12),
-      decoration: BoxDecoration(
-        color: ArcticColorTheme.cotton,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: ArcticColorTheme.pictonblue, width: 4),
-        boxShadow: [
-          BoxShadow(
-            color: ArcticColorTheme.pictonblue.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: preview ? const SizedBox.shrink() : _buildObjectGrid(),
-      ),
-    );
-  }
-
-  Widget _buildObjectGrid() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final objSize = (constraints.maxHeight * 0.50).clamp(50.0, 105.0);
-        return Wrap(
-          alignment: WrapAlignment.center,
-          runAlignment: WrapAlignment.center,
-          spacing: 12,
-          runSpacing: 12,
-          children: List.generate(_correctCount, (i) {
-            return Image.asset(
-              _currentObjectAsset,
-              width: objSize,
-              height: objSize,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) =>
-                  const Text('❄️', style: TextStyle(fontSize: 48)),
-            );
-          }),
-        );
-      },
-    );
-  }
-
-  Widget _buildChoicesGrid({bool preview = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16, left: 12, right: 12),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 14,
-          mainAxisSpacing: 14,
-          childAspectRatio: 1.4,
-        ),
-        itemCount: _choices.length,
-        itemBuilder: (context, index) {
-          final isCorrect = _choices[index] == _correctCount;
-          final isTappedCorrect = _tappedIndex == index && isCorrect;
-
-          return GestureDetector(
-            key: (!preview && index == 0) ? _choiceKey : null,
-            onTap: () => _onChoiceTap(index),
-            child: ScaleTransition(
-              scale: isTappedCorrect
-                  ? _correctPulse
-                  : const AlwaysStoppedAnimation(1.0),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                decoration: BoxDecoration(
-                  color: _choiceColor(index),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: _choiceBorderColor(index),
-                    width: 3,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _choiceColor(index).withValues(alpha: 0.35),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: preview
-                      ? const SizedBox.shrink()
-                      : Image.asset(
-                    'assets/fonts/game_numbers/${_choices[index]}.png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Center(
-                      child: Text(
-                        '${_choices[index]}',
-                        style: const TextStyle(
-                          fontFamily: ArcticAppTextStyles.fredoka,
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
-                          color: ArcticColorTheme.cotton,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   Widget _buildProgressDots() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -758,9 +894,11 @@ class _Number345CountingObjectsScreenState
         );
       },
       onRestart: () {
-        Navigator.pop(
+        Navigator.pushReplacement(
           context,
-          Number345CountingObjectsScreen(level: widget.level),
+          MaterialPageRoute(
+            builder: (_) => Number345CountingObjectsScreen(level: widget.level),
+          ),
         );
       },
       onBack: () {
