@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
-import 'package:StarSight/games_ui_layer/arctic_numberland/game_snowglobe_shake_count.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -16,6 +15,7 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
+import 'game_12_counting.dart';
 import 'goodjob_doma_prompt.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
@@ -692,7 +692,7 @@ class _IcebergTipGameState extends State<IcebergTipGame>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => SnowglobeShakeGame(level: widget.level + 1),
+            builder: (_) => Number12CountingObjectsScreen(level: widget.level + 1),
           ),
         );
       },

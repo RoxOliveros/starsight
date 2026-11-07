@@ -13,8 +13,8 @@ import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
-import 'game_decorate_snowy_tree.dart';
 import 'doma_reaction.dart';
+import 'game_snowman_shape_hunt.dart';
 import 'goodjob_doma_prompt.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
@@ -912,7 +912,7 @@ class _SledShapeSortGameState extends State<SledShapeSortGame>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => DecorateSnowyTreeGame(level: widget.level + 1),
+            builder: (_) => SnowmanShapeHuntGame(level: widget.level + 1),
           ),
         );
       },

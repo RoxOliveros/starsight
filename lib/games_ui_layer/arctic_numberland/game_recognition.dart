@@ -14,8 +14,8 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
+import 'game_aurora_catcher.dart';
 import 'goodjob_doma_prompt.dart';
-import 'game_12_counting.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/business_layer/arctic_database_service.dart';
@@ -499,7 +499,7 @@ class _Number012RecognitionScreenState extends State<Number012RecognitionScreen>
           context,
           MaterialPageRoute(
             builder: (_) =>
-                Number12CountingObjectsScreen(level: widget.level + 1),
+                AuroraCatcherGame(level: widget.level + 1),
           ),
         );
       },

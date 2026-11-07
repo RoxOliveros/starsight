@@ -17,7 +17,6 @@ import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
 import 'game_345_counting.dart';
-import 'number_introduction_screen.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/business_layer/arctic_database_service.dart';
@@ -780,13 +779,8 @@ class _Number012TapCountScreenState extends State<Number012TapCountScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => NumberIntroductionScreen.forSequence(
-              [3, 4, 5],
-              level: 5,
-              nextScreen: Number345CountingObjectsScreen(
-                level: widget.level + 1,
-              ),
-            ),
+            builder: (_) =>
+                Number345CountingObjectsScreen(level: widget.level + 1),
           ),
         );
       },

@@ -15,8 +15,8 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
+import 'game_345_odd_one_out.dart';
 import 'goodjob_doma_prompt.dart';
-import 'game_iceberg_tip.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/business_layer/arctic_database_service.dart';
@@ -40,7 +40,7 @@ class NumberMemoryMatchGame extends StatefulWidget {
 
   const NumberMemoryMatchGame({
     super.key,
-    this.pairCount = 5,
+    this.pairCount = 3,
     required this.level,
   });
 
@@ -336,7 +336,6 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
           padding: const EdgeInsets.only(top: 5),
           child: _introPlaying ? _buildIntroLayer() : _buildGameContent(),
         ),
-        if (!_introPlaying) buildDoma(context),
         if (_showWinDialog) Positioned.fill(child: _buildGoodJobOverlay()),
         if (showHowToPlay && !_introPlaying && !_showWinDialog && _inputEnabled)
           Positioned.fill(
@@ -350,7 +349,7 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
                   handAlignment: Alignment(-dx, 0),
                   handEndAlignment: Alignment(dx, 0),
                   tapSequence: true,
-                  handOffset: const Offset(0.15, 0.46),
+                  handOffset: const Offset(0.15, 0.65),
                   onDismiss: resetIdleTimer,
                 );
               },
@@ -741,7 +740,7 @@ class _NumberMemoryMatchGameState extends State<NumberMemoryMatchGame>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => IcebergTipGame(level: widget.level + 1),
+            builder: (_) => Number345OddOneOutScreen(level: widget.level + 1),
           ),
         );
       },

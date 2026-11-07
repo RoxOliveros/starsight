@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/arctic_progress_service.dart';
-import 'package:StarSight/games_ui_layer/arctic_numberland/game_counting_trees.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -14,6 +13,7 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
+import 'game_arctic_festival.dart';
 import 'goodjob_doma_prompt.dart';
 
 // --- ADDED IMPORTS FOR AI & TRACKING ---
@@ -859,7 +859,7 @@ class _Number012345SequenceScreenState extends State<Number012345SequenceScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => CountingTreesScreen(level: widget.level + 1),
+            builder: (_) => ArcticFestivalFinaleGame(level: widget.level + 1),
           ),
         );
       },

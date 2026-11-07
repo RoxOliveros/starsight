@@ -16,7 +16,7 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
-import 'game_arctic_festival.dart';
+import 'game_building_igloo.dart';
 import 'goodjob_doma_prompt.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
@@ -132,7 +132,6 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
   List<int> _answerOptions = [];
   int? _selectedAnswer;
   bool _answerLocked = false;
-  bool _wasWrong = false;
 
   final GlobalKey _choiceKey = GlobalKey();
 
@@ -275,7 +274,6 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
     _answerOptions = [];
     _selectedAnswer = null;
     _answerLocked = false;
-    _wasWrong = false;
     _inputEnabled = false;
     cancelIdleTimer();
     showHowToPlay = false;
@@ -347,13 +345,11 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
       HapticFeedback.heavyImpact();
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showDomaReaction(DomaState.wrong);
-      setState(() => _wasWrong = true);
       await Future.delayed(const Duration(milliseconds: 500));
       if (!mounted) return;
       setState(() {
         _selectedAnswer = null;
         _answerLocked = false;
-        _wasWrong = false;
       });
       startIdleTimer();
     }
@@ -777,7 +773,7 @@ class _ShootingStarCountingGameState extends State<ShootingStarCountingGame>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => ArcticFestivalFinaleGame(level: widget.level + 1),
+            builder: (_) => BuildIglooScreen(level: widget.level + 1),
           ),
         );
       },

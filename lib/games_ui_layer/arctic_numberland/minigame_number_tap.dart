@@ -226,7 +226,7 @@ class _TapObjectMiniGameState extends State<TapObjectMiniGame>
                   child: HowToPlayOverlay(
                     previewChild: _buildHintPreview(w, h, objSize),
                     handAlignment: _hintHandAlignment(w, h, objSize),
-                    handOffset: const Offset(0.3, 0.4),
+                    handOffset: const Offset(0.1, 0.65),
                     onDismiss: resetIdleTimer,
                   ),
                 ),

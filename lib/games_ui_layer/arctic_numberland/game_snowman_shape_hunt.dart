@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
-import 'package:StarSight/games_ui_layer/arctic_numberland/game_sled_shape_sort.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -18,6 +17,7 @@ import '../idle_hint_mixin.dart';
 import 'arctic_audio_path.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
+import 'game_iceberg_tip.dart';
 import 'goodjob_doma_prompt.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
@@ -936,7 +936,7 @@ class _SnowmanShapeHuntGameState extends State<SnowmanShapeHuntGame>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => SledShapeSortGame(level: widget.level + 1),
+            builder: (_) => IcebergTipGame(level: widget.level + 1),
           ),
         );
       },

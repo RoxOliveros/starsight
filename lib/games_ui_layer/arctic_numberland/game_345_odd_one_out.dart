@@ -15,8 +15,8 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
+import 'game_sled_shape_sort.dart';
 import 'goodjob_doma_prompt.dart';
-import 'game_number_sequence.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/business_layer/arctic_database_service.dart';
@@ -683,7 +683,7 @@ class _Number345OddOneOutScreenState extends State<Number345OddOneOutScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => Number012345SequenceScreen(level: widget.level + 1),
+            builder: (_) => SledShapeSortGame(level: widget.level + 1),
           ),
         );
       },

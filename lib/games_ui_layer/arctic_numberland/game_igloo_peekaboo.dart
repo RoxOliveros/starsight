@@ -14,8 +14,8 @@ import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
-import 'game_build_snowman.dart';
 import 'doma_reaction.dart';
+import 'game_building_igloo.dart';
 import 'goodjob_doma_prompt.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
@@ -759,7 +759,7 @@ class _IglooPeekabooGameState extends State<IglooPeekabooGame>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => BuildSnowmanGame(level: widget.level + 1),
+            builder: (_) => BuildIglooScreen(level: widget.level + 1),
           ),
         );
       },

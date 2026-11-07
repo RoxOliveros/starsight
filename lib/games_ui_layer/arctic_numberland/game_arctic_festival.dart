@@ -1022,34 +1022,6 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
             ],
           ),
         ),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.9),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: ArcticColorTheme.slateblue.withValues(alpha: 0.3),
-              width: 3,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 6,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Text(
-            '$a + $b = ?',
-            style: TextStyle(
-              fontFamily: 'Fredoka',
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: ArcticColorTheme.slateblue,
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -1090,34 +1062,6 @@ class _ArcticFestivalFinaleGameState extends State<ArcticFestivalFinaleGame>
                 child: Image.asset(asset, width: 36, height: 36),
               );
             }),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.9),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: ArcticColorTheme.slateblue.withValues(alpha: 0.3),
-              width: 3,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 6,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Text(
-            '$starting - $removed = ?',
-            style: TextStyle(
-              fontFamily: 'Fredoka',
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: ArcticColorTheme.slateblue,
-            ),
           ),
         ),
       ],
