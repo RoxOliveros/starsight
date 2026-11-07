@@ -1,16 +1,14 @@
 import 'dart:math' as math;
-import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
 
-//try
-/// A honey jar with a counter that bumps whenever the count changes.
+/// Global cream pill with the honey/star jar sitting on its right edge.
 /// The jar wobbles and the number pops whenever [count] changes.
-class HoneyCounter extends StatefulWidget {
+class GlobalStarCounter extends StatefulWidget {
   final int count;
   final int total;
   final GlobalKey jarKey; // used as the star's launch point
 
-  const HoneyCounter({
+  const GlobalStarCounter({
     super.key,
     required this.count,
     required this.total,
@@ -18,10 +16,10 @@ class HoneyCounter extends StatefulWidget {
   });
 
   @override
-  State<HoneyCounter> createState() => _HoneyCounterState();
+  State<GlobalStarCounter> createState() => _GlobalStarCounterState();
 }
 
-class _HoneyCounterState extends State<HoneyCounter>
+class _GlobalStarCounterState extends State<GlobalStarCounter>
     with SingleTickerProviderStateMixin {
   late final AnimationController _bump = AnimationController(
     vsync: this,
@@ -29,7 +27,7 @@ class _HoneyCounterState extends State<HoneyCounter>
   );
 
   @override
-  void didUpdateWidget(HoneyCounter old) {
+  void didUpdateWidget(GlobalStarCounter old) {
     super.didUpdateWidget(old);
     if (old.count != widget.count) _bump.forward(from: 0);
   }
@@ -51,15 +49,10 @@ class _HoneyCounterState extends State<HoneyCounter>
         clipBehavior: Clip.none,
         alignment: Alignment.centerRight,
         children: [
-          // FIX: Use Transform.translate instead of margin to move the pill
-          // This prevents the text from getting crumpled by layout constraints.
+          // BORDER/PILL POSITION
           Transform.translate(
-            // ADJUST BORDER/PILL POSITION HERE:
-            // Offset(x, y). Positive 'x' moves right, negative moves left.
-            // Positive 'y' moves down, negative moves up. Example: Offset(0, 10) moves it down 10px.
             offset: const Offset(25, -15),
             child: Container(
-              // Keep this margin to give space for the jar on the right
               margin: const EdgeInsets.only(right: jarSize * 0.3),
               padding: const EdgeInsets.fromLTRB(16, 4, jarSize * 0.3 + 4, 4),
               decoration: BoxDecoration(
@@ -86,20 +79,19 @@ class _HoneyCounterState extends State<HoneyCounter>
                 child: Text(
                   '${widget.count}/${widget.total}',
                   style: const TextStyle(
-                    fontFamily: ForestAppTextStyles.fredoka,
+                    fontFamily:
+                        'Fredoka', // Hardcoded so it doesn't need specific category themes
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: ForestColorTheme.darkbrown,
+                    color: Color(0xFF6B4A2E), // Dark brown
                   ),
                 ),
               ),
             ),
           ),
 
-          // FIX: Use Transform.translate to move the jar independently
+          // HONEY JAR POSITION
           Transform.translate(
-            // ADJUST HONEY JAR POSITION HERE:
-            // Example: Offset(10, -5) moves it right 10px and up 5px.
             offset: const Offset(27, -22),
             child: Image.asset(
               'assets/animations/jar_star.webp',
@@ -122,7 +114,6 @@ class StarBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Replaced standard icon with your custom star.png image
     final star = Image.asset(
       'assets/images/icons/star.png',
       width: size,
@@ -140,8 +131,7 @@ class StarBadge extends StatelessWidget {
   }
 }
 
-/// Flies a star from [from] to [to] (global screen coords, centers) along an
-/// arc, spinning and scaling, then calls [onLanded] and removes itself.
+/// Flies a star from [from] to [to] (global screen coords, centers) along an arc
 void flyStar({
   required BuildContext context,
   required Offset from,
