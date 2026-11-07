@@ -19,7 +19,7 @@ import '../../goodjob_prompt.dart';
 import '../../how_to_play_overlay.dart';
 import '../../idle_hint_mixin.dart';
 import '../lumi_game_ui_layer.dart';
-import '../lvl5/sharing_1.dart';
+import '../lvl8/prayer_1.dart';
 import 'bear_speech_bubble.dart';
 import 'game_dialogs.dart';
 import 'game_ingredient.dart';
@@ -1452,7 +1452,7 @@ class _CookingGameScreenState extends State<CookingGameScreen>
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => Sharing1(level: widget.level + 1),
+                  builder: (_) => Prayer1(level: widget.level + 1),
                 ),
               );
             },

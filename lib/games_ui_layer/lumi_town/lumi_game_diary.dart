@@ -497,14 +497,6 @@ class _DiaryGameScreenState extends State<DiaryGameScreen>
             if (_gameComplete)
               GoodJobOverlay(
                 characterImage: 'assets/images/characters/tr.woo_the_owl.png',
-                onNext: () async {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          BehaviorGameScreen(level: widget.level + 1),
-                    ),
-                  );
-                },
                 onRestart: _restartGame,
                 onBack: _goBack,
               ),

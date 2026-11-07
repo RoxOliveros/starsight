@@ -12,7 +12,7 @@ import '../../../ui_layer/game_loading_mixin.dart';
 import '../../../ui_layer/loading_screen.dart';
 import '../../../ui_layer/lumi_town/lumi_buttons.dart';
 import '../../../ui_layer/lumi_town/town_level.dart';
-import '../lumi_game_sorry_game.dart';
+import '../lumi_game_diary.dart';
 import '../lumi_game_ui_layer.dart';
 import 'prayer_prompt_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -334,7 +334,7 @@ class _Prayer1State extends State<Prayer1>
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute(
                         builder: (context) =>
-                            SorryGameScreen(level: widget.level + 1),
+                            DiaryGameScreen(level: widget.level + 1),
                       ),
                     );
                   },

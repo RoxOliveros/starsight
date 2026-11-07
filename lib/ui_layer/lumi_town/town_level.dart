@@ -314,45 +314,45 @@ class _LevelTile extends StatelessWidget {
   Widget? _screenForLevel() {
     switch (level) {
       case 1:
-        return Lumi1ValuesWakeup(level: 1);
+        return CleanBedroomGameScreen(level: 1);
       case 2:
-        return Lvl2BathroomGameScreen(level: 2);
+        return CleaningGameScreen(level: 2);
       case 3:
-        return CleanBedroomGameScreen(level: 3);
+        return FamilyTreeGame(level: 3);
       case 4:
-        return CookingGameScreen(level: 4);
+        return StoplightGameScreen(level: 4);
       case 5:
-        return Sharing1(level: 5);
+        return PickingTrashGame(level: 5);
       case 6:
         return EmotionStarsScreen(level: 6);
       case 7:
-        return LumiClassroomScreen(level: 7);
+        return BehaviorGameScreen(level: 7);
       case 8:
-        return Prayer1(level: 8);
+        return SafeOrNotGameScreen(level: 8);
       case 9:
-        return SorryGameScreen(level: 9);
+        return CrossingGameScreen(level: 9);
       case 10:
-        return PickingTrashGame(level: 10);
+        return DontTalkToStrangersGame(level: 10);
       case 11:
-        return ThrowingTrashGame(level: 11);
+        return Sharing1(level: 11);
       case 12:
-        return AppreciationGame(level: 12);
+        return SorryGameScreen(level: 12);
       case 13:
-        return FamilyTreeGame(level: 13);
+        return AppreciationGame(level: 13);
       case 14:
-        return StoplightGameScreen(level: 14);
+        return ThrowingTrashGame(level: 14);
       case 15:
-        return DiaryGameScreen(level: 15);
+        return Lumi1ValuesWakeup(level: 15);
       case 16:
-        return BehaviorGameScreen(level: 16);
+        return Lvl2BathroomGameScreen(level: 16);
       case 17:
-        return CleaningGameScreen(level: 17);
+        return LumiRespectScreen(level: 17);
       case 18:
-        return DontTalkToStrangersGame(level: 18);
+        return CookingGameScreen(level: 18);
       case 19:
-        return SafeOrNotGameScreen(level: 19);
+        return Prayer1(level: 19);
       case 20:
-        return CrossingGameScreen(level: 20);
+        return DiaryGameScreen(level: 20);
       default:
         return null;
     }

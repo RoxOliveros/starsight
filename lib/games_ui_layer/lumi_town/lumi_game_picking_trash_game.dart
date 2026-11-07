@@ -17,7 +17,7 @@ import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'lumi_game_ui_layer.dart';
-import 'lumi_game_throwing_trash_game.dart';
+import 'lvl6/emotion_stars_screen.dart';
 
 class PickingTrashGame extends StatefulWidget {
   final int level;
@@ -388,16 +388,13 @@ class _PickingTrashGameState extends State<PickingTrashGame>
                   child: GoodJobOverlay(
                     characterImage:
                     'assets/images/characters/tr.woo_the_owl.png',
-                    onNext: () {
-                      if (mounted) {
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                ThrowingTrashGame(level: widget.level + 1),
-                          ),
-                              (route) => route.isFirst,
-                        );
-                      }
+                    onNext: () async {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              EmotionStarsScreen(level: widget.level + 1),
+                        ),
+                      );
                     },
                     onRestart: () {
                       _hasSavedResult = false;

@@ -17,6 +17,7 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
+import 'lumi_game_dont_talk_to_strangers.dart';
 import 'lumi_game_ui_layer.dart';
 
 // ============================================================
@@ -675,6 +676,14 @@ class _CrossingGameScreenState extends State<CrossingGameScreen>
 
                 if (_gameComplete)
                   GoodJobOverlay(
+                    onNext: () async {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              DontTalkToStrangersGame(level: widget.level + 1),
+                        ),
+                      );
+                    },
                     characterImage: _trWooImage,
                     onRestart: _onRestart,
                     onBack: _goBack,

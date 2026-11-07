@@ -1,6 +1,5 @@
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lvl3/clean_bedroom_game_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -9,6 +8,7 @@ import '../../../../ui_layer/lumi_town/town_level.dart';
 import '../../../games_audio_helper.dart';
 import '../../../goodjob_prompt.dart';
 import '../../lumi_game_ui_layer.dart';
+import '../../lvl7/lumi_classroom_screen.dart';
 import '../bathroom_game_screen.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -174,7 +174,7 @@ class _StepEndingScreenState extends State<StepEndingScreen>
   Future<void> _onNext() async {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => CleanBedroomGameScreen(level: widget.level + 1),
+        builder: (_) => LumiRespectScreen(level: widget.level + 1),
       ),
     );
   }

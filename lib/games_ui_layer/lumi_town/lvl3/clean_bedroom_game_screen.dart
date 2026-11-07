@@ -38,9 +38,15 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
 
-  static const String _introAudio = 'assets/audio/lumi_town/level3/vo_intro.wav';
+  bool _introDone = false;
 
   static const String _bgImage = 'assets/images/backgrounds/bg_lumi_messy_bed.png';
+  static const String _townBg = 'assets/images/backgrounds/bg_town.png';
+  static const String _trWooImage = 'assets/images/characters/tr.woo_smiling.png';
+
+  static const String _introAudio = 'assets/audio/lumi_town/level3/vo_intro.wav';
+  static const String _trWooAudio = 'assets/audio/lumi_town/lumi_tr.woo_intro.wav';
+
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_player];
@@ -65,11 +71,26 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
     );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeIn);
 
-    finishLoading(_playIntroThenProceed);
+    finishLoading(_playTrWooIntro);
+  }
+
+  Future<void> _playTrWooIntro() async {
+    _fadeCtrl.forward();
+    try {
+      await playVoiceRestartingOnFaceLoss(_player, _trWooAudio);
+      await waitForAudio(_player);
+    } catch (_) {}
+
+    if (!mounted) return;
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+
+    setState(() => _introDone = true);
+    await _playIntroThenProceed();
   }
 
   Future<void> _playIntroThenProceed() async {
-    _fadeCtrl.forward();
+    _fadeCtrl.forward(from: 0);
     try {
       await playVoiceRestartingOnFaceLoss(_player, _introAudio);
       await waitForAudio(_player);
@@ -117,10 +138,21 @@ class _CleanBedroomGameScreenState extends State<CleanBedroomGameScreen>
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.asset(
-                  _bgImage,
-                  fit: BoxFit.cover,
-                ),
+                Image.asset(_introDone ? _bgImage : _townBg, fit: BoxFit.cover),
+
+                if (!_introDone)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: -80,
+                    child: Image.asset(
+                      _trWooImage,
+                      height: MediaQuery.of(context).size.height * 1,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) =>
+                      const Text('🧑', style: TextStyle(fontSize: 120)),
+                    ),
+                  ),
 
                 Positioned(top: 25, left: 25, child: LumiXButton()),
                 Positioned(

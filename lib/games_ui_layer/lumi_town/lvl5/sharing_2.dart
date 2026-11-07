@@ -4,7 +4,6 @@ import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lvl6/emotion_stars_screen.dart';
 import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -15,6 +14,7 @@ import '../../games_audio_helper.dart';
 import '../../how_to_play_overlay.dart';
 import '../../idle_hint_mixin.dart';
 import '../../tryagain_prompt.dart';
+import '../lumi_game_sorry_game.dart';
 import '../lumi_game_ui_layer.dart';
 import 'character_entrance.dart';
 import 'sharing_tutorial_prompt.dart';
@@ -914,7 +914,7 @@ class _Sharing2State extends State<Sharing2>
                           Navigator.of(context).pushReplacement(
                             MaterialPageRoute(
                               builder: (context) =>
-                                  EmotionStarsScreen(level: widget.level + 1),
+                                  SorryGameScreen(level: widget.level + 1),
                             ),
                           );
                         },

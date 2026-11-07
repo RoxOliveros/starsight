@@ -12,12 +12,12 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
-import 'lumi_game_dont_talk_to_strangers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
+import 'lumi_game_family_tree_game.dart';
 import 'lumi_game_ui_layer.dart';
 
 const String _introBg = 'assets/images/backgrounds/mama_little_bear_scene.png';
@@ -663,7 +663,7 @@ class _CleaningGameScreenState extends State<CleaningGameScreen>
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
                       builder: (_) =>
-                          DontTalkToStrangersGame(level: widget.level + 1),
+                          FamilyTreeGame(level: widget.level + 1),
                     ),
                   );
                 },

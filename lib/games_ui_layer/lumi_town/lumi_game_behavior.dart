@@ -12,12 +12,12 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
-import 'lumi_game_cleaning.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
+import 'lumi_game_safe_or_not.dart';
 import 'lumi_game_ui_layer.dart';
 
 const String _classroomBg = 'assets/images/backgrounds/bg_lumi_classroom.png';
@@ -528,7 +528,7 @@ class _BehaviorGameScreenState extends State<BehaviorGameScreen>
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
                       builder: (_) =>
-                          CleaningGameScreen(level: widget.level + 1),
+                          SafeOrNotGameScreen(level: widget.level + 1),
                     ),
                   );
                 },
