@@ -1,7 +1,6 @@
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lvl7/lumi_classroom_screen.dart';
 import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -12,7 +11,7 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-import '../../games_audio_helper.dart';
+import '../lumi_game_behavior.dart';
 import '../lumi_game_ui_layer.dart';
 import 'emotion_stars_screen.dart';
 
@@ -226,7 +225,7 @@ class _EmotionEndingScreenState extends State<EmotionEndingScreen>
                         Navigator.of(context).pushReplacement(
                           MaterialPageRoute(
                             builder: (context) =>
-                                LumiClassroomScreen(level: widget.level + 1),
+                                BehaviorGameScreen(level: widget.level + 1),
                           ),
                         );
                       },

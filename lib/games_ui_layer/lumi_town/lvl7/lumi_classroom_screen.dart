@@ -11,20 +11,20 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 
-class LumiClassroomScreen extends StatefulWidget {
+class LumiRespectScreen extends StatefulWidget {
   final int level;
 
-  const LumiClassroomScreen({super.key, required this.level});
+  const LumiRespectScreen({super.key, required this.level});
 
   @override
-  State<LumiClassroomScreen> createState() => _LumiClassroomScreenState();
+  State<LumiRespectScreen> createState() => _LumiRespectScreenState();
 }
 
-class _LumiClassroomScreenState extends State<LumiClassroomScreen>
+class _LumiRespectScreenState extends State<LumiRespectScreen>
     with
         TrWooReactionMixin,
-        AiCameraMixin<LumiClassroomScreen>,
-        AppAudioLifecycleMixin<LumiClassroomScreen> {
+        AiCameraMixin<LumiRespectScreen>,
+        AppAudioLifecycleMixin<LumiRespectScreen> {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
 

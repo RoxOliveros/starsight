@@ -20,6 +20,7 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
 import 'lumi_game_ui_layer.dart';
+import 'lvl5/sharing_1.dart';
 
 const String _playgroundBg = 'assets/images/backgrounds/bg_playground.png';
 const String _bearPlayingImage = 'assets/images/objects/lumi/playground_bear_playing.png';
@@ -902,7 +903,7 @@ class _DontTalkToStrangersGameState extends State<DontTalkToStrangersGame>
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
                       builder: (_) =>
-                          SafeOrNotGameScreen(level: widget.level + 1),
+                          Sharing1(level: widget.level + 1),
                     ),
                   );
                 },

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/town_progress_service.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lumi_game_family_tree_game.dart';
 import 'package:StarSight/ui_layer/lumi_town/lumi_buttons.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -13,12 +12,12 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
+import 'lumi_game_throwing_trash_game.dart';
 import 'lumi_game_ui_layer.dart';
 
 class AppreciationGame extends StatefulWidget {
@@ -447,7 +446,7 @@ class _AppreciationGameState extends State<AppreciationGame>
                         Navigator.of(context).pushAndRemoveUntil(
                           MaterialPageRoute(
                             builder: (_) =>
-                                FamilyTreeGame(level: widget.level + 1),
+                                ThrowingTrashGame(level: widget.level + 1),
                           ),
                           (route) => route.isFirst,
                         );

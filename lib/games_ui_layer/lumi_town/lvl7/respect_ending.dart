@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/lvl7/lumi_classroom_screen.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lvl8/prayer_1.dart';
 import 'package:StarSight/ui_layer/lumi_town/town_level.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -15,8 +14,8 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/town_database_service.dart';
-import '../../games_audio_helper.dart';
 import '../lumi_game_ui_layer.dart';
+import '../lvl4_cooking/game_screen.dart';
 
 class RespectEnding extends StatefulWidget {
   final List<String> priorEmotions;
@@ -239,14 +238,14 @@ class _RespectEndingState extends State<RespectEnding>
                 onNext: () async {
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (context) => Prayer1(level: widget.level + 1),
+                      builder: (context) => CookingGameScreen(level: widget.level + 1),
                     ),
                   );
                 },
                 onRestart: () {
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (_) => LumiClassroomScreen(level: widget.level),
+                      builder: (_) => LumiRespectScreen(level: widget.level),
                     ),
                   );
                 },

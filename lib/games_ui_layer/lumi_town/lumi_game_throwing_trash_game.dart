@@ -20,6 +20,7 @@ import '../../ui_layer/loading_screen.dart';
 import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
+import '1/wakeup1.dart';
 import 'lumi_game_ui_layer.dart';
 
 // ==========================================
@@ -408,16 +409,13 @@ class _ThrowingTrashGameState extends State<ThrowingTrashGame>
                   child: GoodJobOverlay(
                     characterImage:
                     'assets/images/characters/tr.woo_the_owl.png',
-                    onNext: () {
-                      if (mounted) {
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                AppreciationGame(level: widget.level + 1),
-                          ),
-                              (route) => route.isFirst,
-                        );
-                      }
+                    onNext: () async {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              Lumi1ValuesWakeup(level: widget.level + 1),
+                        ),
+                      );
                     },
                     onRestart: () {
                       Navigator.pushReplacement(

@@ -8,7 +8,6 @@ import 'package:StarSight/business_layer/town_progress_service.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-import 'package:StarSight/games_ui_layer/lumi_town/lumi_game_picking_trash_game.dart';
 import 'package:StarSight/games_ui_layer/lumi_town/tr.woo_reaction.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,6 +22,7 @@ import '../../../ui_layer/lumi_town/town_level.dart';
 import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
+import 'lumi_game_appreciation_game.dart';
 import 'lumi_game_ui_layer.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -678,7 +678,7 @@ class _SorryGameScreenState extends State<SorryGameScreen>
               onNext: () {
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(
-                    builder: (_) => PickingTrashGame(level: widget.level + 1),
+                    builder: (_) => AppreciationGame(level: widget.level + 1),
                   ),
                 );
               },
