@@ -11,7 +11,21 @@ import 'calibration_prompt_card.dart';
 class StarsightSetupTutorial {
   static const _prefsKeyPrefix = 'starsight_setup_seen_v2_';
 
+  static const _needsRecalibrationKey = 'starsight_needs_recalibration_v1';
+
   static bool isSessionCalibrated = false;
+
+  static Future<void> onActiveChildChanged() async {
+    isSessionCalibrated = false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_needsRecalibrationKey, true);
+  }
+
+  static Future<void> _markCalibrated() async {
+    isSessionCalibrated = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_needsRecalibrationKey, false);
+  }
 
   /// Shows the setup tutorial if the user hasn't seen it for [levelId] yet.
   /// If already seen, [onDone] fires immediately with no dialog.
@@ -24,11 +38,16 @@ class StarsightSetupTutorial {
     final prefs = await SharedPreferences.getInstance();
     final key = '$_prefsKeyPrefix$levelId';
     final alreadySeen = prefs.getBool(key) ?? false;
+    final needsRecalibration = prefs.getBool(_needsRecalibrationKey) ?? false;
 
-    if (!forceShow && alreadySeen) {
+    if (!forceShow && alreadySeen && !needsRecalibration) {
       onDone();
       return;
     }
+
+    // The tutorial was already seen for this level, but the child changed:
+    // skip the tutorial pages and go straight to the calibration step.
+    final calibrationOnly = alreadySeen && needsRecalibration && !forceShow;
 
     // Small delay before the tutorial pops in, so it doesn't feel abrupt
     // right after the level screen finishes loading.
@@ -43,6 +62,7 @@ class StarsightSetupTutorial {
       transitionDuration: const Duration(milliseconds: 350),
       pageBuilder: (context, animation, secondaryAnimation) {
         return _StarsightSetupDialog(
+          calibrationOnly: calibrationOnly,
           onSkip: () async {
             await prefs.setBool(key, true);
             Navigator.of(context).pop();
@@ -81,7 +101,14 @@ class _StarsightSetupDialog extends StatefulWidget {
   final VoidCallback onSkip;
   final VoidCallback onFinish;
 
-  const _StarsightSetupDialog({required this.onSkip, required this.onFinish});
+  /// Start on the calibration page instead of the tutorial pages.
+  final bool calibrationOnly;
+
+  const _StarsightSetupDialog({
+    required this.onSkip,
+    required this.onFinish,
+    this.calibrationOnly = false,
+  });
 
   @override
   State<_StarsightSetupDialog> createState() => _StarsightSetupDialogState();
@@ -103,11 +130,18 @@ class _StarsightSetupDialogState extends State<_StarsightSetupDialog>
     super.initState();
     sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
 
+    if (widget.calibrationOnly) {
+      currentPage = 2;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _goToPage(2);
+      });
+    }
+
     onCalibrationComplete = () {
       if (mounted) {
         setState(() {
           _isCalibrationDone = true;
-          StarsightSetupTutorial.isSessionCalibrated = true;
+          StarsightSetupTutorial._markCalibrated();
           // Calibration finished, so the wait card is no longer needed.
           _showWaitCard = false;
         });

@@ -32,6 +32,14 @@ class ReportGenerationException implements Exception {
   String toString() => 'ReportGenerationException($type)';
 }
 
+/// How often the child's attention drifted away from the screen for a while,
+/// and how often they came back to it afterwards.
+class AttentionReturnStats {
+  final int drifts;
+  final int returns;
+  const AttentionReturnStats({required this.drifts, required this.returns});
+}
+
 class CategorySummaryService {
   static final String apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
 
@@ -78,7 +86,10 @@ class CategorySummaryService {
   /// Turns the list of per-frame attention labels into a short plain-text
   /// summary for the prompt. Percentages go to the model only; the prompt
   /// tells it to describe them in words, never as numbers.
-  static String _summarizeAttention(List<String> states) {
+  static String _summarizeAttention(
+    List<String> states,
+    AttentionReturnStats? returnStats,
+  ) {
     final readings = states.map(_bucketFor).where((b) => b != 'other').toList();
     if (readings.isEmpty) {
       return 'No camera readings were available for this session. Do NOT make '
@@ -94,12 +105,54 @@ class CategorySummaryService {
     int pct(String key) =>
         (((counts[key] ?? 0) * 100) / readings.length).round();
 
+    final returnLines = returnStats == null
+        ? ''
+        : '\n- Times their attention drifted away from the screen for a while: '
+              '${returnStats.drifts}'
+              '\n- Times they came back to the screen afterwards: '
+              '${returnStats.returns}';
+
     return '''Camera attention readings (${readings.length} readings, estimates only):
 - Face and eyes toward the screen: ${pct('onScreen')}%
 - Eyes looked away from the screen: ${pct('lookingAway')}%
 - Head turned away: ${pct('headTurned')}%
 - Moved back / away from the screen: ${pct('movedBack')}%
-- Eyes looked tired or closed: ${pct('tiredEyes')}%''';
+- Eyes looked tired or closed: ${pct('tiredEyes')}%$returnLines''';
+  }
+
+  /// A drift is a stretch of at least this many looking-away readings in a
+  /// row (about 6 seconds at one reading every 3 seconds). A single away
+  /// reading is just a quick glance and is not counted.
+  static const int _minAwayReadings = 2;
+
+  /// Counts drifts and returns. Readings are only in time order WITHIN one
+  /// game, so pass one list per game (never one merged list for all games).
+  /// Tired-eyes readings neither start nor end a drift.
+  static AttentionReturnStats attentionReturnStats(
+    Iterable<List<String>> perGameReadings,
+  ) {
+    var drifts = 0;
+    var returns = 0;
+    for (final game in perGameReadings) {
+      var awayRun = 0;
+      for (final raw in game) {
+        final bucket = _bucketFor(raw);
+        if (bucket == 'onScreen') {
+          if (awayRun >= _minAwayReadings) {
+            drifts++;
+            returns++;
+          }
+          awayRun = 0;
+        } else if (bucket == 'lookingAway' ||
+            bucket == 'headTurned' ||
+            bucket == 'movedBack') {
+          awayRun++;
+        }
+      }
+      // Still looking away when the game ended: a drift without a return.
+      if (awayRun >= _minAwayReadings) drifts++;
+    }
+    return AttentionReturnStats(drifts: drifts, returns: returns);
   }
 
   static String _clampShortSummary(String text) {
@@ -126,6 +179,8 @@ class CategorySummaryService {
     required List<String> attentionStates,
     required int totalMistakes,
     int? totalAttempts, // play sessions including replays
+    AttentionReturnStats?
+    returnStats, // drifts away from the screen and returns
   }) async {
     List<String> testedCriteria = [];
     for (String gameId in completedGameIds) {
@@ -152,7 +207,7 @@ You are an expert early childhood educator writing a progress report for a paren
 Raw Session Data:
 - Games Completed: ${completedGameIds.length} out of $totalCategoryGames
 - Activities Played: ${completedGameIds.join(', ')}
-- ${_summarizeAttention(attentionStates)}
+- ${_summarizeAttention(attentionStates, returnStats)}
 - Total Mistakes Made: $totalMistakes
 - Play sessions in total, including replays: ${totalAttempts ?? completedGameIds.length}
 
@@ -166,14 +221,21 @@ It must stay strictly observational:
 - The camera readings are automatic estimates, so use soft wording such as
   "appeared to" or "seemed to". Do NOT quote any numbers or percentages;
   describe amounts in words like "most of the time" or "occasionally".
-- Do NOT describe or guess the child's emotions or mood. Only these three
+- Do NOT describe or guess the child's emotions or mood. Only these two
   things are measured:
   * Engagement: how much the child joined in and stayed with the activities
     (activities played and replayed, staying in front of the screen, and
     whether their eyes looked alert or tired).
-  * Attention: where their eyes and face seemed to be (toward the screen,
-    looking away, head turned).
-  * Focus: how steadily they worked, based on mistakes and completion.
+  * Attention, which includes concentration: where their eyes and face
+    seemed to be (toward the screen, looking away, head turned), whether they
+    came back to the screen after looking away for a while, and their
+    concentration, meaning how steadily they worked, based on mistakes and
+    completion. Use the word "concentration" naturally for the steadiness
+    part. If the readings show they drifted away and then came back, say they
+    returned to the activity; if they never drifted for long, say they stayed
+    with the activity. Describe this in words only.
+- Do NOT mention tapping, tap counts, or how fast or how often the child
+  tapped. Tapping is not a behavior we report on.
 
 These two fields serve very different places in the UI and must never overlap in content:
 - "shortSummary" appears ALONE on a small outer summary card, with no other
@@ -202,12 +264,8 @@ Provide a JSON response strictly matching this structure (no other keys):
     "detailedDescription": "3-5 sentences, shown only in the 'Learn More' dialog, describing their engagement in detail, based on how many activities they played or replayed and on the camera readings about staying in front of the screen and eyes looking alert or tired — what was observed, and what it generally suggests."
   },
   "attention": {
-    "shortSummary": "1-2 complete sentences (~20-30 words) for the outer card — the single most notable takeaway about where their eyes and face seemed to be during play, not a summary of detailedDescription.",
-    "detailedDescription": "3-5 sentences, shown only in the 'Learn More' dialog, describing their attention in detail, based mainly on the camera readings — what was observed, and what it generally suggests."
-  },
-  "focus": {
-    "shortSummary": "1-2 complete sentences (~20-30 words) for the outer card — the single most notable takeaway about how steadily they worked, not a summary of detailedDescription.",
-    "detailedDescription": "3-5 sentences, shown only in the 'Learn More' dialog, describing their ability to stick with tasks in detail, based on games completed, mistakes and consistency — what was observed, and what it generally suggests."
+    "shortSummary": "1-2 complete sentences (~20-30 words) for the outer card — the single most notable takeaway about where their eyes and face seemed to be during play and how well they concentrated, not a summary of detailedDescription.",
+    "detailedDescription": "3-5 sentences, shown only in the 'Learn More' dialog, describing their attention and concentration in detail, based on the camera readings (where their eyes and face seemed to be, and whether they came back to the screen after looking away) and on their concentration, meaning how steadily they worked, using games completed, mistakes and consistency — what was observed, and what it generally suggests."
   }
 }
 ''';
@@ -229,11 +287,12 @@ Provide a JSON response strictly matching this structure (no other keys):
         if (decoded is! Map<String, dynamic> ||
             decoded['overallAnalysis'] is! String ||
             decoded['engagement'] is! Map ||
-            decoded['attention'] is! Map ||
-            decoded['focus'] is! Map) {
+            decoded['attention'] is! Map) {
           throw const ReportGenerationException(ReportErrorType.serviceError);
         }
         final Map<String, dynamic> reportData = decoded;
+        // Concentration is covered inside Attention. Drop a separate focus key if the model adds one.
+        reportData.remove('focus');
         reportData['overallAnalysis'] =
             reportData['overallAnalysis'] + disclaimer;
 
@@ -241,7 +300,7 @@ Provide a JSON response strictly matching this structure (no other keys):
         // <=35 words, but if it ever overshoots, the card would cut it off
         // mid-sentence and look broken. Trim at a clean word boundary
         // instead of letting the UI hard-truncate.
-        for (final key in ['engagement', 'attention', 'focus']) {
+        for (final key in ['engagement', 'attention']) {
           final construct = reportData[key];
           if (construct is Map && construct['shortSummary'] is String) {
             construct['shortSummary'] = _clampShortSummary(

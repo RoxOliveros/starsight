@@ -1,4 +1,5 @@
 import 'package:StarSight/ui_layer/child_profile_screen.dart';
+import 'package:StarSight/ui_layer/starsight_setup_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_signin.dart';
@@ -549,7 +550,16 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
 
   void _handleBack() {
     OrientationService.setLandscape();
-    Navigator.pop(context, _selectedChild?.id);
+    final selectedId = _selectedChild?.id;
+
+    // A different child is about to play: forget the previous child's camera
+    // calibration so the next level calibrates again for the new child.
+    final previousId = widget.activeNickname;
+    if (selectedId != null && previousId != null && selectedId != previousId) {
+      StarsightSetupTutorial.onActiveChildChanged();
+    }
+
+    Navigator.pop(context, selectedId);
   }
 
   @override

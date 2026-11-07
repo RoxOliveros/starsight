@@ -60,9 +60,9 @@ class _Candidate {
 /// If you change cachedReportVersion or how that screen builds a report,
 /// change it here too (or refactor the screen to call this).
 class OverallSummaryService {
-  static const int _version = 1;
+  static const int _version = 4;
   static const int _maxStoredCycles = 2;
-  static const int _categoryReportCacheVersion = 3; // same as the screen
+  static const int _categoryReportCacheVersion = 6; // same as the screen
 
   /// Same ids used in category_progress/{id}. Order = order used in the prompt.
   static const Map<String, String> categoryNames = {
@@ -220,6 +220,8 @@ class OverallSummaryService {
       if (games.docs.isEmpty) continue;
 
       final attentionStates = <String>[];
+      // One list per game: readings are only in time order inside a game.
+      final perGameStates = <List<String>>[];
       var totalMistakes = 0;
       final distinctLevels = <String>{};
 
@@ -237,7 +239,9 @@ class OverallSummaryService {
         }
 
         totalMistakes += (gData['mistakes'] as num?)?.toInt() ?? 0;
-        attentionStates.addAll(List<String>.from(gData['emotions'] ?? []));
+        final states = List<String>.from(gData['emotions'] ?? []);
+        attentionStates.addAll(states);
+        perGameStates.add(states);
       }
 
       final totalAttempts = games.docs.length;
@@ -268,6 +272,7 @@ class OverallSummaryService {
         completedGameIds: playedGameIds,
         totalCategoryGames: _totalGamesFor(id, playedGameIds.length),
         attentionStates: attentionStates,
+        returnStats: CategorySummaryService.attentionReturnStats(perGameStates),
         totalMistakes: totalMistakes,
         totalAttempts: totalAttempts,
       );
@@ -336,7 +341,7 @@ It must stay strictly observational:
 - Use soft wording such as "appeared to" or "seemed to" for anything based on camera estimates.
 - Do NOT describe or guess the child's emotions or mood.
 - Only mention learning areas that appear above. Do not imply anything about areas that are not listed.
-- Do NOT go area by area or repeat the sentences above. Combine them into one picture: what stayed consistent across areas (engagement, attention, focus) and, if there is a clear difference between areas, mention it gently.
+- Do NOT go area by area or repeat the sentences above. Combine them into one picture: what stayed consistent across areas (engagement and attention, which includes concentration) and, if there is a clear difference between areas, mention it gently.
 
 Write 3-4 sentences in plain language a parent can easily follow.
 

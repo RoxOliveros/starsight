@@ -288,6 +288,8 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
       // Per-frame attention labels (the Firestore field is still named
       // 'emotions' so previously saved sessions keep working).
       List<String> allAttentionStates = [];
+
+      final List<List<String>> perGameStates = [];
       int totalMistakes = 0;
       Set<String> distinctLevels = {}; // Changed from distinctGameIds
 
@@ -311,6 +313,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         totalMistakes += (doc.data()['mistakes'] as num?)?.toInt() ?? 0;
         var states = List<String>.from(doc.data()['emotions'] ?? []);
         allAttentionStates.addAll(states);
+        perGameStates.add(states);
       }
 
       int totalAttempts = snapshot.docs.length;
@@ -328,7 +331,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
         int cachedCount = cycleDoc.data()!['cachedReportCount'];
 
         if (cachedCount == totalAttempts &&
-            cycleDoc.data()!['cachedReportVersion'] == 3 &&
+            cycleDoc.data()!['cachedReportVersion'] == 6 &&
             (checkedChildName == null ||
                 cycleDoc.data()!['cachedReportChildName'] ==
                     checkedChildName) &&
@@ -374,6 +377,9 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
             completedGameIds: playedGameIds,
             totalCategoryGames: totalCategoryGames,
             attentionStates: allAttentionStates,
+            returnStats: CategorySummaryService.attentionReturnStats(
+              perGameStates,
+            ),
             totalMistakes: totalMistakes,
             totalAttempts: totalAttempts,
           );
@@ -381,7 +387,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
       // E. SAVE TO CACHE: Save this new report so it stays consistent next time
       await cycleRef.set({
         'cachedReportCount': totalAttempts,
-        'cachedReportVersion': 3,
+        'cachedReportVersion': 6,
         'cachedReportChildName': reportChildName,
         'cachedReportData': summaryMap,
       }, SetOptions(merge: true));
@@ -828,18 +834,18 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
           "alert while playing. These are automatic estimates from gameplay "
           "and the camera.";
     } else if (title.toLowerCase() == "attention") {
-      quickMeaning = "Whether your child's eyes stay on the activity.";
-      measurementExplanation =
-          "We check whether your child's face and eyes stay turned toward the "
-          "screen, or whether they often look away, turn their head, move back "
-          "from the screen, or seem tired. These are automatic estimates from "
-          "the camera.";
-    } else if (title.toLowerCase() == "focus") {
       quickMeaning =
-          "How steadily your child keeps working without long breaks.";
+          "Whether your child's eyes stay on the activity, and how well they "
+          "concentrate.";
       measurementExplanation =
-          "We watch how consistently your child taps, moves, and completes "
-          "tasks to see if they keep going without long pauses.";
+          "Attention includes concentration. We check whether your child's "
+          "face and eyes stay turned toward the screen, or whether they often "
+          "look away, turn their head, move back from the screen, or seem "
+          "tired. We also notice whether they come back to the screen after "
+          "looking away. For concentration, we look at how steadily they "
+          "work through the activities, based on their mistakes and how many "
+          "they complete. These are automatic estimates from the camera and "
+          "gameplay.";
     }
 
     showDialog(
@@ -1123,12 +1129,13 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Text(
-                  'These are the three things we look at while your child plays: '
+                  'These are the two things we look at while your child plays: '
                   'Engagement (how much they join in and stay with the '
-                  'activities), Attention (whether their eyes stay on the '
-                  'activity), and Focus (how steadily they keep working '
-                  'without long pauses). Together, they give you a simple '
-                  'picture of how your child experienced the game.',
+                  'activities) and Attention, which includes concentration (whether '
+                  'their eyes stay on the activity, whether they come back '
+                  'after looking away, and how steadily they keep working). '
+                  'Together, they give you a simple picture of how your child '
+                  'experienced the game.',
                   textAlign: TextAlign.justify,
                   style: TextStyle(
                     fontFamily: 'Nunito',
@@ -1260,18 +1267,12 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
     );
   }
 
-  // --- CONSTRUCTS BOX (Engagement / Attention / Focus in one card) ---
+  // --- CONSTRUCTS BOX (Engagement / Attention in one card) ---
   Widget _buildConstructsBox() {
     final entries = <Widget>[];
     final specs = [
       ('engagement', 'Engagement', ColorTheme.orange, Icons.bolt_rounded),
       ('attention', 'Attention', ColorTheme.teal, Icons.visibility_rounded),
-      (
-        'focus',
-        'Focus',
-        ColorTheme.titleGold,
-        Icons.center_focus_strong_rounded,
-      ),
     ];
 
     for (final (key, title, color, icon) in specs) {
@@ -1662,7 +1663,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                           _buildIndicatorsHeader(),
                           const SizedBox(height: 10),
 
-                          // ENGAGEMENT / ATTENTION / FOCUS
+                          // ENGAGEMENT / ATTENTION
                           _buildConstructsBox(),
                         ],
                       ),
