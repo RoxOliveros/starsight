@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:StarSight/business_layer/forest_honey_counter.dart';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -26,6 +27,41 @@ class _ForestLevelScreenState extends State<ForestLevelScreen>
   StreamSubscription<int>? _progressSub;
   final DateTime _loadStart = DateTime.now();
 
+  // --- honey counter / star animation ---
+  final GlobalKey _jarKey = GlobalKey();
+  final Map<int, GlobalKey> _tileKeys = {};
+  Set<int> _playedLevels = {}; // what Firestore says the child has played
+  Set<int> _shownLevels = {}; // levels whose star badge is already on screen
+  int? _flyingLevel; // star is in the air toward this tile
+  int? _justLanded; // plays the little pop on the badge that just landed
+  bool _celebrating = false;
+
+  // The minigames leave with pushReplacement(ForestLevelScreen()), which builds
+  // a BRAND-NEW screen, so instance fields are lost. Remember what badges were
+  // on screen last time (per child) so the new screen knows which stars are new.
+  static Set<int> _carryShown = {};
+  static String? _carryChild;
+  bool _forceSetup = false;
+
+  void _remember() {
+    _carryShown = {..._shownLevels};
+    _carryChild = ForestProgressService.instance.activeChildId;
+  }
+
+  void _showSetup() {
+    final force = _forceSetup;
+    _forceSetup = false;
+    StarsightSetupTutorial.show(
+      context,
+      levelId: 'alphabet_forest',
+      forceShow: force,
+      onDone: () {},
+    );
+  }
+
+  GlobalKey _keyFor(int level) =>
+      _tileKeys.putIfAbsent(level, () => GlobalKey());
+
   @override
   void initState() {
     super.initState();
@@ -50,20 +86,44 @@ class _ForestLevelScreenState extends State<ForestLevelScreen>
         if (!mounted) return;
       }
 
+      // First load: fetch which levels were played so the counter and badges
+      // are right on the very first frame (no flash of 0/25).
+      Set<int>? played;
+      if (wasLoading) {
+        played = await ForestProgressService.instance.getPlayedLevels();
+        if (!mounted) return;
+      }
+
       setState(() {
         _unlockedLevel = level;
         _isLoadingProgress = false;
+        if (played != null) {
+          _playedLevels = played;
+          final carried =
+              _carryChild == ForestProgressService.instance.activeChildId
+              ? _carryShown
+              : <int>{};
+          // Only trust the carried set if it still fits (no new cycle).
+          _shownLevels = played.containsAll(carried) && carried.isNotEmpty
+              ? {...carried}
+              : {...played};
+          _remember();
+        }
       });
 
+      // FIX: Move the setup dialog inside a check for fresh launch (wasLoading)
+      // but ensure we wait for layout first.
       if (wasLoading) {
+        _forceSetup = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
-          StarsightSetupTutorial.show(
-            context,
-            levelId: 'alphabet_forest',
-            forceShow: true,
-            onDone: () {},
-          );
+          // New star(s) since this screen was last shown? Fly them first;
+          // the setup dialog opens when the last one has landed.
+          if (_playedLevels.difference(_shownLevels).isNotEmpty) {
+            _celebrateNext();
+          } else {
+            _showSetup();
+          }
         });
       }
     });
@@ -77,10 +137,135 @@ class _ForestLevelScreenState extends State<ForestLevelScreen>
   }
 
   Future<void> _openLevel(Widget screen) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => screen),
+    final route = MaterialPageRoute<void>(builder: (context) => screen);
+    await Navigator.push(context, route);
+    // push() completes the moment the level is popped, while it is still
+    // sliding away. Wait for the transition to end so the star isn't launched
+    // behind/over a half-gone page.
+    await route.completed.timeout(
+      const Duration(seconds: 2),
+      onTimeout: () => null,
     );
+    if (!mounted) return;
+    // If the level replaced itself with a NEW level screen, that one is on top
+    // and handles the celebration. Don't fly a star under it.
+    if (ModalRoute.of(context)?.isCurrent != true) return;
+
+    var played = await ForestProgressService.instance.getPlayedLevels();
+    // The level's save can land AFTER we get back here. If we looked now and
+    // found nothing new, we'd skip the star and open the setup dialog on top
+    // of the screen. So give the save a moment to arrive before deciding.
+    for (
+      var i = 0;
+      i < 6 && mounted && played.difference(_shownLevels).isEmpty;
+      i++
+    ) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      played = await ForestProgressService.instance.getPlayedLevels();
+    }
+    if (!mounted) return;
+    _playedLevels = played;
+
+    // A new cycle started (data was cleared): just resync, no celebration.
+    if (!played.containsAll(_shownLevels)) {
+      setState(() => _shownLevels = {...played});
+      _remember();
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showSetup();
+      });
+      return;
+    }
+    _celebrateNext();
+  }
+
+  /// Flies a star from the honey jar to each newly played level's tile
+  /// (one after another) and ticks the counter as each one lands.
+  void _celebrateNext() {
+    if (!mounted || _celebrating) return;
+    final fresh = _playedLevels.difference(_shownLevels).toList()..sort();
+
+    // FIX: If no animation is needed, we still want to ensure the dialog checks if it needs to pop up.
+    if (fresh.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showSetup();
+      });
+      return;
+    }
+
+    _celebrating = true;
+    final level = fresh.first;
+
+    // make sure the tile's page is showing
+    final lastPage = 3;
+    final page = ((level - 1) ~/ 8).clamp(0, lastPage);
+    setState(() {
+      _currentPage = page;
+      _flyingLevel = level;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final jarBox = _jarKey.currentContext?.findRenderObject() as RenderBox?;
+      final tileBox =
+          _keyFor(level).currentContext?.findRenderObject() as RenderBox?;
+
+      void land() {
+        if (!mounted) return;
+        setState(() {
+          _shownLevels = {
+            ..._shownLevels,
+            level,
+          }; // counter ticks + badge appears
+          _flyingLevel = null;
+          _justLanded = level;
+        });
+        _celebrating = false;
+        _remember();
+
+        // Check if there are more stars to fly.
+        final remainingFresh = _playedLevels.difference(_shownLevels).toList();
+        if (remainingFresh.isEmpty) {
+          // FIX: Once ALL stars finish flying, THEN show the setup dialog.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _showSetup();
+          });
+        } else {
+          _celebrateNext();
+        }
+      }
+
+      if (jarBox == null || tileBox == null) {
+        land(); // can't animate (e.g. tile not laid out): just show the result
+        return;
+      }
+
+      // launch from where the star pops out of the jar's lid
+      final from = jarBox.localToGlobal(
+        Offset(jarBox.size.width * 0.5, jarBox.size.height * 0.28),
+      );
+      final tileRect = tileBox.localToGlobal(Offset.zero) & tileBox.size;
+      final badge = tileRect.width * 0.38;
+
+      // FIX: End position modified to target the corner of the tile
+      // The badge is drawn at right/bottom: -size*0.08 (see _LevelTile), so
+      // aim at its true center or the star "jumps" when it lands.
+      final to = Offset(
+        tileRect.right + tileRect.width * 0.08 - badge * 0.5,
+        tileRect.bottom + tileRect.height * 0.08 - badge * 0.5,
+      );
+
+      SfxHelper.instance.play(Sfx.keyTap);
+      flyStar(
+        context: context,
+        from: from,
+        to: to,
+        endSize: badge,
+        onLanded: land,
+      );
+    });
   }
 
   List<Widget> _buildLevelRows(double tileSize) {
@@ -103,6 +288,9 @@ class _ForestLevelScreenState extends State<ForestLevelScreen>
         unlockedLevel: _unlockedLevel,
         onOpenLevel: _openLevel,
         size: tileSize,
+        tileKey: _keyFor(levels[index]),
+        hasStar: _shownLevels.contains(levels[index]),
+        popStar: _justLanded == levels[index],
       );
     }
 
@@ -138,6 +326,19 @@ class _ForestLevelScreenState extends State<ForestLevelScreen>
           ),
 
           Positioned(top: 25, left: 20, child: ForestBackButton()),
+
+          Positioned(
+            top: 22,
+            right: 20,
+            child: HoneyCounter(
+              count: _shownLevels.length.clamp(
+                0,
+                ForestProgressService.totalLevels,
+              ),
+              total: ForestProgressService.totalLevels,
+              jarKey: _jarKey,
+            ),
+          ),
 
           Center(
             child: LayoutBuilder(
@@ -295,12 +496,18 @@ class _LevelTile extends StatelessWidget {
   final int unlockedLevel;
   final Future<void> Function(Widget screen) onOpenLevel;
   final double size;
+  final GlobalKey tileKey;
+  final bool hasStar; // child has played this level
+  final bool popStar; // badge just landed: play the pop-in
 
   const _LevelTile({
     required this.level,
     required this.unlockedLevel,
     required this.onOpenLevel,
     required this.size,
+    required this.tileKey,
+    this.hasStar = false,
+    this.popStar = false,
   });
 
   Widget? _screenForLevel() => ForestFlow.screenForLevel(level);
@@ -342,24 +549,36 @@ class _LevelTile extends StatelessWidget {
 
         onOpenLevel(screen);
       },
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: ForestColorTheme.forestgreen,
-          borderRadius: BorderRadius.circular(17),
-          border: Border.all(color: ForestColorTheme.darkgreen, width: 5),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          '$level',
-          style: TextStyle(
-            fontFamily: ForestAppTextStyles.fredoka,
-            fontSize: size * 0.5,
-            color: ForestColorTheme.darkgreen,
-            fontWeight: FontWeight.bold,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            key: tileKey,
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: ForestColorTheme.forestgreen,
+              borderRadius: BorderRadius.circular(17),
+              border: Border.all(color: ForestColorTheme.darkgreen, width: 5),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '$level',
+              style: TextStyle(
+                fontFamily: ForestAppTextStyles.fredoka,
+                fontSize: size * 0.5,
+                color: ForestColorTheme.darkgreen,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
-        ),
+          if (hasStar)
+            Positioned(
+              right: -size * 0.08,
+              bottom: -size * 0.08,
+              child: StarBadge(size: size * 0.38, animateIn: popStar),
+            ),
+        ],
       ),
     );
   }
