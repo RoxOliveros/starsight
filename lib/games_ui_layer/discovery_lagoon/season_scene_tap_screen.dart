@@ -9,17 +9,16 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/pickup_game.dart';
 import '../../business_layer/lagoon_progress_service.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_level.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
-import '../../business_layer/audio_helper.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import '../star_round_indicator.dart';
+import 'clothes_game.dart';
 import 'intro_phase.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_audio_path.dart';
@@ -516,7 +515,7 @@ class _SeasonSceneTapScreenState extends State<SeasonSceneTapScreen>
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => PickupGame(level: widget.level + 1),
+              builder: (context) => ClothesGame(level: widget.level + 1),
             ),
           );
         }

@@ -9,7 +9,6 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
@@ -17,6 +16,7 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
+import 'listening_game.dart';
 
 class CharacterConfig {
   final String imagePath;
@@ -56,17 +56,17 @@ class PickupLevel {
   });
 }
 
-class PickupGame extends StatefulWidget {
+class PickupSchoolGame extends StatefulWidget {
   final int level;
 
-  const PickupGame({super.key, required this.level});
+  const PickupSchoolGame({super.key, required this.level});
 
   @override
-  State<PickupGame> createState() => _PickupGameState();
+  State<PickupSchoolGame> createState() => _PickupSchoolGameState();
 }
 
-class _PickupGameState extends State<PickupGame>
-    with AiCameraMixin, AppAudioLifecycleMixin<PickupGame>, KikiReactionMixin, IdleHintMixin  {
+class _PickupSchoolGameState extends State<PickupSchoolGame>
+    with AiCameraMixin, AppAudioLifecycleMixin<PickupSchoolGame>, KikiReactionMixin, IdleHintMixin  {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer= AudioPlayer();
@@ -688,8 +688,7 @@ class _PickupGameState extends State<PickupGame>
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            const WeatherSceneBuilderScreen(level: 16),
+                        builder: (context) => ListeningAnimalGame(level: widget.level + 1),
                       ),
                     );
                   }

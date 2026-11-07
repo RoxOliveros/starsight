@@ -16,6 +16,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
+import 'cold_hot_game.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -411,7 +412,7 @@ class _SoftHardGameScreenState extends State<SoftHardGameScreen>
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          FeedTheAnimalGame(level: widget.level + 1),
+                          ColdHotGame(level: widget.level + 1),
                     ),
                   );
                 }
