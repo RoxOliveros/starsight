@@ -19,7 +19,7 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_audio_path.dart';
-import 'forest_game_train.dart';
+import 'forest_game_paw_print.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -474,7 +474,7 @@ class _AlphabetFishingGameState extends State<AlphabetFishingGame>
           onNext: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => AlphabetTrainGame(level: 23)),
+              MaterialPageRoute(builder: (_) => FollowThePawPrintsGame(level: widget.level + 1)),
             );
           },
           onRestart: () {

@@ -480,7 +480,7 @@ class _LetterFirefliesGameState extends State<LetterFirefliesGame>
           onNext: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => AlphabetFishingGame(level: 22)),
+              MaterialPageRoute(builder: (_) => AlphabetFishingGame(level: widget.level + 1)),
             );
           },
           onRestart: () {

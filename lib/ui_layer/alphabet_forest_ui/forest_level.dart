@@ -1,28 +1,12 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/audio_helper.dart';
 import '../../business_layer/music_zones.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_acorn_basket.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_apple_tree.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_berry_bush_harvest.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_butterfly_flower.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_catterpillar_letter_match.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_finale.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_fishing.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_letter_fireflies.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_letter_match.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_letter_treehouse.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_mail_delivery.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_mushroom_hidenseek.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_paw_print.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_stick_letter_builder.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_train.dart';
-import '../../games_ui_layer/alphabet_forest/forest_game_yak_zebra_race.dart';
+import '../../games_ui_layer/alphabet_forest/forest_flow.dart';
 import '../loading_screen.dart';
 import '../starsight_setup_dialog.dart';
 import 'forest_theme.dart';
@@ -104,7 +88,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen>
       [1, 2, 3, 4, 5, 6, 7, 8],
       [9, 10, 11, 12, 13, 14, 15, 16],
       [17, 18, 19, 20, 21, 22, 23, 24],
-      [25],
+      [25, 26, 27, 28, 29, 30],
     ];
 
     final levels = pages[_currentPage];
@@ -319,99 +303,7 @@ class _LevelTile extends StatelessWidget {
     required this.size,
   });
 
-  Widget? _screenForLevel() {
-    switch (level) {
-      // abc intro
-      case 1:
-        return const AlphabetIntroScreen(letter: 'A');
-
-      // abc games
-      case 2:
-        return const ForestMailDeliveryGame(level: 2);
-
-      // def intro
-      case 3:
-        return const AlphabetIntroScreen(letter: 'D');
-
-      // def games
-      case 4:
-        return AcornBasketGame(level: 4);
-
-      // ghi intro
-      case 5:
-        return const AlphabetIntroScreen(letter: 'G');
-
-      // ghi games
-      case 6:
-        return const ButterflyFlowerGardenGame(level: 6);
-
-      // jkl intro
-      case 7:
-        return const AlphabetIntroScreen(letter: 'J');
-
-      // jkl games
-      case 8:
-        return const ButterflyLetterMatchGame(level: 8);
-
-      // mno intro
-      case 9:
-        return const AlphabetIntroScreen(letter: 'M');
-
-      // mno games
-      case 10:
-        return const MushroomHideAndSeekGame(level: 10);
-
-      // pqr intro
-      case 11:
-        return const AlphabetIntroScreen(letter: 'P');
-
-      // pqr games
-      case 12:
-        return const BerryBushHarvestGame(level: 12);
-
-      // stu intro
-      case 13:
-        return const AlphabetIntroScreen(letter: 'S');
-
-      // stu games
-      case 14:
-        return const FollowThePawPrintsGame(level: 14);
-
-      // vwx intro
-      case 15:
-        return const AlphabetIntroScreen(letter: 'V');
-
-      // vwx games
-      case 16:
-        return const FallenStickLetterBuilderGame(level: 16);
-
-      // yz intro
-      case 17:
-        return const AlphabetIntroScreen(letter: 'Y');
-
-      // yz games
-      case 18:
-        return const YakZebraRaceGame(level: 18);
-
-      // a-z games
-      case 19:
-        return const CaterpillarLetterMatchGame(level: 19);
-      case 20:
-        return const AlphabetAppleTreeGame(level: 20);
-      case 21:
-        return const LetterFirefliesGame(level: 21);
-      case 22:
-        return const AlphabetFishingGame(level: 22);
-      case 23:
-        return const AlphabetTrainGame(level: 23);
-      case 24:
-        return const LetterTreehouseGame(level: 24);
-      case 25:
-        return const AlphabetForestFinaleGame(level: 25);
-      default:
-        return null;
-    }
-  }
+  Widget? _screenForLevel() => ForestFlow.screenForLevel(level);
 
   @override
   Widget build(BuildContext context) {

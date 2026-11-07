@@ -18,8 +18,8 @@ import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
-import 'alphabet_intro.dart';
 import 'forest_audio_path.dart';
+import 'forest_game_apple_tree.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -388,7 +388,7 @@ class _BerryBushHarvestGameState extends State<BerryBushHarvestGame>
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => AlphabetIntroScreen(letter: 'S'),
+                builder: (_) => AlphabetAppleTreeGame(level: widget.level + 1),
               ),
             );
           },

@@ -1,9 +1,7 @@
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/forest_game_mail_delivery.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -18,22 +16,15 @@ import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
-import 'forest_game_acorn_basket.dart';
-import 'forest_game_berry_bush_harvest.dart';
-import 'forest_game_butterfly_flower.dart';
-import 'forest_game_letter_match.dart';
-import 'forest_game_mushroom_hidenseek.dart';
-import 'forest_game_paw_print.dart';
-import 'forest_game_stick_letter_builder.dart';
-import 'forest_game_yak_zebra_race.dart';
+import 'forest_flow.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AlphabetFallScreen extends StatefulWidget {
-  final String letter;
+  final List<String> letters;
 
-  const AlphabetFallScreen({super.key, required this.letter});
+  const AlphabetFallScreen({super.key, required this.letters});
 
   @override
   State<AlphabetFallScreen> createState() => _AlphabetFallScreenState();
@@ -57,9 +48,6 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
-  late List<String> _targetLetters;
-  int _winCondition = 4;
-
   final List<FallingObject> _activeObjects = [];
   final Random _random = Random();
 
@@ -67,14 +55,28 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   Timer? _spawnTimer;
   Timer? _gameTimer;
 
-  int _correctCount = 0;
-
-  static const String _fallInstructionWav =
-      'assets/audio/alphabet_forest/alphabet_minigame_fall_instruction.wav';
+  static const String _fallInstructionWav = 'assets/audio/alphabet_forest/alphabet_minigame_fall_instruction.wav';
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
   bool _gameLoopsStarted = false;
+
+  static const int _correctPerLetter = 3;
+  static const double _basketInset = 16;
+  static const List<Shadow> _letterShadows = [
+    Shadow(blurRadius: 6, color: Colors.black87, offset: Offset(2, 2)),
+  ];
+
+  int _targetIndex = 0;
+  int _correctForTarget = 0;
+
+  String get _target => widget.letters[_targetIndex].toUpperCase();
+
+  bool _inputEnabled = false;
+
+  Size _field = Size.zero;
+  double _objSize = 0;
+  double _basketSize = 0;
 
   @override
   void initState() {
@@ -89,17 +91,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
-    _loadLevel();
     _playInstructionThenLetter();
-  }
-
-  // --- FLEXIBLE TARGET LETTERS ---
-  void _loadLevel() {
-    final String upper = widget.letter.toUpperCase();
-    final String lower = widget.letter.toLowerCase();
-
-    _targetLetters = [upper, lower];
-    _winCondition = 4;
   }
 
   // --- THE IMAGE DICTIONARY ---
@@ -150,94 +142,110 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   void _spawnObject() {
     if (!mounted) return;
 
-    bool isTarget = _random.nextDouble() < 0.7;
-    String letterToDrop;
-
-    if (isTarget) {
-      letterToDrop = _targetLetters[_random.nextInt(_targetLetters.length)];
-    } else {
-      do {
-        bool isUpper = _random.nextBool();
-        letterToDrop = isUpper
-            ? String.fromCharCode(_random.nextInt(26) + 65)
-            : String.fromCharCode(_random.nextInt(26) + 97);
-      } while (_targetLetters.contains(letterToDrop));
-    }
-
-    String objectImage = _getImageForLetter(letterToDrop);
+    final others = widget.letters
+        .where((l) => l.toUpperCase() != _target)
+        .map((l) => l.toUpperCase())
+        .toList();
+    final useTarget = others.isEmpty || _random.nextDouble() < 0.5;
+    final base = useTarget ? _target : others[_random.nextInt(others.length)];
+    final letterToDrop = _random.nextBool() ? base : base.toLowerCase();
 
     setState(() {
       _activeObjects.add(
         FallingObject(
           letter: letterToDrop,
-          imagePath: objectImage,
-          xPos: _random.nextDouble(),
+          imagePath: _getImageForLetter(letterToDrop),
+          xPos: _random.nextDouble() * 0.72,
+          // keep the basket column clear
           yPos: -0.1,
-          speed: 0.003 + (_random.nextDouble() * 0.004),
+          speed:
+              0.002 +
+              (_random.nextDouble() * 0.0025), // slower: kids drag these
         ),
       );
     });
-  }
-
-  void _onObjectTap(FallingObject obj) async {
-    if (_targetLetters.contains(obj.letter)) {
-      _tapTracker.recordCorrectTap();
-
-      showTofiReaction(TofiState.correct);
-
-      setState(() {
-        _correctCount++;
-        _activeObjects.remove(obj);
-
-        if (_correctCount >= _winCondition) {
-          _spawnTimer?.cancel();
-          _gameTimer?.cancel();
-          _saveDataAndShowApplause();
-        }
-      });
-    } else {
-      _tapTracker.recordMistake();
-
-      setState(() => _activeObjects.remove(obj));
-
-      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
-      showTofiReaction(TofiState.wrong);
-    }
   }
 
   void _updateObjectPositions() {
     if (!mounted) return;
     setState(() {
-      for (var obj in _activeObjects) {
-        obj.yPos += obj.speed;
+      for (final obj in _activeObjects) {
+        if (!obj.isDragging) obj.yPos += obj.speed;
       }
-      _activeObjects.removeWhere((obj) => obj.yPos > 1.1);
+      _activeObjects.removeWhere((o) => !o.isDragging && o.yPos > 1.1);
     });
   }
 
-  void _goToNext() {
-    final String current = widget.letter.toUpperCase();
+  Rect _basketRect() => Rect.fromLTWH(
+    _field.width - _basketInset - _basketSize,
+    _field.height - _basketInset - _basketSize,
+    _basketSize,
+    _basketSize,
+  );
 
-    final completedLevel = ForestProgressService.levelNumberForLetter(current);
-    if (completedLevel != null) {
-      ForestProgressService.instance.markLevelComplete(completedLevel);
+  void _onDragStart(FallingObject obj, Offset topLeft) {
+    if (!_inputEnabled) return;
+    obj.isDragging = true;
+    obj.dragTopLeft = topLeft;
+  }
+
+  void _onDragUpdate(FallingObject obj, Offset delta) {
+    if (!obj.isDragging) return;
+    setState(() => obj.dragTopLeft += delta);
+  }
+
+  void _onDragEnd(FallingObject obj) {
+    if (!obj.isDragging) return;
+
+    final center = obj.dragTopLeft + Offset(_objSize / 2, _objSize / 2);
+    final overBasket = _basketRect().inflate(_objSize * 0.3).contains(center);
+
+    if (!overBasket) {
+      // dropped elsewhere: keep falling from where it was released
+      setState(() {
+        obj.isDragging = false;
+        obj.xPos = (obj.dragTopLeft.dx / (_field.width - _objSize))
+            .clamp(0.0, 1.0)
+            .toDouble();
+        obj.yPos = obj.dragTopLeft.dy / _field.height;
+      });
+      return;
     }
 
-    int charCode = current.codeUnitAt(0);
-    if (charCode >= 65 && charCode < 90) {
-      String nextLetter = String.fromCharCode(charCode + 1);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AlphabetIntroScreen(letter: nextLetter),
-        ),
-      );
+    if (obj.letter.toUpperCase() == _target) {
+      _tapTracker.recordCorrectTap();
+      unawaited(showTofiReaction(TofiState.correct));
+      setState(() {
+        _activeObjects.remove(obj);
+        _correctForTarget++;
+      });
+      if (_correctForTarget >= _correctPerLetter) _onTargetDone();
     } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const ForestLevelScreen()),
-      );
+      _tapTracker.recordMistake();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      unawaited(showTofiReaction(TofiState.wrong));
+      setState(() => _activeObjects.remove(obj));
     }
+  }
+
+  Future<void> _onTargetDone() async {
+    _spawnTimer?.cancel();
+    _gameTimer?.cancel();
+    setState(() => _inputEnabled = false);
+
+    if (_targetIndex + 1 >= widget.letters.length) {
+      _saveDataAndShowApplause();
+      return;
+    }
+
+    setState(() {
+      _activeObjects.clear();
+      _targetIndex++;
+      _correctForTarget = 0;
+    });
+    await _playTargetSound();
+    if (!mounted) return;
+    _beginRound();
   }
 
   Future<void> _playInstructionThenLetter() async {
@@ -248,17 +256,24 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
         timeout: const Duration(seconds: 30),
       );
       if (!mounted) return;
-      await playVoiceRestartingOnFaceLoss(
-        _audioPlayer,
-        'assets/audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-      );
+      await _playTargetSound();
     } finally {
       if (mounted) {
-        _startGameLoops();
+        _beginRound();
         _gameLoopsStarted = true;
         startIdleTimer();
       }
     }
+  }
+
+  Future<void> _playTargetSound() => playVoiceRestartingOnFaceLoss(
+    _audioPlayer,
+    'assets/audio/alphabet_forest/sound_effects/sound_${_target.toLowerCase()}.wav',
+  );
+
+  void _beginRound() {
+    setState(() => _inputEnabled = true);
+    _startGameLoops();
   }
 
   Future<void> _saveDataAndShowApplause() async {
@@ -268,8 +283,10 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     List<String> finalEmotions = stopAiCamera();
 
     ForestDatabaseService.saveGameData(
-      gameId: 'letter_fall_${widget.letter.toLowerCase()}',
-      activityName: "Alphabet Fall (${widget.letter.toUpperCase()})",
+      gameId:
+          'letter_fall_${widget.letters.map((l) => l.toLowerCase()).join()}',
+      activityName:
+          "Alphabet Fall (${widget.letters.map((l) => l.toUpperCase()).join(', ')})",
       emotions: finalEmotions,
       totalTaps: _tapTracker.totalTaps,
       mistakes: _tapTracker.mistakeCount,
@@ -285,51 +302,9 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   }
 
   void _showApplause() {
-    String currentLetter = widget.letter.toUpperCase();
-
-    const skipGoodJobLetters = {
-      'A',
-      'B',
-      'D',
-      'E',
-      'G',
-      'H',
-      'J',
-      'K',
-      'M',
-      'N',
-      'P',
-      'Q',
-      'S',
-      'T',
-      'V',
-      'W',
-      'Y',
-    };
-
-    if (skipGoodJobLetters.contains(currentLetter)) {
-      String nextLetter = String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AlphabetIntroScreen(letter: nextLetter),
-        ),
-      );
-      return;
-    }
-
-    const completeLevelsLetters = {'C', 'F', 'I', 'L', 'O', 'R', 'U', 'X', 'Z'};
-
-    if (completeLevelsLetters.contains(currentLetter)) {
-      final completedLevel = ForestProgressService.levelNumberForLetter(
-        currentLetter,
-      );
-
-      if (completedLevel != null) {
-        ForestProgressService.instance.markLevelComplete(completedLevel);
-      }
-    }
+    ForestProgressService.instance.markLevelComplete(
+      ForestFlow.levelOf(widget.letters),
+    );
 
     showDialog(
       context: context,
@@ -340,88 +315,21 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: 'assets/images/characters/dog.png',
-
           onNext: () {
             Navigator.pop(context);
-
-            if (currentLetter == 'C') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ForestMailDeliveryGame(level: 2),
-                ),
-              );
-            } else if (currentLetter == 'F') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AcornBasketGame(level: 4),
-                ),
-              );
-            } else if (currentLetter == 'I') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const ButterflyFlowerGardenGame(level: 6),
-                ),
-              );
-            } else if (currentLetter == 'L') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const ButterflyLetterMatchGame(level: 8),
-                ),
-              );
-            } else if (currentLetter == 'O') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const MushroomHideAndSeekGame(level: 10),
-                ),
-              );
-            } else if (currentLetter == 'R') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BerryBushHarvestGame(level: 12),
-                ),
-              );
-            } else if (currentLetter == 'U') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const FollowThePawPrintsGame(level: 14),
-                ),
-              );
-            } else if (currentLetter == 'X') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const FallenStickLetterBuilderGame(level: 16),
-                ),
-              );
-            } else if (currentLetter == 'Z') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const YakZebraRaceGame(level: 18),
-                ),
-              );
-            } else {
-              _goToNext();
-            }
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ForestFlow.screenAfter(widget.letters),
+              ),
+            );
           },
-
           onRestart: () {
             Navigator.pop(context);
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => AlphabetFallScreen(letter: widget.letter),
+                builder: (_) => AlphabetFallScreen(letters: widget.letters),
               ),
             );
           },
@@ -429,9 +337,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
             Navigator.pop(context);
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                builder: (context) => const ForestLevelScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
             );
           },
         ),
@@ -478,54 +384,42 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
                   top: 25,
                   right: 20,
                   child: ForestLevelBadge(
-                    level:
-                        ForestProgressService.levelNumberForLetter(
-                          widget.letter.toUpperCase(),
-                        ) ??
-                        1,
+                    level: ForestFlow.levelOf(widget.letters),
                   ),
                 ),
                 buildTofi(context),
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    double objSize = constraints.maxWidth * 0.12;
+                    _field = Size(constraints.maxWidth, constraints.maxHeight);
+                    _objSize = constraints.maxWidth * 0.12;
+                    _basketSize = constraints.maxWidth * 0.2;
+
                     return Stack(
                       children: [
+                        Positioned(
+                          right: _basketInset,
+                          bottom: _basketInset,
+                          child: _buildBasket(_basketSize, _target),
+                        ),
                         ..._activeObjects.map((obj) {
+                          final left = obj.isDragging
+                              ? obj.dragTopLeft.dx
+                              : obj.xPos * (_field.width - _objSize);
+                          final top = obj.isDragging
+                              ? obj.dragTopLeft.dy
+                              : obj.yPos * _field.height;
                           return Positioned(
-                            left: obj.xPos * (constraints.maxWidth - objSize),
-                            top: obj.yPos * constraints.maxHeight,
+                            key: ObjectKey(obj),
+                            left: left,
+                            top: top,
                             child: GestureDetector(
-                              onTap: () => _onObjectTap(obj),
-                              child: SizedBox(
-                                width: objSize,
-                                height: objSize,
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    Image.asset(
-                                      obj.imagePath,
-                                      fit: BoxFit.contain,
-                                    ),
-                                    Text(
-                                      obj.letter,
-                                      style: TextStyle(
-                                        fontFamily: ForestAppTextStyles.fredoka,
-                                        fontSize: objSize * 0.5,
-                                        fontWeight: FontWeight.w900,
-                                        color: Colors.white,
-                                        shadows: const [
-                                          Shadow(
-                                            blurRadius: 6,
-                                            color: Colors.black87,
-                                            offset: Offset(2, 2),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                              behavior: HitTestBehavior.opaque,
+                              onPanStart: (_) =>
+                                  _onDragStart(obj, Offset(left, top)),
+                              onPanUpdate: (d) => _onDragUpdate(obj, d.delta),
+                              onPanEnd: (_) => _onDragEnd(obj),
+                              onPanCancel: () => _onDragEnd(obj),
+                              child: _buildLetterObject(obj.letter, _objSize),
                             ),
                           );
                         }),
@@ -539,8 +433,9 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
             if (showHowToPlay && _gameLoopsStarted && !_hasSavedResult)
               Positioned.fill(
                 child: HowToPlayOverlay(
-                  previewChild: _buildHowToPreview(size.width, size.height),
-                  handAlignment: const Alignment(0.0, 0.05),
+                  previewChild: _buildHowToPreview(size),
+                  handAlignment: _demoHandStart(size),
+                  handEndAlignment: _demoHandEnd(size),
                   handOffset: const Offset(0.15, 0.55),
                   onDismiss: resetIdleTimer,
                 ),
@@ -559,9 +454,84 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     );
   }
 
-  Widget _buildHowToPreview(double sw, double sh) {
-    final double objSize = sw * 0.12;
-    final String letter = widget.letter.toUpperCase();
+  Widget _buildLetterObject(String letter, double size) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Image.asset(_getImageForLetter(letter), fit: BoxFit.contain),
+          Text(
+            letter,
+            style: TextStyle(
+              fontFamily: ForestAppTextStyles.fredoka,
+              fontSize: size * 0.5,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              shadows: _letterShadows,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBasket(double size, String letter) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Image.asset(
+            'assets/images/objects/forest/basket.png',
+            fit: BoxFit.contain,
+          ),
+          Padding(
+            padding: EdgeInsets.only(top: size * 0.25),
+            child: Text(
+              '${letter.toUpperCase()}${letter.toLowerCase()}',
+              style: TextStyle(
+                fontFamily: ForestAppTextStyles.fredoka,
+                fontSize: size * 0.32,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                shadows: _letterShadows,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// --- how-to demo: apple -> basket (shared by preview and hand) ---
+  static const String _demoLetter = 'A'; // apple
+
+  Offset _demoAppleTopLeft(Size s) => Offset(s.width * 0.35, s.height * 0.2);
+
+  Alignment _toAlignment(Offset p, Size s) =>
+      Alignment((2 * p.dx / s.width) - 1, (2 * p.dy / s.height) - 1);
+
+// center of the apple
+  Alignment _demoHandStart(Size s) {
+    final o = _demoAppleTopLeft(s);
+    final half = s.width * 0.12 / 2;
+    return _toAlignment(Offset(o.dx + half, o.dy + half), s);
+  }
+
+// center of the basket
+  Alignment _demoHandEnd(Size s) {
+    final half = s.width * 0.2 / 2;
+    return _toAlignment(
+      Offset(s.width - _basketInset - half, s.height - _basketInset - half),
+      s,
+    );
+  }
+
+  Widget _buildHowToPreview(Size s) {
+    final o = _demoAppleTopLeft(s);
 
     return Stack(
       fit: StackFit.expand,
@@ -571,34 +541,14 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
           fit: BoxFit.cover,
         ),
         Positioned(
-          left: (sw - objSize) / 2,
-          top: sh * 0.4,
-          child: SizedBox(
-            width: objSize,
-            height: objSize,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Image.asset(_getImageForLetter(letter), fit: BoxFit.contain),
-                Text(
-                  letter,
-                  style: TextStyle(
-                    fontFamily: ForestAppTextStyles.fredoka,
-                    fontSize: objSize * 0.5,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    shadows: const [
-                      Shadow(
-                        blurRadius: 6,
-                        color: Colors.black87,
-                        offset: Offset(2, 2),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          right: _basketInset,
+          bottom: _basketInset,
+          child: _buildBasket(s.width * 0.2, _demoLetter),
+        ),
+        Positioned(
+          left: o.dx,
+          top: o.dy,
+          child: _buildLetterObject(_demoLetter, s.width * 0.12),
         ),
       ],
     );
@@ -608,7 +558,9 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
 class FallingObject {
   final String letter;
   final String imagePath;
-  final double xPos;
+  double xPos;
+  bool isDragging = false;
+  Offset dragTopLeft = Offset.zero;
   double yPos;
   final double speed;
 

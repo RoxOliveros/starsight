@@ -18,8 +18,8 @@ import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
-import 'alphabet_intro.dart';
 import 'forest_audio_path.dart';
+import 'forest_game_catterpillar_letter_match.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -378,7 +378,7 @@ class _ButterflyLetterMatchGameState extends State<ButterflyLetterMatchGame>
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => AlphabetIntroScreen(letter: 'M'),
+                builder: (_) => CaterpillarLetterMatchGame(level: widget.level + 1),
               ),
             );
           },

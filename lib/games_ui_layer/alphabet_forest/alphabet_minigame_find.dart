@@ -18,6 +18,7 @@ import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
+import 'forest_flow.dart';
 import 'forest_game_acorn_basket.dart';
 import 'forest_game_berry_bush_harvest.dart';
 import 'forest_game_butterfly_flower.dart';
@@ -31,9 +32,9 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AlphabetFindScreen extends StatefulWidget {
-  final String letter;
+  final List<String> letters;
 
-  const AlphabetFindScreen({super.key, required this.letter});
+  const AlphabetFindScreen({super.key, required this.letters});
 
   @override
   State<AlphabetFindScreen> createState() => _AlphabetFindScreenState();
@@ -60,15 +61,12 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
 
   static const String _vaseAsset = 'assets/images/objects/forest/vase.png';
   static const String _hammerAsset = 'assets/images/objects/forest/hammer.png';
-  static const String _findInstructionAudio =
-      'assets/audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
 
-  static const int _totalRounds = 3;
+  static const String _findInstructionAudio = 'assets/audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
 
   List<String> _vaseLetters = [];
 
   int _completedRounds = 0;
-  int _correctIndex = 0;
   int? _revealedIndex;
   int? _shakingIndex;
   int _tapToken = 0;
@@ -78,9 +76,20 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
 
   bool _choicesLocked = false;
   bool _inputEnabled = false;
-  bool _isPlayingJarSequence = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+
+  int get _totalRounds => widget.letters.length;
+
+  static const bool _lowercaseOnVases = false;
+
+  String _vaseLabel(String l) => _lowercaseOnVases ? l.toLowerCase() : l;
+
+  String get _target => widget
+      .letters[min(_completedRounds, widget.letters.length - 1)]
+      .toUpperCase();
+
+  bool _isPlayingTarget = false;
 
   @override
   void initState() {
@@ -104,55 +113,33 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     ]).animate(CurvedAnimation(parent: _wiggleCtrl, curve: Curves.easeInOut));
     _loadRound();
 
-    _playInstructionThenVaseSounds();
+    _playInstructionThenTarget();
   }
 
   void _loadRound() {
-    final String target = widget.letter.toUpperCase();
-    final int targetCode = target.codeUnitAt(0);
-
-    final List<String> previousLetters = [
-      for (int c = 65; c < targetCode; c++) String.fromCharCode(c),
-    ];
-    previousLetters.shuffle(_random);
-    final List<String> decoys = previousLetters.take(2).toList();
-
-    while (decoys.length < 2) {
-      final candidate = String.fromCharCode(65 + _random.nextInt(26));
-      if (candidate != target && !decoys.contains(candidate)) {
-        decoys.add(candidate);
-      }
+    // Jars show this level's letters, topped up with earlier letters to reach 3
+    final pool = widget.letters.map((l) => l.toUpperCase()).toList();
+    if (pool.length < 3) {
+      final first = pool.first.codeUnitAt(0);
+      final earlier = [for (var c = 65; c < first; c++) String.fromCharCode(c)]
+        ..shuffle(_random);
+      pool.addAll(earlier.take(3 - pool.length));
     }
-
-    final correctIndex = _random.nextInt(3);
-
-    final letters = List<String>.filled(3, '');
-
-    int decoyIndex = 0;
-    for (int i = 0; i < 3; i++) {
-      if (i == correctIndex) {
-        letters[i] = target;
-      } else {
-        letters[i] = decoys[decoyIndex++];
-      }
-    }
+    pool.shuffle(_random);
 
     setState(() {
-      _vaseLetters = letters;
-      _correctIndex = correctIndex;
+      _vaseLetters = pool;
       _revealedIndex = null;
       _shakingIndex = null;
       _choicesLocked = false;
     });
 
     if (_completedRounds > 0) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _playVaseSounds();
-      });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _playTargetSound());
     }
   }
 
-  Future<void> _playInstructionThenVaseSounds() async {
+  Future<void> _playInstructionThenTarget() async {
     try {
       await playVoiceRestartingOnFaceLoss(
         _audioPlayer,
@@ -163,39 +150,21 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
       debugPrint('Instruction audio error: $e');
     }
     if (!mounted) return;
-
-    await _playVaseSounds();
+    await _playTargetSound();
   }
 
-  Future<void> _playVaseSounds() async {
-    if (_isPlayingJarSequence) return;
-    _isPlayingJarSequence = true;
-
+  Future<void> _playTargetSound() async {
+    if (_isPlayingTarget) return;
+    _isPlayingTarget = true;
     cancelIdleTimer();
     if (mounted) setState(() => _inputEnabled = false);
 
     try {
-      for (int i = 0; i < _vaseLetters.length; i++) {
-        if (!mounted) break;
-
-        setState(() => _shakingIndex = i);
-        _wiggleCtrl.repeat(reverse: true);
-
-        await _playLetterSound(_vaseLetters[i]);
-        if (!mounted) break;
-
-        _wiggleCtrl.stop();
-        _wiggleCtrl.reset();
-        setState(() => _shakingIndex = null);
-
-        if (i < _vaseLetters.length - 1) {
-          await Future.delayed(const Duration(milliseconds: 1500));
-        }
-      }
+      await _playLetterSound(_target);
     } catch (e) {
-      debugPrint('Vase sound error: $e');
+      debugPrint('Target sound error: $e');
     } finally {
-      _isPlayingJarSequence = false;
+      _isPlayingTarget = false;
       if (mounted) {
         setState(() => _inputEnabled = true);
         startIdleTimer();
@@ -218,15 +187,15 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     final token = ++_tapToken;
     _audioPlayer.stop();
 
-    if (index == _correctIndex) {
+    if (_vaseLetters[index] == _target) {
       cancelIdleTimer();
       _tapTracker.recordCorrectTap();
       _choicesLocked = true;
-      setState(() => _revealedIndex = index);
+      setState(() => _revealedIndex = index); // smash, letter stays
       await GamesSfxPlayer.instance.play(GameSfx.breakVase);
       if (!mounted || token != _tapToken) return;
 
-      showTofiReaction(TofiState.correct);
+      unawaited(showTofiReaction(TofiState.correct));
       await Future.delayed(const Duration(milliseconds: 2000));
       if (!mounted) return;
 
@@ -242,45 +211,15 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
         });
       }
     } else {
+      // wrong jar: wiggle only, don't smash it
       _tapTracker.recordMistake();
-      setState(() {
-        _shakingIndex = index;
-        _revealedIndex = index;
-      });
-
+      setState(() => _shakingIndex = index);
       _wiggleCtrl.forward(from: 0);
-      await GamesSfxPlayer.instance.play(GameSfx.breakVase);
+      unawaited(showTofiReaction(TofiState.wrong));
+
+      await Future.delayed(const Duration(milliseconds: 1200));
       if (!mounted || token != _tapToken) return;
-
-      showTofiReaction(TofiState.wrong);
-
-      await Future.delayed(const Duration(milliseconds: 3600));
-      if (!mounted || token != _tapToken) return;
-
-      setState(() {
-        _shakingIndex = null;
-        _revealedIndex = null;
-      });
-    }
-  }
-
-  void _goToNext() {
-    final String current = widget.letter.toUpperCase();
-    int charCode = current.codeUnitAt(0);
-
-    if (charCode >= 65 && charCode < 90) {
-      String nextLetter = String.fromCharCode(charCode + 1);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AlphabetIntroScreen(letter: nextLetter),
-        ),
-      );
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const ForestLevelScreen()),
-      );
+      setState(() => _shakingIndex = null);
     }
   }
 
@@ -291,8 +230,10 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     List<String> finalEmotions = stopAiCamera();
 
     ForestDatabaseService.saveGameData(
-      gameId: 'letter_find_${widget.letter.toLowerCase()}',
-      activityName: "Alphabet Find (${widget.letter.toUpperCase()})",
+      gameId:
+          'letter_find_${widget.letters.map((l) => l.toLowerCase()).join()}',
+      activityName:
+          "Alphabet Find (${widget.letters.map((l) => l.toUpperCase()).join(', ')})",
       emotions: finalEmotions,
       totalTaps: _tapTracker.totalTaps,
       mistakes: _tapTracker.mistakeCount,
@@ -306,52 +247,9 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   }
 
   void _showApplause() {
-    final String currentLetter = widget.letter.toUpperCase();
-
-    const skipGoodJobLetters = {
-      'A',
-      'B',
-      'D',
-      'E',
-      'G',
-      'H',
-      'J',
-      'K',
-      'M',
-      'N',
-      'P',
-      'Q',
-      'S',
-      'T',
-      'V',
-      'W',
-      'Y',
-    };
-
-    if (skipGoodJobLetters.contains(currentLetter)) {
-      String nextLetter = String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AlphabetIntroScreen(letter: nextLetter),
-        ),
-      );
-      return;
-    }
-
-    // mark level complete for some letters
-    const completeLevelsLetters = {'C', 'F', 'I', 'L', 'O', 'R', 'U', 'X', 'Z'};
-
-    if (completeLevelsLetters.contains(currentLetter)) {
-      final completedLevel = ForestProgressService.levelNumberForLetter(
-        currentLetter,
-      );
-
-      if (completedLevel != null) {
-        ForestProgressService.instance.markLevelComplete(completedLevel);
-      }
-    }
+    ForestProgressService.instance.markLevelComplete(
+      ForestFlow.levelOf(widget.letters),
+    );
 
     showDialog(
       context: context,
@@ -362,86 +260,21 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: 'assets/images/characters/dog.png',
-
           onNext: () {
             Navigator.pop(context);
-            if (currentLetter == 'C') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ForestMailDeliveryGame(level: 2),
-                ),
-              );
-            } else if (currentLetter == 'F') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AcornBasketGame(level: 4),
-                ),
-              );
-            } else if (currentLetter == 'I') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const ButterflyFlowerGardenGame(level: 6),
-                ),
-              );
-            } else if (currentLetter == 'L') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const ButterflyLetterMatchGame(level: 8),
-                ),
-              );
-            } else if (currentLetter == 'O') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const MushroomHideAndSeekGame(level: 10),
-                ),
-              );
-            } else if (currentLetter == 'R') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BerryBushHarvestGame(level: 12),
-                ),
-              );
-            } else if (currentLetter == 'U') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const FollowThePawPrintsGame(level: 14),
-                ),
-              );
-            } else if (currentLetter == 'X') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const FallenStickLetterBuilderGame(level: 16),
-                ),
-              );
-            } else if (currentLetter == 'Z') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const YakZebraRaceGame(level: 18),
-                ),
-              );
-            } else {
-              _goToNext();
-            }
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ForestFlow.screenAfter(widget.letters),
+              ),
+            );
           },
           onRestart: () {
             Navigator.pop(context);
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => AlphabetFindScreen(letter: widget.letter),
+                builder: (_) => AlphabetFindScreen(letters: widget.letters),
               ),
             );
           },
@@ -449,9 +282,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
             Navigator.pop(context);
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                builder: (context) => const ForestLevelScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
             );
           },
         ),
@@ -495,11 +326,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
                   top: 25,
                   right: 20,
                   child: ForestLevelBadge(
-                    level:
-                        ForestProgressService.levelNumberForLetter(
-                          widget.letter.toUpperCase(),
-                        ) ??
-                        1,
+                    level: ForestFlow.levelOf(widget.letters),
                   ),
                 ),
 
@@ -527,7 +354,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      widget.letter.toUpperCase(),
+                      _target,
                       style: TextStyle(
                         fontFamily: ForestAppTextStyles.fredoka,
                         fontSize: 64,
@@ -560,7 +387,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
                   bottom: 0,
                   right: 20,
                   child: GestureDetector(
-                    onTap: _inputEnabled ? _playVaseSounds : null,
+                    onTap: _inputEnabled ? _playTargetSound : null,
                     child: Opacity(
                       opacity: _inputEnabled ? 1.0 : 0.5,
                       child: Image.asset(
@@ -584,7 +411,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
                 child: HowToPlayOverlay(
                   previewChild: _buildHowToPreview(),
                   handAlignment: Alignment(0, 1 - 2 * 110 / size.height),
-                  handOffset: const Offset(0.15, 0.4),
+                  handOffset: const Offset(0.15, 0.65),
                   onDismiss: resetIdleTimer,
                 ),
               ),
@@ -602,7 +429,27 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
     );
   }
 
+  Widget _buildLetterBadge(String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontFamily: ForestAppTextStyles.fredoka,
+        fontSize: 50,
+        height: 1,
+        fontWeight: FontWeight.w900,
+        color: Colors.white,
+      ),
+    );
+  }
+
   Widget _buildHowToPreview() {
+    final inLevel = widget.letters.map((l) => l.toUpperCase()).toSet();
+    final spare = [
+      for (var c = 65; c < 91; c++) String.fromCharCode(c),
+    ].where((l) => !inLevel.contains(l)).toList();
+    final sample = spare.first;
+    final vases = [spare[1], sample, spare[2]]; // middle jar matches the circle
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -625,7 +472,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
             ),
             alignment: Alignment.center,
             child: Text(
-              widget.letter.toUpperCase(),
+              sample,
               style: TextStyle(
                 fontFamily: ForestAppTextStyles.fredoka,
                 fontSize: 64,
@@ -642,17 +489,30 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
             padding: const EdgeInsets.only(bottom: 40),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(3, (_) {
+              children: vases.map((l) {
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Image.asset(
-                    _vaseAsset,
+                  child: SizedBox(
                     width: 120,
                     height: 140,
-                    fit: BoxFit.contain,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Image.asset(
+                          _vaseAsset,
+                          width: 120,
+                          height: 140,
+                          fit: BoxFit.contain,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 20),
+                          child: _buildLetterBadge(_vaseLabel(l)),
+                        ),
+                      ],
+                    ),
                   ),
                 );
-              }),
+              }).toList(),
             ),
           ),
         ),
@@ -682,6 +542,39 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
               alignment: Alignment.center,
               clipBehavior: Clip.none,
               children: [
+                AnimatedOpacity(
+                  opacity: revealed ? 0.0 : 1.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: Image.asset(
+                    _vaseAsset,
+                    width: 120,
+                    height: 140,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 120,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4DEB3),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: ForestColorTheme.darkseagreen,
+                          width: 4,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.science_outlined,
+                        size: 40,
+                        color: Color(0xFF3C5729),
+                      ),
+                    ),
+                  ),
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.only(top: 20),
+                  child: _buildLetterBadge(_vaseLabel(letter)),
+                ),
+
                 AnimatedOpacity(
                   opacity: revealed ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 300),
@@ -751,34 +644,6 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
                       ),
                     ),
                   ),
-
-                AnimatedOpacity(
-                  opacity: revealed ? 0.0 : 1.0,
-                  duration: const Duration(milliseconds: 300),
-                  child: Image.asset(
-                    _vaseAsset,
-                    width: 120,
-                    height: 140,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 120,
-                      height: 140,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF4DEB3),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: ForestColorTheme.darkseagreen,
-                          width: 4,
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.science_outlined,
-                        size: 40,
-                        color: Color(0xFF3C5729),
-                      ),
-                    ),
-                  ),
-                ),
               ],
             ),
           ),

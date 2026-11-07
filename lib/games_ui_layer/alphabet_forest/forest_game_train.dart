@@ -19,7 +19,7 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_audio_path.dart';
-import 'forest_game_letter_treehouse.dart';
+import 'forest_game_finale.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -389,7 +389,7 @@ class _AlphabetTrainGameState extends State<AlphabetTrainGame>
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => const LetterTreehouseGame(level: 24),
+                builder: (_) => AlphabetForestFinaleGame(level: widget.level + 1),
               ),
             );
           },

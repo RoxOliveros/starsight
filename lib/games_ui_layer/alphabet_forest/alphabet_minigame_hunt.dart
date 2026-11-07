@@ -1,10 +1,9 @@
+import 'dart:math';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/forest_game_mail_delivery.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -16,22 +15,14 @@ import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
-import 'forest_game_acorn_basket.dart';
-import 'forest_game_berry_bush_harvest.dart';
-import 'forest_game_butterfly_flower.dart';
-import 'forest_game_letter_match.dart';
-import 'forest_game_mushroom_hidenseek.dart';
-import 'forest_game_paw_print.dart';
-import 'forest_game_stick_letter_builder.dart';
-import 'forest_game_yak_zebra_race.dart';
+import 'forest_flow.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AlphabetHuntScreen extends StatefulWidget {
-  final String letter;
-
-  const AlphabetHuntScreen({super.key, required this.letter});
+  final List<String> letters;
+  const AlphabetHuntScreen({super.key, required this.letters});
 
   @override
   State<AlphabetHuntScreen> createState() => _AlphabetHuntScreenState();
@@ -52,11 +43,9 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
   @override
   AudioPlayer get tofiPlayer => _tofiPlayer;
 
-  late List<String> _letterPool;
   final List<HuntObject> _activeObjects = [];
 
   int _correctCount = 0;
-  final int _winCondition = 4;
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
@@ -66,6 +55,13 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
   bool _inputEnabled = false;
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
+
+  static const int _targetsPerRound = 3;
+  static const int _gridCount = 8; // 4 x 2
+
+  int _roundIndex = 0;
+  String get _target =>
+      widget.letters[min(_roundIndex, widget.letters.length - 1)].toUpperCase();
 
   @override
   void initState() {
@@ -80,46 +76,38 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
 
-    _letterPool = _getPoolForLetter(widget.letter);
-
     _generateHuntField();
     _playInstructionThenLetter();
-  }
-
-  List<String> _getPoolForLetter(String target) {
-    String upperTarget = target.toUpperCase();
-
-    if (['A', 'B', 'C'].contains(upperTarget)) return ['A', 'B', 'C'];
-    if (['D', 'E', 'F'].contains(upperTarget)) return ['D', 'E', 'F'];
-    if (['G', 'H', 'I'].contains(upperTarget)) return ['G', 'H', 'I'];
-    if (['J', 'K', 'L'].contains(upperTarget)) return ['J', 'K', 'L'];
-    if (['M', 'N', 'O'].contains(upperTarget)) return ['M', 'N', 'O'];
-    if (['P', 'Q', 'R'].contains(upperTarget)) return ['P', 'Q', 'R'];
-    if (['S', 'T', 'U'].contains(upperTarget)) return ['S', 'T', 'U'];
-    if (['V', 'W', 'X'].contains(upperTarget)) return ['V', 'W', 'X'];
-    if (['X', 'Y', 'Z'].contains(upperTarget)) return ['X', 'Y', 'Z'];
-
-    return ['A', 'B', 'C'];
   }
 
   void _generateHuntField() {
     _activeObjects.clear();
 
-    for (int i = 0; i < _winCondition; i++) {
-      _activeObjects.add(_createHuntObject(widget.letter.toUpperCase()));
+    for (int i = 0; i < _targetsPerRound; i++) {
+      _activeObjects.add(_createHuntObject(_target));
     }
 
-    List<String> distractors = _letterPool
-        .where((l) => l != widget.letter.toUpperCase())
-        .toList();
-
-    for (String distractorLetter in distractors) {
-      for (int i = 0; i < 2; i++) {
-        _activeObjects.add(_createHuntObject(distractorLetter));
-      }
+    final others = _distractorLetters();
+    for (int i = 0; i < _gridCount - _targetsPerRound; i++) {
+      _activeObjects.add(_createHuntObject(others[i % others.length]));
     }
 
     _activeObjects.shuffle();
+  }
+
+  List<String> _distractorLetters() {
+    final others = widget.letters
+        .map((l) => l.toUpperCase())
+        .where((l) => l != _target)
+        .toList();
+
+    if (others.length < 2) {
+      final first = widget.letters.first.toUpperCase().codeUnitAt(0);
+      final earlier = [for (var c = 65; c < first; c++) String.fromCharCode(c)]
+        ..shuffle();
+      others.addAll(earlier.take(2 - others.length));
+    }
+    return others;
   }
 
   HuntObject _createHuntObject(String letter) {
@@ -169,28 +157,53 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
   void _onObjectTap(HuntObject obj, GlobalKey key) {
     if (!_inputEnabled || obj.found) return;
 
-    if (obj.letter == widget.letter.toUpperCase()) {
+    if (obj.letter == _target) {
       _tapTracker.recordCorrectTap();
       showTofiReaction(TofiState.correct);
 
-      final bool won = _correctCount + 1 >= _winCondition;
-
-      if (won) cancelIdleTimer();
+      final bool roundDone = _correctCount + 1 >= _targetsPerRound;
+      final bool lastRound = _roundIndex + 1 >= widget.letters.length;
+      if (roundDone) cancelIdleTimer();
 
       setState(() {
         obj.found = true;
         _correctCount++;
-        if (won) _inputEnabled = false;
+        if (roundDone) _inputEnabled = false;
       });
 
-      if (won) _saveDataAndShowApplause();
+      if (roundDone) {
+        if (lastRound) {
+          _saveDataAndShowApplause();
+        } else {
+          _nextRound();
+        }
+      }
     } else {
       _tapTracker.recordMistake();
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       showTofiReaction(TofiState.wrong);
-
       setState(() => obj.found = true);
     }
+  }
+
+  Future<void> _nextRound() async {
+    await Future.delayed(const Duration(milliseconds: 1200)); // let Tofi react
+    if (!mounted) return;
+
+    setState(() {
+      _roundIndex++;
+      _correctCount = 0;
+      _generateHuntField();
+    });
+
+    try {
+      await _playTargetSound();
+    } catch (e) {
+      debugPrint('Target audio error: $e');
+    }
+    if (!mounted) return;
+    setState(() => _inputEnabled = true);
+    startIdleTimer();
   }
 
   Future<void> _playInstructionThenLetter() async {
@@ -201,10 +214,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
         timeout: const Duration(seconds: 30),
       );
       if (!mounted) return;
-      await playVoiceRestartingOnFaceLoss(
-        _audioPlayer,
-        'assets/audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-      );
+      await _playTargetSound();
     } catch (e) {
       debugPrint('Instruction audio error: $e');
     }
@@ -214,6 +224,11 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     }
   }
 
+  Future<void> _playTargetSound() => playVoiceRestartingOnFaceLoss(
+    _audioPlayer,
+    'assets/audio/alphabet_forest/sound_effects/sound_${_target.toLowerCase()}.wav',
+  );
+
   Future<void> _saveDataAndShowApplause() async {
     cancelIdleTimer();
     if (_hasSavedResult) return;
@@ -221,8 +236,8 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     List<String> finalEmotions = stopAiCamera();
 
     ForestDatabaseService.saveGameData(
-      gameId: 'letter_hunt_${widget.letter.toLowerCase()}',
-      activityName: "Alphabet Hunt (${widget.letter.toUpperCase()})",
+      gameId: 'letter_hunt_${widget.letters.map((l) => l.toLowerCase()).join()}',
+      activityName: "Alphabet Hunt (${widget.letters.map((l) => l.toUpperCase()).join(', ')})",
       emotions: finalEmotions,
       totalTaps: _tapTracker.totalTaps,
       mistakes: _tapTracker.mistakeCount,
@@ -238,51 +253,9 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
   }
 
   void _showApplause() {
-    final String currentLetter = widget.letter.toUpperCase();
-
-    const skipGoodJobLetters = {
-      'A',
-      'B',
-      'D',
-      'E',
-      'G',
-      'H',
-      'J',
-      'K',
-      'M',
-      'N',
-      'P',
-      'Q',
-      'S',
-      'T',
-      'V',
-      'W',
-      'Y',
-    };
-
-    if (skipGoodJobLetters.contains(currentLetter)) {
-      String nextLetter = String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AlphabetIntroScreen(letter: nextLetter),
-        ),
-      );
-      return;
-    }
-
-    const completeLevelsLetters = {'C', 'F', 'I', 'L', 'O', 'R', 'U', 'X', 'Z'};
-
-    if (completeLevelsLetters.contains(currentLetter)) {
-      final completedLevel = ForestProgressService.levelNumberForLetter(
-        currentLetter,
-      );
-
-      if (completedLevel != null) {
-        ForestProgressService.instance.markLevelComplete(completedLevel);
-      }
-    }
+    ForestProgressService.instance.markLevelComplete(
+      ForestFlow.levelOf(widget.letters),
+    );
 
     showDialog(
       context: context,
@@ -293,117 +266,29 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: 'assets/images/characters/dog.png',
-
           onNext: () {
             Navigator.pop(context);
-
-            String current = widget.letter.toUpperCase();
-
-            if (currentLetter == 'C') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ForestMailDeliveryGame(level: 2),
-                ),
-              );
-            } else if (currentLetter == 'F') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AcornBasketGame(level: 4),
-                ),
-              );
-            } else if (currentLetter == 'I') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const ButterflyFlowerGardenGame(level: 6),
-                ),
-              );
-            } else if (currentLetter == 'L') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const ButterflyLetterMatchGame(level: 8),
-                ),
-              );
-            } else if (currentLetter == 'O') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const MushroomHideAndSeekGame(level: 10),
-                ),
-              );
-            } else if (currentLetter == 'R') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BerryBushHarvestGame(level: 12),
-                ),
-              );
-            } else if (currentLetter == 'U') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const FollowThePawPrintsGame(level: 14),
-                ),
-              );
-            } else if (currentLetter == 'X') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const FallenStickLetterBuilderGame(level: 16),
-                ),
-              );
-            } else if (currentLetter == 'Z') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const YakZebraRaceGame(level: 18),
-                ),
-              );
-            } else {
-              // Otherwise, just go to the next normal Intro screen!
-              int charCode = current.codeUnitAt(0);
-              if (charCode >= 65 && charCode < 90) {
-                String nextLetter = String.fromCharCode(charCode + 1);
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        AlphabetIntroScreen(letter: nextLetter),
-                  ),
-                );
-              } else {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ForestLevelScreen(),
-                  ),
-                );
-              }
-            }
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ForestFlow.screenAfter(widget.letters),
+              ),
+            );
           },
           onRestart: () {
             Navigator.pop(context);
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => AlphabetHuntScreen(letter: widget.letter),
+                builder: (_) => AlphabetHuntScreen(letters: widget.letters),
               ),
             );
           },
           onBack: () {
-            Navigator.pop(context); // Close the prompt
+            Navigator.pop(context);
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                builder: (context) => const ForestLevelScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
             );
           },
         ),
@@ -451,11 +336,20 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
                   top: 25,
                   right: 25,
                   child: ForestLevelBadge(
-                    level:
-                        ForestProgressService.levelNumberForLetter(
-                          widget.letter.toUpperCase(),
-                        ) ??
-                        1,
+                    level: ForestFlow.levelOf(widget.letters),
+                  ),
+                ),
+
+                Positioned(
+                  top: 20,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: GestureDetector(
+                      // tap the card to hear the letter again
+                      onTap: _inputEnabled ? () => _playTargetSound().catchError((_) {}) : null,
+                      child: _buildTargetCard(_target),
+                    ),
                   ),
                 ),
 
@@ -490,31 +384,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
                               key: obj.key,
                               behavior: HitTestBehavior.opaque,
                               onTap: () => _onObjectTap(obj, obj.key),
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  Image.asset(
-                                    obj.imagePath,
-                                    fit: BoxFit.contain,
-                                  ),
-                                  Text(
-                                    obj.letter,
-                                    style: TextStyle(
-                                      fontFamily: ForestAppTextStyles.fredoka,
-                                      fontSize: letterFontSize,
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.white,
-                                      shadows: const [
-                                        Shadow(
-                                          blurRadius: 6,
-                                          color: Colors.black87,
-                                          offset: Offset(2, 2),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              child: _buildObjectTile(obj.letter, letterFontSize),
                             ),
                           );
                         }).toList(),
@@ -525,15 +395,12 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
               ],
             ),
 
-            if (showHowToPlay &&
-                _inputEnabled &&
-                !_hasSavedResult &&
-                _firstTargetIndex() != -1)
+            if (showHowToPlay && _inputEnabled && !_hasSavedResult)
               Positioned.fill(
                 child: HowToPlayOverlay(
                   previewChild: _buildHowToPreview(screenSize),
-                  handAlignment: _handAlignmentForTarget(screenSize),
-                  handOffset: const Offset(0.15, 0.4),
+                  handAlignment: _handAlignmentForCell(screenSize, 1),
+                  handOffset: const Offset(0.15, 0.65),
                   onDismiss: resetIdleTimer,
                 ),
               ),
@@ -551,17 +418,86 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     );
   }
 
-  // Index of the first target letter still on the board, or -1 if none.
-  int _firstTargetIndex() {
-    final String target = widget.letter.toUpperCase();
-    return _activeObjects.indexWhere((o) => !o.found && o.letter == target);
+  Widget _buildTargetCard(String letter) {
+    return Container(
+      width: 62,
+      height: 62,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: ForestColorTheme.darkseagreen, width: 4),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3)),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        letter,
+        style: TextStyle(
+          fontFamily: ForestAppTextStyles.fredoka,
+          fontSize: 38,
+          height: 1,
+          fontWeight: FontWeight.w900,
+          color: const Color(0xFF3C5729),
+        ),
+      ),
+    );
   }
 
-  // Centre of that grid cell, converted to an Alignment.
-  Alignment _handAlignmentForTarget(Size s) {
-    final int index = _firstTargetIndex();
-    if (index < 0) return Alignment.center;
+  Widget _buildObjectTile(String letter, double fontSize) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Image.asset(
+          _getObjectImage(letter),
+          fit: BoxFit.contain,
+        ),
 
+        // Letter outline
+        Text(
+          letter,
+          style: TextStyle(
+            fontFamily: ForestAppTextStyles.fredoka,
+            fontSize: fontSize,
+            fontWeight: FontWeight.w900,
+            foreground: Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 3
+              ..color = Colors.black87,
+          ),
+        ),
+
+        // Letter fill
+        Text(
+          letter,
+          style: TextStyle(
+            fontFamily: ForestAppTextStyles.fredoka,
+            fontSize: fontSize,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
+            shadows: const [
+              Shadow(
+                blurRadius: 6,
+                color: Colors.black87,
+                offset: Offset(2, 2),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<String> _previewLetters() {
+    final inLevel = widget.letters.map((l) => l.toUpperCase()).toSet();
+    final spare = [for (var c = 65; c < 91; c++) String.fromCharCode(c)]
+        .where((l) => !inLevel.contains(l))
+        .toList();
+    final s = spare[0], a = spare[1], b = spare[2];
+    return [a, s, b, s, b, a, s, a];
+  }
+
+  Alignment _handAlignmentForCell(Size s, int index) {
     const double left = 180, right = 20, top = 80, bottom = 20, gap = 12;
     final double gridW = s.width - left - right;
     final double gridH = s.height - top - bottom;
@@ -578,12 +514,17 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
   }
 
   Widget _buildHowToPreview(Size screenSize) {
+    final letters = _previewLetters();
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.asset(
-          'assets/images/backgrounds/bg_game_forest.png',
-          fit: BoxFit.cover,
+        Image.asset('assets/images/backgrounds/bg_game_forest.png', fit: BoxFit.cover),
+        Positioned(
+          top: 12,
+          left: 180,
+          right: 20,
+          child: Center(child: _buildTargetCard(letters[1])),
         ),
         Positioned(
           top: 80,
@@ -594,9 +535,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
             builder: (context, constraints) {
               final double itemWidth = (constraints.maxWidth - (3 * 12)) / 4;
               final double itemHeight = (constraints.maxHeight - (2 * 12)) / 2;
-              final double itemSize = itemWidth < itemHeight
-                  ? itemWidth
-                  : itemHeight;
+              final double itemSize = itemWidth < itemHeight ? itemWidth : itemHeight;
 
               return GridView.count(
                 physics: const NeverScrollableScrollPhysics(),
@@ -604,32 +543,9 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
                 childAspectRatio: itemWidth / itemHeight,
-                children: _activeObjects.map((obj) {
-                  if (obj.found) return const SizedBox.shrink();
-
-                  return Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Image.asset(obj.imagePath, fit: BoxFit.contain),
-                      Text(
-                        obj.letter,
-                        style: TextStyle(
-                          fontFamily: ForestAppTextStyles.fredoka,
-                          fontSize: itemSize * 0.45,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          shadows: const [
-                            Shadow(
-                              blurRadius: 6,
-                              color: Colors.black87,
-                              offset: Offset(2, 2),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
+                children: letters
+                    .map((l) => _buildObjectTile(l, itemSize * 0.45))
+                    .toList(),
               );
             },
           ),

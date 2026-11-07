@@ -22,6 +22,8 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'forest_audio_path.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'forest_game_butterfly_flower.dart';
+
 class ForestMailDeliveryGame extends StatefulWidget {
   final int level;
 
@@ -307,7 +309,7 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => AlphabetIntroScreen(letter: 'D'),
+                builder: (_) => ButterflyFlowerGardenGame(level: widget.level + 1),
               ),
             );
           },

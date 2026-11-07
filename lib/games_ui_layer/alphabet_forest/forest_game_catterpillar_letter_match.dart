@@ -19,7 +19,7 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_audio_path.dart';
-import 'forest_game_apple_tree.dart';
+import 'forest_game_letter_fireflies.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -389,7 +389,7 @@ class _CaterpillarLetterMatchGameState extends State<CaterpillarLetterMatchGame>
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => const AlphabetAppleTreeGame(level: 20),
+                builder: (_) => LetterFirefliesGame(level: widget.level + 1),
               ),
             );
           },
