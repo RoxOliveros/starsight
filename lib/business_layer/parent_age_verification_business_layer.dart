@@ -1,7 +1,7 @@
 class ParentAgeController {
   // Update your limits here!
-  static const int _minAge = 20;
-  static const int _maxAge = 60;
+  static const int _minAge = 15;
+  static const int _maxAge = 100;
 
   static bool ValidParentAge(int birthYear) {
     final age = DateTime.now().year - birthYear;

@@ -112,6 +112,34 @@ class SubjectAnalysis {
   });
 }
 
+/// One "What's typical at this age?" entry. Stored in Firestore at
+/// `app_config/age_milestones` as `notes: [{minAge, maxAge, text}, ...]`.
+/// `minAge` is inclusive, `maxAge` is exclusive; either may be omitted for
+/// an open-ended range. The first entry that matches the child's age wins.
+class AgeNote {
+  final double? minAge;
+  final double? maxAge;
+  final String text;
+
+  const AgeNote({this.minAge, this.maxAge, required this.text});
+
+  bool matches(double age) =>
+      (minAge == null || age >= minAge!) && (maxAge == null || age < maxAge!);
+
+  static AgeNote? tryParse(dynamic raw) {
+    if (raw is! Map) return null;
+    final text = raw['text'];
+    if (text is! String || text.trim().isEmpty) return null;
+    final min = raw['minAge'];
+    final max = raw['maxAge'];
+    return AgeNote(
+      minAge: min is num ? min.toDouble() : null,
+      maxAge: max is num ? max.toDouble() : null,
+      text: text.trim(),
+    );
+  }
+}
+
 class AnalysisReportsScreen extends StatefulWidget {
   final ChildProfile? child;
 
@@ -144,6 +172,10 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
   String? _childId;
   int _loadCount = 0; // bumps on every successful _load(), reloads the summary
   OverallSummaryStatus _summaryStatus = OverallSummaryStatus.generating;
+
+  // "What's typical at this age?" entries. Starts with the built-in
+  // defaults and is replaced by the Firestore copy once it loads.
+  List<AgeNote> _ageNotes = _defaultAgeNotes;
 
   @override
   void initState() {
@@ -248,6 +280,7 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
       final completed = await _loadCompletedGames(child.id);
       final subjects = _mockAnalysesFor(child.id, completed);
       await _loadBirthdayAndGender(child.id);
+      await _loadAgeNotes();
       if (!mounted) return;
       setState(() {
         _resolvedChild = child;
@@ -704,23 +737,106 @@ class _AnalysisReportsScreenState extends State<AnalysisReportsScreen> {
     );
   }
 
-  String _ageExpectationNote(double age) {
-    if (age < 3.5) {
-      return 'At this age, it\'s completely normal for focus to come in '
-          'short bursts of around 5–10 minutes, for big feelings to show '
-          'up quickly, and for sharing and turn-taking to still be a '
-          'work in progress. Every child grows at their own pace.';
-    } else if (age < 4.0) {
-      return 'Around this age, children are usually growing more '
-          'independent, holding focus for about 8–12 minutes at a time, '
-          'and starting to follow two-step instructions — while still '
-          'needing gentle reminders now and then. This is all typical.';
+  // ── "What's typical at this age?" ───────────────────────────────────
+  // Text lives in Firestore (`app_config/age_milestones`) so it can be
+  // updated without releasing a new app version. The built-in defaults
+  // below are used until it loads, offline, or if the document is missing
+  // or malformed.
+  //
+  // Content is based on the CDC "Learn the Signs. Act Early." milestones and
+  // the Raising Children Network 3–5 year guide (see the StarSight RRL).
+  // These are monitoring references, NOT diagnostic criteria.
+
+  static const String _closing =
+      ' Every child grows at their own pace, and this is a general guide, '
+      'not an assessment.';
+
+  static const String _fallbackAgeNote =
+      'Every child grows at their own pace. Use the activities and reports '
+      'as a general guide only.';
+
+  static const List<AgeNote> _defaultAgeNotes = [
+    AgeNote(
+      maxAge: 3,
+      text:
+          'StarSight is designed for children aged 3 to 5. At this age, '
+          'children are still building early language, movement and play '
+          'skills, and attention naturally comes in very short bursts. '
+          'Every child grows at their own pace, so please treat the '
+          'activities as gentle play rather than a measure of progress.',
+    ),
+    AgeNote(
+      minAge: 3,
+      maxAge: 4,
+      text:
+          'By age 3, most children speak in sentences of three to five '
+          'words, name a few colours, count up to four objects, and enjoy '
+          'imaginative pretend play. They are beginning to recognise '
+          'feelings like happy, sad or angry and may comfort others who '
+          'are upset. Short attention spans are typical.$_closing',
+    ),
+    AgeNote(
+      minAge: 4,
+      maxAge: 5,
+      text:
+          'Most 4-year-olds speak in longer sentences, follow two- to '
+          'three-step instructions, begin counting to 10, and can pay '
+          'attention for about five to ten minutes on activities they '
+          'enjoy. Many start recognising or writing some letters, follow '
+          'simple game rules, and show empathy toward friends.$_closing',
+    ),
+    AgeNote(
+      minAge: 5,
+      maxAge: 6,
+      text:
+          'By age 5, many children speak in longer, more complete '
+          'sentences, count five to ten objects by touching them, recall '
+          'recent events, and copy or write some letters on their own. '
+          'They cooperate and share with peers, have more control over '
+          'their emotions, and can stay with activities for longer, '
+          'though patience is still developing.$_closing',
+    ),
+    AgeNote(
+      minAge: 6,
+      text:
+          'This child is older than StarSight\'s main 3 to 5 age range, so '
+          'the activities may feel easier than expected. Focus and '
+          'learning pace vary widely between children, so use the reports '
+          'as a general guide only.',
+    ),
+  ];
+
+  /// Reads the notes from Firestore. Any failure (offline, missing doc,
+  /// bad data) silently keeps the current list, so the screen never breaks.
+  Future<void> _loadAgeNotes() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('app_config')
+          .doc('age_milestones')
+          .get()
+          .timeout(const Duration(seconds: 4));
+
+      final raw = snap.data()?['notes'];
+      if (raw is! List) return;
+
+      final parsed = raw
+          .map(AgeNote.tryParse)
+          .whereType<AgeNote>()
+          .toList(growable: false);
+      if (parsed.isEmpty) return;
+
+      _ageNotes = parsed;
+    } catch (_) {
+      // Keep whatever we already have (defaults or last loaded copy).
     }
-    return 'At this age, many children can hold focus for up to 15 '
-        'minutes, enjoy simple problem-solving, and are expressing '
-        'themselves more clearly — though impulse control and patience '
-        'are still very much developing. That\'s all part of healthy '
-        'growth.';
+  }
+
+  /// First entry whose age range contains [age] wins.
+  String _ageExpectationNote(double age) {
+    for (final note in _ageNotes) {
+      if (note.matches(age)) return note.text;
+    }
+    return _fallbackAgeNote;
   }
 
   Widget _buildMessageState({required IconData icon, required String message}) {
