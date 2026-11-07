@@ -15,8 +15,8 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
+import 'game_shooting_star.dart';
 import 'goodjob_doma_prompt.dart';
-import 'game_building_igloo.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/business_layer/arctic_database_service.dart';
@@ -891,7 +891,7 @@ class _CountingTreesScreenState extends State<CountingTreesScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => BuildIglooScreen(level: widget.level + 1),
+            builder: (_) => ShootingStarCountingGame(level: widget.level + 1),
           ),
         );
       },

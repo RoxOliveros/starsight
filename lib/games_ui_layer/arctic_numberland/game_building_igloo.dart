@@ -15,8 +15,8 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
+import 'game_build_snowman.dart';
 import 'goodjob_doma_prompt.dart';
-import 'game_match_snowglobe.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/business_layer/arctic_database_service.dart';
@@ -992,8 +992,7 @@ class _BuildIglooScreenState extends State<BuildIglooScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                Number1to5MatchSnowglobesScreen(level: widget.level + 1),
+            builder: (_) => BuildSnowmanGame(level: widget.level + 1),
           ),
         );
       },

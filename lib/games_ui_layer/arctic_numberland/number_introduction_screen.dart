@@ -10,12 +10,12 @@ import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
+import 'arctic_flow.dart';
 import 'arctic_game_ui.dart';
 import 'goodjob_doma_prompt.dart';
 import 'minigame_ice_path.dart';
 import 'minigame_number_tap.dart';
 import 'minigame_snowflake.dart';
-import 'number_tracing_widget.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/business_layer/arctic_database_service.dart';
@@ -33,8 +33,7 @@ typedef NumberMiniGameBuilder =
       required AudioPlayer player,
       required VoidCallback onComplete,
       required int level,
-      required GameTapTracker
-      tapTracker,
+      required GameTapTracker tapTracker,
     });
 
 class _MiniGameRotator {
@@ -202,19 +201,16 @@ class NumberLevelConfig {
   final String numberWord;
   final int levelId;
 
-  final String introAudio;
   final String numberRevealAudio;
   final String writeAudio;
   final String correctTapAudio;
 
-  /// null = skip the mini-game entirely after tracing (e.g. zero).
   final NumberObjectSet? objects;
 
   const NumberLevelConfig({
     required this.number,
     required this.numberWord,
     required this.levelId,
-    required this.introAudio,
     required this.numberRevealAudio,
     required this.writeAudio,
     required this.correctTapAudio,
@@ -231,7 +227,6 @@ NumberLevelConfig _buildConfig({
   required String numberWord,
   required int levelId,
   NumberObjectSet? objects,
-  String? introAudioOverride,
   String? numberRevealAudioOverride,
   String? writeAudioOverride,
   String? correctTapAudioOverride,
@@ -241,7 +236,6 @@ NumberLevelConfig _buildConfig({
     number: number,
     numberWord: numberWord,
     levelId: levelId,
-    introAudio: introAudioOverride ?? _audioPath('${wordKey}_intro'),
     numberRevealAudio:
         numberRevealAudioOverride ?? _audioPath('${wordKey}_know'),
     writeAudio: writeAudioOverride ?? _audioPath('${wordKey}_write'),
@@ -380,7 +374,6 @@ final Map<int, NumberLevelConfig> kNumberLevels = {
     number: 6,
     numberWord: 'SIX',
     levelId: 7,
-    numberRevealAudioOverride: '',
     objects: _buildObjects(
       numberWord: 'SIX',
       correctObjectId: 'igloo',
@@ -393,7 +386,6 @@ final Map<int, NumberLevelConfig> kNumberLevels = {
     number: 7,
     numberWord: 'SEVEN',
     levelId: 8,
-    numberRevealAudioOverride: '',
     objects: _buildObjects(
       numberWord: 'SEVEN',
       correctObjectId: 'candy_cane',
@@ -406,7 +398,6 @@ final Map<int, NumberLevelConfig> kNumberLevels = {
     number: 8,
     numberWord: 'EIGHT',
     levelId: 9,
-    numberRevealAudioOverride: '',
     objects: _buildObjects(
       numberWord: 'EIGHT',
       correctObjectId: 'snowflake',
@@ -419,7 +410,6 @@ final Map<int, NumberLevelConfig> kNumberLevels = {
     number: 9,
     numberWord: 'NINE',
     levelId: 10,
-    numberRevealAudioOverride: '',
     objects: _buildObjects(
       numberWord: 'NINE',
       correctObjectId: 'snowglobe',
@@ -432,7 +422,6 @@ final Map<int, NumberLevelConfig> kNumberLevels = {
     number: 10,
     numberWord: 'TEN',
     levelId: 11,
-    numberRevealAudioOverride: '',
     objects: _buildObjects(
       numberWord: 'TEN',
       correctObjectId: 'igloo',
@@ -457,18 +446,14 @@ enum _IntroPhase {
   celebrating,
 }
 
-enum _MiniGamePhase { tracing, tapping }
-
 class NumberIntroductionScreen extends StatefulWidget {
   final List<NumberLevelConfig> configs;
-  final Widget? nextScreen;
   final int level;
 
   const NumberIntroductionScreen({
     super.key,
     required this.configs,
     required this.level,
-    this.nextScreen,
   });
 
   factory NumberIntroductionScreen.forNumber(int number, {required int level}) {
@@ -480,18 +465,13 @@ class NumberIntroductionScreen extends StatefulWidget {
   factory NumberIntroductionScreen.forSequence(
     List<int> numbers, {
     required int level,
-    Widget? nextScreen,
   }) {
     final configs = numbers.map((n) {
       final c = kNumberLevels[n];
       assert(c != null, 'No NumberLevelConfig registered for $n');
       return c!;
     }).toList();
-    return NumberIntroductionScreen(
-      configs: configs,
-      nextScreen: nextScreen,
-      level: level,
-    );
+    return NumberIntroductionScreen(configs: configs, level: level);
   }
 
   @override
@@ -505,17 +485,19 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
         GameLoadingMixin<NumberIntroductionScreen>,
         AiCameraMixin<NumberIntroductionScreen>,
         AppAudioLifecycleMixin<NumberIntroductionScreen> {
-
   int _configIndex = 0;
+
   NumberLevelConfig get _config => widget.configs[_configIndex];
+
   bool get _isLastInSequence => _configIndex == widget.configs.length - 1;
 
   static const List<int> _loadingScreenNumbers = [0, 3, 6, 9];
-  bool get _shouldShowLoading => _loadingScreenNumbers.contains(widget.configs.first.number);
+
+  bool get _shouldShowLoading =>
+      _loadingScreenNumbers.contains(widget.configs.first.number);
 
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
   _IntroPhase _introPhase = _IntroPhase.domaEntering;
-  _MiniGamePhase _miniGamePhase = _MiniGamePhase.tracing;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
 
@@ -531,7 +513,7 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
 
   bool _showWinDialog = false;
   bool _isCompletingLevel = false;
-  bool _tracingEnabled = false;
+  bool _domaIntro = false;
 
   int? _miniGameIndex;
 
@@ -648,52 +630,51 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
 
   // ── Intro flow ────────────────────────────────────────────────────────
   Future<void> _startIntroFlow() async {
+    if (widget.level == 1 && _configIndex == 0) {
+      await _playDomaIntro();
+      if (!mounted) return;
+    }
+
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
     _domaSlideCtrl.forward(from: 0);
 
-    final hasRevealAudio = _config.numberRevealAudio.isNotEmpty;
+    _setIntroPhase(_IntroPhase.playingReveal);
+    _numberPopCtrl.forward(from: 0);
+    _numberDanceCtrl.repeat(reverse: true);
+    await Future.delayed(const Duration(milliseconds: 1500));
+    if (!mounted) return;
 
-    if (hasRevealAudio) {
-      _setIntroPhase(_IntroPhase.playingIntro);
-      await playVoiceRestartingOnFaceLoss(_audioPlayer, _config.introAudio);
-      if (!mounted) return;
-
-      _setIntroPhase(_IntroPhase.playingReveal);
-      _numberPopCtrl.forward(from: 0);
-      _numberDanceCtrl.repeat(reverse: true);
-      await Future.delayed(const Duration(milliseconds: 1500));
-      if (!mounted) return;
-      await playVoiceRestartingOnFaceLoss(_audioPlayer, _config.numberRevealAudio);
-      if (!mounted) return;
-      await Future.delayed(const Duration(milliseconds: 300));
-      if (!mounted) return;
-    } else {
-      _setIntroPhase(_IntroPhase.playingReveal);
-      _numberPopCtrl.forward(from: 0);
-      _numberDanceCtrl.repeat(reverse: true);
-      await playVoiceRestartingOnFaceLoss(_audioPlayer, _config.introAudio);
-      if (!mounted) return;
-    }
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _config.numberRevealAudio);
+    if (!mounted) return;
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
 
     _setIntroPhase(_IntroPhase.listening);
     _numberDanceCtrl.stop();
 
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
-    await _goToTracing();
 
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (!mounted) return;
+    if (_isLastInSequence) {
+      await _goToMiniGame();
+    } else {
+      _advanceToNextInSequence();
+    }
+  }
 
+  Future<void> _playDomaIntro() async {
+    setState(() => _domaIntro = true);
     try {
-      await playVoiceRestartingOnFaceLoss(_audioPlayer, _config.writeAudio);
+      await playVoiceRestartingOnFaceLoss(
+        _audioPlayer,
+        _audioPath('arctic_doma_intro'),
+      );
     } catch (e) {
-      debugPrint('Write audio error: $e');
+      debugPrint('Doma intro audio error: $e');
     }
     if (!mounted) return;
-
-    setState(() => _tracingEnabled = true);
+    setState(() => _domaIntro = false);
   }
 
   Future<void> _completeLevel() async {
@@ -732,10 +713,8 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
       _configIndex++;
       _screenPhase = _ScreenPhase.intro;
       _introPhase = _IntroPhase.domaEntering;
-      _miniGamePhase = _MiniGamePhase.tracing;
       _isCompletingLevel = false;
       _miniGameIndex = null;
-      _tracingEnabled = false;
     });
     _startIntroFlow();
   }
@@ -745,9 +724,12 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
     setState(() => _introPhase = p);
   }
 
-  Future<void> _goToTracing() async {
+  Future<void> _goToMiniGame() async {
     if (!mounted) return;
-    setState(() => _screenPhase = _ScreenPhase.miniGame);
+    setState(() {
+      _miniGameIndex = _miniGameRotator.next();
+      _screenPhase = _ScreenPhase.miniGame;
+    });
     _mgTransitionCtrl.forward(from: 0);
   }
 
@@ -803,6 +785,9 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
               Expanded(child: _buildIntroContent()),
             ],
           ),
+
+        if (_domaIntro) Positioned.fill(child: _buildDomaGreeting()),
+
         if (_screenPhase == _ScreenPhase.miniGame)
           Positioned.fill(
             child: FadeTransition(opacity: _mgFade, child: _buildMiniGame()),
@@ -865,6 +850,42 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
     );
   }
 
+  Widget _buildDomaGreeting() {
+    final h = MediaQuery.of(context).size.height;
+
+    return IgnorePointer(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            bottom: -80,
+            left: 0,
+            right: 0,
+            child: AnimatedBuilder(
+              animation: _domaFloatCtrl,
+              builder: (_, child) {
+                final t = Curves.easeInOut.transform(_domaFloatCtrl.value);
+                return Transform.translate(
+                  offset: Offset(0, -8 + 16 * t),
+                  child: child,
+                );
+              },
+              child: Center(
+                child: Image.asset(
+                  'assets/images/characters/doma_the_penguin.png',
+                  height: h * 1,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                      Text('🐧', style: TextStyle(fontSize: h * 0.5)),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Intro content ─────────────────────────────────────────────────────
   Widget _buildIntroContent() {
     return Padding(
@@ -902,35 +923,35 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
         );
 
         return Align(
-            alignment: Alignment.bottomLeft,
-            child: SlideTransition(
-              position: _domaSlide,
-              child: FadeTransition(
-                opacity: _domaFade,
-                child: AnimatedBuilder(
-                  animation: _domaFloatCtrl,
-                  builder: (_, child) => Transform.translate(
-                    offset: Offset(
-                      0,
-                      _introPhase == _IntroPhase.celebrating ? 0 : floatY,
-                    ),
-                    child: child,
+          alignment: Alignment.bottomLeft,
+          child: SlideTransition(
+            position: _domaSlide,
+            child: FadeTransition(
+              opacity: _domaFade,
+              child: AnimatedBuilder(
+                animation: _domaFloatCtrl,
+                builder: (_, child) => Transform.translate(
+                  offset: Offset(
+                    0,
+                    _introPhase == _IntroPhase.celebrating ? 0 : floatY,
                   ),
-                  child: ScaleTransition(
-                    scale: _introPhase == _IntroPhase.celebrating
-                        ? _celebrateScale
-                        : const AlwaysStoppedAnimation(1.0),
-                    child: Image.asset(
-                      'assets/images/characters/doma_the_penguin.png',
-                      height: domaH,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) =>
-                          Text('🐧', style: TextStyle(fontSize: domaH * 0.7)),
-                    ),
+                  child: child,
+                ),
+                child: ScaleTransition(
+                  scale: _introPhase == _IntroPhase.celebrating
+                      ? _celebrateScale
+                      : const AlwaysStoppedAnimation(1.0),
+                  child: Image.asset(
+                    'assets/images/characters/doma_the_penguin.png',
+                    height: domaH,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) =>
+                        Text('🐧', style: TextStyle(fontSize: domaH * 0.7)),
                   ),
                 ),
               ),
             ),
+          ),
         );
       },
     );
@@ -975,47 +996,25 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
 
         return Stack(
           children: [
-            if (_miniGamePhase == _MiniGamePhase.tracing)
-              NumberTracingWidget(
-                number: _config.number,
-                player: _audioPlayer,
-                enabled: _tracingEnabled,
-                onComplete: () {
-                  if (_config.objects != null) {
-                    setState(() {
-                      _miniGamePhase = _MiniGamePhase.tapping;
-                      _miniGameIndex = _miniGameRotator.next();
-                    });
-                  } else {
-                    _completeLevel();
-                  }
-                },
-                level: widget.level,
-                tapTracker: _tapTracker,
-                hintBackground: Image.asset('assets/images/backgrounds/bg_game_arctic.png', fit: BoxFit.cover),
-              )
-            else ...[
-              if (_miniGameIndex != 1)
-                Positioned(
-                  left: w * 0.08,
-                  top: h * 0.5 - (h * 0.30) / 2,
-                  child: _NumberCard(
-                    number: _config.number,
-                    word: _config.numberWord,
-                    size: h * 0.25,
-                  ),
+            if (_miniGameIndex != 1)
+              Positioned(
+                left: w * 0.08,
+                top: h * 0.5 - (h * 0.30) / 2,
+                child: _NumberCard(
+                  number: _config.number,
+                  word: _config.numberWord,
+                  size: h * 0.25,
                 ),
-
-              kNumberMiniGames[_miniGameIndex!](
-                number: _config.number,
-                numberWord: _config.numberWord,
-                objects: _config.objects!,
-                player: _audioPlayer,
-                onComplete: _completeLevel,
-                level: widget.level,
-                tapTracker: _tapTracker,
               ),
-            ],
+            kNumberMiniGames[_miniGameIndex!](
+              number: _config.number,
+              numberWord: _config.numberWord,
+              objects: _config.objects!,
+              player: _audioPlayer,
+              onComplete: _completeLevel,
+              level: widget.level,
+              tapTracker: _tapTracker,
+            ),
           ],
         );
       },
@@ -1028,10 +1027,11 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
       characterImage: 'assets/images/characters/doma_the_penguin.png',
       closeButtonColor: ArcticColorTheme.slateblue,
       onNext: () {
-        if (widget.nextScreen != null) {
+        final next = ArcticFlow.screenAfterLevel(widget.level);
+        if (next != null) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => widget.nextScreen!),
+            MaterialPageRoute(builder: (_) => next),
           );
         } else {
           Navigator.pop(context);
@@ -1043,7 +1043,6 @@ class _NumberIntroductionScreenState extends State<NumberIntroductionScreen>
           MaterialPageRoute(
             builder: (_) => NumberIntroductionScreen(
               configs: widget.configs,
-              nextScreen: widget.nextScreen,
               level: widget.level,
             ),
           ),

@@ -738,17 +738,6 @@ class _AdditionPackageDeliveryGameState
           alignment: WrapAlignment.center,
           children: List.generate(count, (_) => _miniPackage(size * 0.24)),
         ),
-        const SizedBox(height: 2),
-        Text(
-          '$count',
-          style: TextStyle(
-            fontFamily: ArcticAppTextStyles.fredoka,
-            fontSize: size * 0.2,
-            fontWeight: FontWeight.bold,
-            color: ArcticColorTheme.cadetblue,
-            shadows: const [Shadow(color: Colors.white, blurRadius: 4)],
-          ),
-        ),
       ],
     );
   }

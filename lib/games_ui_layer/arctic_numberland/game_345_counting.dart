@@ -626,7 +626,7 @@ class _Number345CountingObjectsScreenState
           // ── MAIN ROW ────────────────────────────
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(25, 0, 25, 8),
+              padding: const EdgeInsets.fromLTRB(40, 0, 40, 8),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [

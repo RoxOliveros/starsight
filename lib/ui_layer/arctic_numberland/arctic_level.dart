@@ -6,32 +6,7 @@ import 'package:flutter/material.dart';
 import '../../business_layer/audio_helper.dart';
 import '../../business_layer/music_zones.dart';
 import '../../business_layer/orientation_service.dart';
-import '../../games_ui_layer/arctic_numberland/game_addition_rescue_bridge.dart';
-import '../../games_ui_layer/arctic_numberland/game_addition_subtraction_signboard.dart';
-import '../../games_ui_layer/arctic_numberland/game_arctic_festival.dart';
-import '../../games_ui_layer/arctic_numberland/game_aurora_catcher.dart';
-import '../../games_ui_layer/arctic_numberland/game_decorate_snowy_tree.dart';
-import '../../games_ui_layer/arctic_numberland/game_build_snowman.dart';
-import '../../games_ui_layer/arctic_numberland/game_iceberg_tip.dart';
-import '../../games_ui_layer/arctic_numberland/game_igloo_peekaboo.dart';
-import '../../games_ui_layer/arctic_numberland/game_345_counting.dart';
-import '../../games_ui_layer/arctic_numberland/game_345_odd_one_out.dart';
-import '../../games_ui_layer/arctic_numberland/game_number_sequence.dart';
-import '../../games_ui_layer/arctic_numberland/game_counting_trees.dart';
-import '../../games_ui_layer/arctic_numberland/game_building_igloo.dart';
-import '../../games_ui_layer/arctic_numberland/game_match_snowglobe.dart';
-import '../../games_ui_layer/arctic_numberland/game_recognition.dart';
-import '../../games_ui_layer/arctic_numberland/game_12_counting.dart';
-import '../../games_ui_layer/arctic_numberland/game_counttap.dart';
-import '../../games_ui_layer/arctic_numberland/number_introduction_screen.dart';
-import '../../games_ui_layer/arctic_numberland/game_memory_match.dart';
-import '../../games_ui_layer/arctic_numberland/game_penguin_line_walk.dart';
-import '../../games_ui_layer/arctic_numberland/game_sled_shape_sort.dart';
-import '../../games_ui_layer/arctic_numberland/game_shooting_star.dart';
-import '../../games_ui_layer/arctic_numberland/game_snowglobe_shake_count.dart';
-import '../../games_ui_layer/arctic_numberland/game_snowman_shape_hunt.dart';
-import '../../games_ui_layer/arctic_numberland/game_subtraction_compare_game.dart';
-import '../../games_ui_layer/arctic_numberland/game_subtraction_melting_ice_game.dart';
+import '../../games_ui_layer/arctic_numberland/arctic_flow.dart';
 import '../loading_screen.dart';
 import 'arctic_theme.dart';
 import '../starsight_setup_dialog.dart';
@@ -88,18 +63,13 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen>
   }
 
   Future<void> _openLevel(Widget screen) async {
-    final nextScreen = await Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),
     );
 
     if (!mounted) return;
-
     await _loadProgress();
-
-    if (nextScreen is Widget) {
-      _openLevel(nextScreen);
-    }
   }
 
   @override
@@ -281,10 +251,10 @@ class _ArcticLevelScreenState extends State<ArcticLevelScreen>
                         child: GestureDetector(
                           onTap: () {
                             SfxHelper.instance.play(Sfx.keyTap);
-                            if (_page < 3) setState(() => _page++);
+                            if (_page < 4) setState(() => _page++);
                           },
                           child: Opacity(
-                            opacity: _page < 3 ? 1.0 : 0.3,
+                            opacity: _page < 4 ? 1.0 : 0.3,
                             child: Image.asset(
                               'assets/images/arrows/bttn_arctic_arrow_right.png',
                               width: 70,
@@ -317,104 +287,11 @@ class _LevelTile extends StatelessWidget {
     required this.size,
   });
 
-  Widget? _screenForLevel() {
-    switch (level) {
-      //1-2 intro here
-      case 1:
-        return NumberIntroductionScreen.forSequence(
-          [0, 1, 2],
-          level: 1,
-          nextScreen: const Number012RecognitionScreen(level: 2),
-        );
-
-      case 2:
-        return const Number012RecognitionScreen(level: 2);
-      case 3:
-        return const Number12CountingObjectsScreen(level: 3);
-      case 4:
-        return const Number012TapCountScreen(level: 4);
-
-      //3-5 intro here
-      case 5:
-        return NumberIntroductionScreen.forSequence(
-          [3, 4, 5],
-          level: 5,
-          nextScreen: const Number345CountingObjectsScreen(level: 6),
-        );
-
-      case 6:
-        return const Number345CountingObjectsScreen(level: 6);
-      case 7:
-        return const Number345OddOneOutScreen(level: 7);
-      case 8:
-        return const Number012345SequenceScreen(level: 8);
-      case 9:
-        return const CountingTreesScreen(level: 9);
-      case 10:
-        return const BuildIglooScreen(level: 10);
-      case 11:
-        return const Number1to5MatchSnowglobesScreen(level: 11);
-
-      //6-8 intro here
-      case 12:
-        return NumberIntroductionScreen.forSequence(
-          [6, 7, 8],
-          level: 12,
-          nextScreen: const PenguinLineWalkGame(level: 13),
-        );
-
-      case 13:
-        return const PenguinLineWalkGame(level: 13);
-      case 14:
-        return const IglooPeekabooGame(level: 14);
-      case 15:
-        return const BuildSnowmanGame(level: 15);
-
-      //9-10 intro here
-      case 16:
-        return NumberIntroductionScreen.forSequence(
-          [9, 10],
-          level: 16,
-          nextScreen: const NumberMemoryMatchGame(level: 17),
-        );
-
-      case 17:
-        return const NumberMemoryMatchGame(level: 17);
-      case 18:
-        return const IcebergTipGame(level: 18);
-      case 19:
-        return const SnowglobeShakeGame(level: 19);
-      case 20:
-        return const AdditionRescueBridgeGame(level: 20);
-      case 21:
-        return const AdditionPackageDeliveryGame(level: 21);
-      case 22:
-        return const SubtractionMeltingIceGame(level: 22);
-      case 23:
-        return const SubtractionCompareGame(level: 23);
-      case 24:
-        return const SignboardMathGame(level: 24);
-      case 25:
-        return const SnowmanShapeHuntGame(level: 25);
-      case 26:
-        return const SledShapeSortGame(level: 26);
-      case 27:
-        return const DecorateSnowyTreeGame(level: 27);
-      case 28:
-        return const AuroraCatcherGame(level: 28);
-      case 29:
-        return const ShootingStarCountingGame(level: 29);
-      case 30:
-        return const ArcticFestivalFinaleGame(level: 30);
-
-      default:
-        return null;
-    }
-  }
+  Widget? _screenForLevel() => ArcticFlow.screenForLevel(level);
 
   @override
   Widget build(BuildContext context) {
-    if (level > 30) return SizedBox(width: size, height: size);
+    if (level > 35) return SizedBox(width: size, height: size);
 
     final bool isLocked = level > unlockedLevel;
 

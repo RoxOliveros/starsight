@@ -14,6 +14,7 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'arctic_audio_path.dart';
 import 'arctic_game_ui.dart';
+import 'game_addition_rescue_bridge.dart';
 import 'game_aurora_catcher.dart';
 import 'doma_reaction.dart';
 import 'goodjob_doma_prompt.dart';
@@ -912,7 +913,7 @@ class _DecorateSnowyTreeGameState extends State<DecorateSnowyTreeGame>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => AuroraCatcherGame(level: widget.level + 1),
+            builder: (_) => AdditionRescueBridgeGame(level: widget.level + 1),
           ),
         );
       },

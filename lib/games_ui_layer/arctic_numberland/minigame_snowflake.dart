@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../business_layer/app_audio_lifecycle_mixin.dart';
 import '../../ui_layer/arctic_numberland/arctic_buttons.dart';
+import '../../ui_layer/arctic_numberland/arctic_theme.dart';
 import '../ai_camera_mixin.dart';
 import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
@@ -43,15 +44,20 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   static const String _snowflakeImage = 'assets/images/objects/arctic/snowflake.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_arctic.png';
   static const double _penguinAspect = 0.8;
+  static const double _bellyAlignY = 1;
 
-  String get _snowflakeRequestAudio => 'assets/audio/arctic_numberland/snowflake_${widget.number}.wav';
   static const String _audioMahusay = 'assets/audio/arctic_numberland/mahusay.wav';
+
+  static const int _rounds = 3;
+  int get _maxNum => max(widget.number, 3);
+  int _delivered = 0;
+  late int _target;
+
+  String get _snowflakeRequestAudio => 'assets/audio/arctic_numberland/snowflake_$_target.wav';
 
   final Random _random = Random();
   final List<_FallingSnowflake> _flakes = [];
   int _nextId = 0;
-
-  int _delivered = 0;
   bool _roundWon = false;
   bool _basketHovered = false;
 
@@ -84,6 +90,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
           CurvedAnimation(parent: _penguinCelebrateCtrl, curve: Curves.easeOut),
         );
 
+    _target = _random.nextInt(_maxNum) + 1;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _playInstruction();
 
@@ -118,10 +125,14 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
     final active = _flakes.where((f) => !f.dragging).length;
     if (active >= _maxOnScreen) return;
 
+    final targetOnScreen = _flakes.any((f) => f.number == _target); 
+    final number = targetOnScreen ? _random.nextInt(_maxNum) + 1 : _target; 
+
     setState(() {
       _flakes.add(
         _FallingSnowflake(
           id: _nextId++,
+          number: number, 
           x: 0.08 + _random.nextDouble() * 0.84,
           y: -0.08,
           size: _flakeSizeFactor * (0.85 + _random.nextDouble() * 0.3),
@@ -144,31 +155,43 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   }
 
   Future<void> _handleDelivery(int id) async {
-    if (_roundWon || _delivered >= widget.number) return;
+    if (_roundWon) return;
+    final flake = _flakes.firstWhere((f) => f.id == id);
+
+    if (flake.number != _target) {
+      widget.tapTracker.recordMistake();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      return;
+    }
 
     widget.tapTracker.recordCorrectTap();
-
-    if (!mounted) return;
     setState(() {
       _flakes.removeWhere((f) => f.id == id);
       _delivered++;
-      if (_delivered >= widget.number) _roundWon = true;
+      if (_delivered >= _rounds) _roundWon = true;
     });
 
     try {
       GamesSfxPlayer.instance.play(GameSfx.bubblePop);
       await playVoiceRestartingOnFaceLoss(
         _audioPlayer,
-        'assets/audio/arctic_numberland/$_delivered.wav',
+        'assets/audio/arctic_numberland/${flake.number}.wav',
       );
     } catch (e) {
       debugPrint('Number audio error: $e');
     }
-
     if (!mounted) return;
-    if (_delivered >= widget.number) {
+
+    if (_roundWon) {
       await _winRound();
+      return;
     }
+
+    setState(() {
+      _flakes.clear();
+      _target = _random.nextInt(_maxNum) + 1;
+    });
+    await _playInstruction();
   }
 
   Future<void> _winRound() async {
@@ -209,7 +232,7 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
         builder: (context, constraints) {
           final w = constraints.maxWidth;
           final h = constraints.maxHeight;
-          final flakeSize = (h * _flakeSizeFactor).clamp(48.0, 100.0);
+          final flakeSize = (h * _flakeSizeFactor * 2);
           final hintFlake = _pickHintFlake();
 
           return Stack(
@@ -219,23 +242,17 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
                 child: Stack(
                   alignment: Alignment.topCenter,
                   children: [
-                    Align(
-                      alignment: Alignment.topLeft,
-                      child: ArcticXButton(),
-                    ),
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: ArcticLevelBadge(level: widget.level),
-                    ),
+                    Align(alignment: Alignment.topLeft, child: ArcticXButton()),
+                    Align(alignment: Alignment.topRight, child: ArcticLevelBadge(level: widget.level)),
                   ],
                 ),
               ),
-              ..._flakes.map((f) => _buildDraggableFlake(f, w, h, flakeSize)),
               Positioned(
                 bottom: h * 0.02,
                 left: 50,
-                child: Center(child: _buildPenguinTarget(h)),
+                child: _buildPenguinTarget(h),
               ),
+              ..._flakes.map((f) => _buildDraggableFlake(f, w, h, flakeSize)),
               if (showHowToPlay && !_roundWon && hintFlake != null)
                 Positioned.fill(
                   child: HowToPlayOverlay(
@@ -256,9 +273,9 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
   _FallingSnowflake? _pickHintFlake() {
     if (_flakes.any((f) => f.dragging)) return null;
     for (final f in _flakes) {
-      if (f.y > 0.1 && f.y < 0.7) return f;
+      if (f.number == _target) return f; 
     }
-    return _flakes.isEmpty ? null : _flakes.first;
+    return null;
   }
 
   Alignment _flakeAlignment(_FallingSnowflake f, double w, double h, double size) {
@@ -281,12 +298,37 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
     return Stack(
       children: [
         Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
-        ..._flakes.map((f) => _buildDraggableFlake(f, w, h, flakeSize)),
         Positioned(
           bottom: h * 0.02,
           left: 50,
-          child: _buildPenguinTarget(h),
+          child: IgnorePointer(child: _buildPenguinTarget(h)),
         ),
+        ..._flakes.map((f) => _buildDraggableFlake(f, w, h, flakeSize)),
+      ],
+    );
+  }
+
+  Widget _outlinedNumber(int number, double fontSize) {
+    final style = TextStyle(
+      fontFamily: ArcticAppTextStyles.fredoka,
+      fontSize: fontSize,
+      fontWeight: FontWeight.bold,
+      decoration: TextDecoration.none,
+    );
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Text(
+          '$number',
+          style: style.copyWith(
+            foreground: Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = fontSize * 0.14
+              ..strokeJoin = StrokeJoin.round
+              ..color = ArcticColorTheme.slateblue,
+          ),
+        ),
+        Text('$number', style: style.copyWith(color: Colors.white)),
       ],
     );
   }
@@ -300,16 +342,22 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
     final left = (f.x * w - size / 2).clamp(0.0, w - size);
     final top = (f.y * h - size / 2).clamp(-size, h - size);
 
-    final flakeVisual = Transform.rotate(
-      angle: f.rotation,
-      child: Image.asset(
-        _snowflakeImage,
-        width: size,
-        height: size,
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) =>
-            Text('❄️', style: TextStyle(fontSize: size * 0.8)),
-      ),
+    final flakeVisual = Stack(
+      alignment: Alignment.center,
+      children: [
+        Transform.rotate(
+          angle: f.rotation,
+          child: Image.asset(
+            _snowflakeImage,
+            width: size,
+            height: size,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) =>
+                Text('❄️', style: TextStyle(fontSize: size * 0.8)),
+          ),
+        ),
+        _outlinedNumber(f.number, size * 0.5), 
+      ],
     );
 
     return Positioned(
@@ -357,12 +405,24 @@ class _PenguinSnowflakesMiniGameState extends State<PenguinSnowflakesMiniGame>
           child: AnimatedScale(
             scale: _basketHovered ? 1.08 : 1.0,
             duration: const Duration(milliseconds: 150),
-            child: Image.asset(
-              _domaImage,
-              height: penguinH,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) =>
-                  Text('🐧', style: TextStyle(fontSize: penguinH * 0.6)),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Image.asset(
+                  _domaImage,
+                  height: penguinH,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                      Text('🐧', style: TextStyle(fontSize: penguinH * 0.6)),
+                ),
+                Align(
+                  alignment: Alignment(0, _bellyAlignY),
+                  child: Transform.translate(
+                    offset: Offset(0, penguinH * 0.2),
+                    child: _outlinedNumber(_target, penguinH * 0.22),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -379,6 +439,7 @@ class _FallingSnowflake {
   final double rotation;
   final double speed;
   bool dragging;
+  final int number;
 
   _FallingSnowflake({
     required this.id,
@@ -388,5 +449,6 @@ class _FallingSnowflake {
     required this.rotation,
     required this.speed,
     this.dragging = false,
+    required this.number,
   });
 }

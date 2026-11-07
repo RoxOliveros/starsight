@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
-import 'package:StarSight/games_ui_layer/arctic_numberland/game_shooting_star.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -18,6 +17,7 @@ import '../idle_hint_mixin.dart';
 import 'arctic_audio_path.dart';
 import 'arctic_game_ui.dart';
 import 'doma_reaction.dart';
+import 'game_penguin_line_walk.dart';
 import 'goodjob_doma_prompt.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
@@ -803,7 +803,7 @@ class _AuroraCatcherGameState extends State<AuroraCatcherGame>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => ShootingStarCountingGame(level: widget.level + 1),
+            builder: (_) => PenguinLineWalkGame(level: widget.level + 1),
           ),
         );
       },

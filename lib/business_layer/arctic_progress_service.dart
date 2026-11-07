@@ -6,7 +6,7 @@ class ArcticProgressService {
   ArcticProgressService._();
   static final ArcticProgressService instance = ArcticProgressService._();
 
-  static const int totalLevels = 30;
+  static const int totalLevels = 35;
   static const int _defaultUnlockedLevel = 5;
 
   DocumentReference<Map<String, dynamic>>? get _docRef {

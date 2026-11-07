@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -236,6 +237,10 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
   double _cachedH = -1;
   int _cachedNumber = -1;
 
+  Timer? _demoTimer;
+  bool _demoPlaying = false;
+  int _demoToken = 0;
+
   @override
   void initState() {
     super.initState();
@@ -246,16 +251,81 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
   void didUpdateWidget(covariant NumberTracingWidget old) {
     super.didUpdateWidget(old);
     if (!widget.enabled) {
+      _demoToken++;
+      _demoTimer?.cancel();
+      _demoPlaying = false;
       cancelIdleTimer();
       showHowToPlay = false;
     } else if (!old.enabled || old.number != widget.number) {
       showHowToPlay = false;
-      startIdleTimer();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _playDemo();
+      });
+    }
+  }
+
+  Future<void> _playDemo() async {
+    if (!mounted || !widget.enabled) return;
+    final token = ++_demoToken;
+    _demoPlaying = true;
+    cancelIdleTimer();
+
+    try {
+      for (int i = 0; i < 60; i++) {
+        if (!mounted || token != _demoToken) return;
+        if (_cachedNumber == widget.number && _denseStrokes.isNotEmpty) break;
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+      if (!mounted || token != _demoToken || _denseStrokes.isEmpty) return;
+
+      setState(() {
+        _currentStrokeIndex = 0;
+        _currentPointIndex = 0;
+      });
+
+      final done = Completer<void>();
+      _demoTimer?.cancel();
+      _demoTimer = Timer.periodic(const Duration(milliseconds: 16), (t) {
+        if (!mounted ||
+            token != _demoToken ||
+            _currentStrokeIndex >= _denseStrokes.length) {
+          t.cancel();
+          if (!done.isCompleted) done.complete();
+          return;
+        }
+        final stroke = _denseStrokes[_currentStrokeIndex];
+        setState(() {
+          _canePosition = stroke[min(_currentPointIndex, stroke.length - 1)];
+          _currentPointIndex++;
+          if (_currentPointIndex >= stroke.length) {
+            _currentStrokeIndex++;
+            _currentPointIndex = 0;
+          }
+        });
+      });
+
+      await done.future;
+      if (!mounted || token != _demoToken) return;
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (!mounted || token != _demoToken) return;
+
+      setState(() {
+        _currentStrokeIndex = 0;
+        _currentPointIndex = 0;
+        _canePosition = null;
+      });
+    } finally {
+      if (token == _demoToken) {
+        _demoPlaying = false;
+        if (mounted && widget.enabled && !_tracingComplete) startIdleTimer();
+      }
     }
   }
 
   @override
   void dispose() {
+    _demoToken++;
+    _demoTimer?.cancel();
     disposeIdleTimer();
     _audioPlayer.dispose();
     super.dispose();
@@ -270,10 +340,10 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
         if (showHowToPlay) setState(() => showHowToPlay = false);
       },
       onPointerUp: (_) {
-        if (widget.enabled && !_tracingComplete) startIdleTimer();
+        if (widget.enabled && !_tracingComplete && !_demoPlaying) startIdleTimer();
       },
       onPointerCancel: (_) {
-        if (widget.enabled && !_tracingComplete) startIdleTimer();
+        if (widget.enabled && !_tracingComplete && !_demoPlaying) startIdleTimer();
       },
       child: LayoutBuilder(
         builder: (context, constraints) =>
@@ -287,11 +357,10 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
     final numberSize = h * 0.70;
     final traceW = numberSize * 0.78;
     final traceH = numberSize;
-    final traceLeft = w / 2 - traceW / 2;
-    final traceTop = h / 2 - traceH / 2 + 20;
 
     final containerW = traceW;
     final containerH = traceH * 0.85;
+    final fit = min((traceW - 8) / traceW, (containerH - 8) / traceH);
     final containerLeft = w / 2 - containerW / 2;
     final containerTop = h / 2 - containerH / 2 + 20;
 
@@ -327,9 +396,8 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
 
     return Stack(
       children: [
-        if (donePoints > 5)
-          Positioned(
-            key: const ValueKey('progress_bar'),
+        if (donePoints > 5 && !_demoPlaying)
+          Positioned(key: const ValueKey('progress_bar'),
             bottom: h * 0.06,
             left: w * 0.15,
             right: w * 0.15,
@@ -399,14 +467,10 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
         if (!preview && _canePosition != null)
           Positioned(
             key: const ValueKey('cane_moving'),
-            left: traceLeft + _canePosition!.dx - caneSize * 0.15,
-            top: traceTop + _canePosition!.dy - caneSize * 0.92,
+            left: w / 2 + (_canePosition!.dx - traceW / 2) * fit - caneSize * 0.15,
+            top: h / 2 + 20 + (_canePosition!.dy - traceH / 2) * fit - caneSize * 0.92,
             child: IgnorePointer(
-              child: Image.asset(
-                _kCaneAsset,
-                width: caneSize,
-                fit: BoxFit.contain,
-              ),
+              child: Image.asset(_kCaneAsset, width: caneSize, fit: BoxFit.contain),
             ),
           ),
 
@@ -425,6 +489,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
           ),
 
         if (!preview &&
+            !_demoPlaying &&
             showHowToPlay &&
             widget.enabled &&
             !_tracingComplete &&
@@ -525,7 +590,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
 
   void _onPanStart(DragStartDetails details, double traceW) {
     _touchValid = false;
-    if (!widget.enabled || _tracingComplete) return;
+    if (!widget.enabled || _tracingComplete || _demoPlaying) return;
     if (_awaitingLift) return;
     if (_denseStrokes.isEmpty || _currentStrokeIndex >= _denseStrokes.length) {
       return;
@@ -534,7 +599,6 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
     final stroke = _denseStrokes[_currentStrokeIndex];
     if (_currentPointIndex >= stroke.length) return;
 
-    // finger must land on the current guide dot
     final d = (details.localPosition - stroke[_currentPointIndex]).distance;
     _touchValid = d < traceW * 0.18;
   }
@@ -548,7 +612,7 @@ class _NumberTracingWidgetState extends State<NumberTracingWidget>
   }
 
   void _onPanUpdate(DragUpdateDetails details, double traceW) {
-    if (!widget.enabled) return;
+    if (!widget.enabled || _demoPlaying) return;
     if (_tracingComplete) return;
     cancelIdleTimer();
     if (_denseStrokes.isEmpty || _currentStrokeIndex >= _denseStrokes.length) {
