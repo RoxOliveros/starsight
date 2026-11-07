@@ -327,6 +327,53 @@ class _LevelTile extends StatelessWidget {
 
   const _LevelTile({required this.level, required this.size});
 
+  Widget? _screenForLevel() {
+    switch (level) {
+      case 1:
+        return BodyPartsAssemblyScreen(level: 1);
+      case 2:
+        return TreeGameScreen(level: 2);
+      case 3:
+        return const RainbowGameScreen(level: 3);
+      case 4:
+        return const FeedTheAnimalGame(level: 4);
+      case 5:
+        return const HabitantGame(level: 5);
+      case 6:
+        return const SoftHardGameScreen(level: 6);
+      case 7:
+        return ColdHotGame(level: 7);
+      case 8:
+        return const LunchboxHealthyUnhealthyFoodsGameIntro(level: 8);
+      case 9:
+        return const CatchingDifferentTasteGameScreen(level: 9);
+      case 10:
+        return SeasonSceneTapScreen(level: 10);
+      case 11:
+        return const ClothesGame(level: 11);
+      case 12:
+        return WeatherTapSortScreen(level: 12);
+      case 13:
+        return const WeatherGame(level: 13);
+      case 14:
+        return WeatherSceneBuilderScreen(level: 14);
+      case 15:
+        return PickupSchoolGame(level: 15);
+      case 16:
+        return const ListeningAnimalGame(level: 16);
+      case 17:
+        return const PerfumeGame(level: 17);
+      case 18:
+        return const SeedGame(level: 18);
+      case 19:
+        return AnimalLifecycleGame(level: 19);
+      case 20:
+        return LivingNonLivingGame(level: 20);
+      default:
+        return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -334,164 +381,12 @@ class _LevelTile extends StatelessWidget {
         SfxHelper.instance.play(Sfx.keyTap);
         //await _ensureLagoonCalibrated(context);
         if (!context.mounted) return;
-        switch (level) {
-          case 1:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const RainbowGameScreen(level: 1),
-              ),
-            );
-            break;
-          case 2:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const PerfumeGame(level: 2),
-              ),
-            );
-            break;
-          case 3:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ListeningGame(level: 3),
-              ),
-            );
-            break;
-          case 4:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const CatchingGameScreen(level: 4),
-              ),
-            );
-            break;
-          case 5:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const SoftHardGameScreen(level: 5),
-              ),
-            );
-            break;
-          case 6:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const FeedTheAnimalGame(level: 6),
-              ),
-            );
-            break;
-          case 7:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const LunchboxGameIntro(level: 7),
-              ),
-            );
-            break;
-          case 8:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const WeatherGame(level: 8),
-              ),
-            );
-            break;
-          case 9:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ClothesGame(level: 9),
-              ),
-            );
-            break;
-          case 10:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const HabitantGame(level: 10),
-              ),
-            );
-            break;
-          case 11:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const SeedGame(level: 11),
-              ),
-            );
-            break;
-          case 12:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => BodyPartsAssemblyScreen(level: 12),
-              ),
-            );
-            break;
-          case 13:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => TreeGameScreen(level: 13),
-              ),
-            );
-            break;
-          case 14:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => SeasonSceneTapScreen(level: 14),
-              ),
-            );
-            break;
-          case 15:
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => PickupGame(level: 15)),
-            );
-            break;
-          case 16:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => WeatherSceneBuilderScreen(level: 16),
-              ),
-            );
-            break;
-          case 17:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AnimalLifecycleGame(level: 17),
-              ),
-            );
-            break;
-          case 18:
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ColdHotGame(level: 18)),
-            );
-            break;
-          case 19:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => WeatherTapSortScreen(level: 19),
-              ),
-            );
-            break;
-          case 20:
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => LivingNonLivingGame(level: 20),
-              ),
-            );
-            break;
-        }
+        final screen = _screenForLevel();
+        if (screen == null) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => screen),
+        );
       },
       child: Stack(
         clipBehavior: Clip.none,

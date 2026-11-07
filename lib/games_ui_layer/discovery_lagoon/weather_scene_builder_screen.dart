@@ -1,49 +1,51 @@
-  import 'dart:async';
-  import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
-  import 'package:flutter/material.dart';
-  import 'package:audioplayers/audioplayers.dart';
-  import 'package:firebase_auth/firebase_auth.dart';
-  import 'package:StarSight/business_layer/lagoon_database_service.dart';
-  import 'package:StarSight/business_layer/game_tap_tracker.dart';
-  import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
-  import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
-  import 'package:StarSight/business_layer/orientation_service.dart';
-  import 'package:StarSight/games_ui_layer/discovery_lagoon/animal_lifecycle_game.dart';
-  import '../../business_layer/lagoon_progress_service.dart';
-  import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
-  import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
-  import '../games_audio_helper.dart';
+import 'dart:async';
+import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/pickup_game.dart';
+import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:StarSight/business_layer/lagoon_database_service.dart';
+import 'package:StarSight/business_layer/game_tap_tracker.dart';
+import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
+import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
+import 'package:StarSight/business_layer/orientation_service.dart';
+import '../../business_layer/lagoon_progress_service.dart';
+import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
+import '../../ui_layer/discovery_lagoon/lagoon_theme.dart';
+import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
-  import '../how_to_play_overlay.dart';
+import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'lagoon_audio_path.dart';
-  import 'intro_phase.dart';
-  import 'kiki_reaction.dart';
+import 'intro_phase.dart';
+import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
-  class WeatherElement {
-    final String id;
-    final String imagePath;
-    final String weatherId;
-    final Alignment scenePosition;
-    WeatherElement({
-      required this.id,
-      required this.imagePath,
-      required this.weatherId,
-      required this.scenePosition,
-    });
-  }
+class WeatherElement {
+  final String id;
+  final String imagePath;
+  final String weatherId;
+  final Alignment scenePosition;
 
-  class WeatherSceneBuilderScreen extends StatefulWidget {
-    final int level;
-    const WeatherSceneBuilderScreen({super.key, required this.level});
+  WeatherElement({
+    required this.id,
+    required this.imagePath,
+    required this.weatherId,
+    required this.scenePosition,
+  });
+}
 
-    @override
-    State<WeatherSceneBuilderScreen> createState() =>
-        _WeatherSceneBuilderScreenState();
-  }
+class WeatherSceneBuilderScreen extends StatefulWidget {
+  final int level;
 
-  class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
+  const WeatherSceneBuilderScreen({super.key, required this.level});
+
+  @override
+  State<WeatherSceneBuilderScreen> createState() =>
+      _WeatherSceneBuilderScreenState();
+}
+
+class _WeatherSceneBuilderScreenState extends State<WeatherSceneBuilderScreen>
     with
         TickerProviderStateMixin,
         KikiReactionMixin,
@@ -51,333 +53,335 @@ import 'lagoon_game_ui.dart';
         AppAudioLifecycleMixin<WeatherSceneBuilderScreen>,
         LagoonIntroMixin<WeatherSceneBuilderScreen>,
         IdleHintMixin {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _kikiPlayer = AudioPlayer();
 
-    final AudioPlayer _audioPlayer = AudioPlayer();
-    final AudioPlayer _kikiPlayer= AudioPlayer();
+  @override
+  List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
 
-    @override
-    List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
+  @override
+  AudioPlayer get kikiPlayer => _kikiPlayer;
 
-    @override
-    AudioPlayer get kikiPlayer => _kikiPlayer;
+  final GameTapTracker _tapTracker = GameTapTracker();
+  final GlobalKey _choiceKey = GlobalKey();
 
-    final GameTapTracker _tapTracker = GameTapTracker();
-    final GlobalKey _choiceKey = GlobalKey();
+  LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
-    LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
+  static const String _introAudio =
+      'assets/audio/discovery_lagoon/weather_builder_intro.wav';
 
-    static const String _introAudio = 'assets/audio/discovery_lagoon/weather_builder_intro.wav';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_rainbow_closeup2.png';
+  static const String _kikiFishboneImage =
+      'assets/images/characters/cat_holding_fishbone.png';
 
-    static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_closeup2.png';
-    static const String _kikiFishboneImage = 'assets/images/characters/cat_holding_fishbone.png';
+  // ── Data ─────────────────────────────────────────────────────────────────
 
-    // ── Data ─────────────────────────────────────────────────────────────────
+  final List<Map<String, String>> _weathers = [
+    {
+      'id': 'sunny',
+      'qAudio': LagoonAudio.weatherQSunny,
+      'winAudio': LagoonAudio.weatherWinSunny,
+    },
+    {
+      'id': 'rainy',
+      'qAudio': LagoonAudio.weatherQRainy,
+      'winAudio': LagoonAudio.weatherWinRainy,
+    },
+    {
+      'id': 'cloudy',
+      'qAudio': LagoonAudio.weatherQCloudy,
+      'winAudio': LagoonAudio.weatherWinCloudy,
+    },
+    {
+      'id': 'windy',
+      'qAudio': LagoonAudio.weatherQWindy,
+      'winAudio': LagoonAudio.weatherWinWindy,
+    },
+  ];
 
-    final List<Map<String, String>> _weathers = [
-      {
-        'id': 'sunny',
-        'qAudio': LagoonAudio.weatherQSunny,
-        'winAudio': LagoonAudio.weatherWinSunny,
-      },
-      {
-        'id': 'rainy',
-        'qAudio': LagoonAudio.weatherQRainy,
-        'winAudio': LagoonAudio.weatherWinRainy,
-      },
-      {
-        'id': 'cloudy',
-        'qAudio': LagoonAudio.weatherQCloudy,
-        'winAudio': LagoonAudio.weatherWinCloudy,
-      },
-      {
-        'id': 'windy',
-        'qAudio': LagoonAudio.weatherQWindy,
-        'winAudio': LagoonAudio.weatherWinWindy,
-      },
-    ];
+  final List<WeatherElement> _allElements = [
+    WeatherElement(
+      id: 'sun',
+      imagePath: 'assets/images/objects/lagoon/sun_wb.png',
+      weatherId: 'sunny',
+      scenePosition: const Alignment(0.6, -0.8),
+    ),
+    WeatherElement(
+      id: 'rainbow',
+      imagePath: 'assets/images/objects/lagoon/rainbow.png',
+      weatherId: 'sunny',
+      scenePosition: const Alignment(-0.2, -0.5),
+    ),
+    WeatherElement(
+      id: 'raincloud',
+      imagePath: 'assets/images/objects/lagoon/raincloud.png',
+      weatherId: 'rainy',
+      scenePosition: const Alignment(0.0, -0.9),
+    ),
+    WeatherElement(
+      id: 'raindrop',
+      imagePath: 'assets/images/objects/lagoon/raindrop.png',
+      weatherId: 'rainy',
+      scenePosition: const Alignment(-0.5, 0.0),
+    ),
+    WeatherElement(
+      id: 'suncloud',
+      imagePath: 'assets/images/objects/lagoon/suncloud.png',
+      weatherId: 'cloudy',
+      scenePosition: const Alignment(0.3, -0.7),
+    ),
+    WeatherElement(
+      id: 'graycloud',
+      imagePath: 'assets/images/objects/lagoon/graycloud.png',
+      weatherId: 'cloudy',
+      scenePosition: const Alignment(-0.4, -0.5),
+    ),
+    WeatherElement(
+      id: 'windy',
+      imagePath: 'assets/images/objects/lagoon/windy.png',
+      weatherId: 'windy',
+      scenePosition: const Alignment(0.0, -0.2),
+    ),
+    WeatherElement(
+      id: 'strong_wind',
+      imagePath: 'assets/images/objects/lagoon/strong_wind.png',
+      weatherId: 'windy',
+      scenePosition: const Alignment(0.5, 0.1),
+    ),
+  ];
 
-    final List<WeatherElement> _allElements = [
-      WeatherElement(
-        id: 'sun',
-        imagePath: 'assets/images/objects/lagoon/sun_wb.png',
-        weatherId: 'sunny',
-        scenePosition: const Alignment(0.6, -0.8),
-      ),
-      WeatherElement(
-        id: 'rainbow',
-        imagePath: 'assets/images/objects/lagoon/rainbow.png',
-        weatherId: 'sunny',
-        scenePosition: const Alignment(-0.2, -0.5),
-      ),
-      WeatherElement(
-        id: 'raincloud',
-        imagePath: 'assets/images/objects/lagoon/raincloud.png',
-        weatherId: 'rainy',
-        scenePosition: const Alignment(0.0, -0.9),
-      ),
-      WeatherElement(
-        id: 'raindrop',
-        imagePath: 'assets/images/objects/lagoon/raindrop.png',
-        weatherId: 'rainy',
-        scenePosition: const Alignment(-0.5, 0.0),
-      ),
-      WeatherElement(
-        id: 'suncloud',
-        imagePath: 'assets/images/objects/lagoon/suncloud.png',
-        weatherId: 'cloudy',
-        scenePosition: const Alignment(0.3, -0.7),
-      ),
-      WeatherElement(
-        id: 'graycloud',
-        imagePath: 'assets/images/objects/lagoon/graycloud.png',
-        weatherId: 'cloudy',
-        scenePosition: const Alignment(-0.4, -0.5),
-      ),
-      WeatherElement(
-        id: 'windy',
-        imagePath: 'assets/images/objects/lagoon/windy.png',
-        weatherId: 'windy',
-        scenePosition: const Alignment(0.0, -0.2),
-      ),
-      WeatherElement(
-        id: 'strong_wind',
-        imagePath: 'assets/images/objects/lagoon/strong_wind.png',
-        weatherId: 'windy',
-        scenePosition: const Alignment(0.5, 0.1),
-      ),
-    ];
+  int _roundIndex = 0;
+  late Map<String, String> _currentWeather;
+  late List<WeatherElement> _currentElements;
+  late List<WeatherElement> _choices;
+  final Set<String> _placed = {};
 
-    int _roundIndex = 0;
-    late Map<String, String> _currentWeather;
-    late List<WeatherElement> _currentElements;
-    late List<WeatherElement> _choices;
-    final Set<String> _placed = {};
+  bool _roundLocked = false;
+  bool _inputEnabled = false;
+  bool _hideLightingCard = false;
+  bool _hasSavedResult = false;
 
-    bool _roundLocked = false;
-    bool _inputEnabled = false;
-    bool _hideLightingCard = false;
-    bool _hasSavedResult = false;
+  late AnimationController _popCtrl;
+  late Map<String, AnimationController> _itemCtrls;
+  late List<String> _currentPhases;
 
-    late AnimationController _popCtrl;
-    late Map<String, AnimationController> _itemCtrls;
-    late List<String> _currentPhases;
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
+  @override
+  void initState() {
+    super.initState();
+    OrientationService.setLandscape();
 
-    @override
-    void initState() {
-      super.initState();
-      OrientationService.setLandscape();
+    sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
+    startAiCamera();
+    _tapTracker.startSession();
 
-      sessionId = FirebaseAuth.instance.currentUser?.uid ?? 'default';
-      startAiCamera();
-      _tapTracker.startSession();
+    onFaceDetectionChanged = (detected) {
+      if (detected && mounted) setState(() => _hideLightingCard = false);
+    };
 
-      onFaceDetectionChanged = (detected) {
-        if (detected && mounted) setState(() => _hideLightingCard = false);
-      };
+    _popCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _itemCtrls = {};
 
-      _popCtrl = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 400),
-      );
-      _itemCtrls = {};
+    _startRound(playPrompt: false);
 
-      _startRound(playPrompt: false);
-
-      initLagoonIntro();
-      startLagoonIntro(
-        introAudioAsset: _introAudio,
-        onGameStart: () {
-          if (!mounted) return;
-          setState(() => _screenPhase = LagoonScreenPhase.game);
-          _playPrompt();
-        },
-      );
-    }
-
-    @override
-    void dispose() {
-      disposeAiCamera();
-      disposeIdleTimer();
-      _popCtrl.dispose();
-      for (final c in _itemCtrls.values) {
-        c.dispose();
-      }
-      disposeLagoonIntro();
-      _audioPlayer.dispose();
-      _kikiPlayer.dispose();
-      super.dispose();
-    }
-
-    // ── Round logic ───────────────────────────────────────────────────────────
-
-    Future<void> _playPrompt() async {
-      _inputEnabled = false;
-      try {
-        await playVoiceRestartingOnFaceLoss(
-          _audioPlayer,
-          _currentWeather['qAudio']!,
-        );
-      } catch (e) {
-        debugPrint('Prompt audio error: $e');
-      } finally {
-        if (mounted) {
-          setState(() => _inputEnabled = true);
-          startIdleTimer();
-        }
-      }
-    }
-
-    void _startRound({bool playPrompt = true}) {
-      _currentWeather = _weathers[_roundIndex];
-      _currentElements = _allElements
-          .where((e) => e.weatherId == _currentWeather['id'])
-          .toList();
-      _currentPhases = _weatherPhases[_currentWeather['id']] ?? [];
-
-      final decoys =
-          _allElements.where((e) => e.weatherId != _currentWeather['id']).toList()
-            ..shuffle();
-      _choices = [..._currentElements, ...decoys.take(2)]..shuffle();
-      _placed.clear();
-      _roundLocked = false;
-
-      for (final e in _choices) {
-        _itemCtrls[e.id]?.dispose();
-        _itemCtrls[e.id] = AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 500),
-        );
-      }
-
-      if (playPrompt) _playPrompt();
-    }
-
-    Future<void> _onTap(WeatherElement el) async {
-      if (!_inputEnabled || _roundLocked || _placed.contains(el.id)) return;
-      cancelIdleTimer();
-
-      if (el.weatherId == _currentWeather['id']) {
-        _tapTracker.recordCorrectTap();
-
-        showKikiReaction(KikiState.correct);
-
-        setState(() => _placed.add(el.id));
-        _itemCtrls[el.id]?.forward(from: 0);
-
-        if (_placed.length < _currentElements.length) startIdleTimer();
-
-        if (_placed.length == _currentElements.length) {
-          _roundLocked = true;
-          _inputEnabled = false;
-
-          await playVoiceRestartingOnFaceLoss(
-            _audioPlayer,
-            _currentWeather['winAudio']!,
-          );
-          if (!mounted) return;
-
-          if (_roundIndex >= _weathers.length - 1) {
-            await _saveDataAndShowSuccessDialog();
-          } else {
-            setState(() {
-              _roundIndex++;
-              _startRound();
-            });
-          }
-        }
-      } else {
-        _tapTracker.recordMistake();
-        _itemCtrls[el.id]?.forward(from: 0);
-        GamesSfxPlayer.instance.play(GameSfx.bubblePop);
-        showKikiReaction(KikiState.wrong);
-        await Future.delayed(const Duration(milliseconds: 300));
+    initLagoonIntro();
+    startLagoonIntro(
+      introAudioAsset: _introAudio,
+      onGameStart: () {
         if (!mounted) return;
-        _itemCtrls[el.id]?.reverse();
+        setState(() => _screenPhase = LagoonScreenPhase.game);
+        _playPrompt();
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    disposeAiCamera();
+    disposeIdleTimer();
+    _popCtrl.dispose();
+    for (final c in _itemCtrls.values) {
+      c.dispose();
+    }
+    disposeLagoonIntro();
+    _audioPlayer.dispose();
+    _kikiPlayer.dispose();
+    super.dispose();
+  }
+
+  // ── Round logic ───────────────────────────────────────────────────────────
+
+  Future<void> _playPrompt() async {
+    _inputEnabled = false;
+    try {
+      await playVoiceRestartingOnFaceLoss(
+        _audioPlayer,
+        _currentWeather['qAudio']!,
+      );
+    } catch (e) {
+      debugPrint('Prompt audio error: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _inputEnabled = true);
         startIdleTimer();
       }
     }
+  }
 
-    Future<void> _saveDataAndShowSuccessDialog() async {
-      if (_hasSavedResult) return;
-      _hasSavedResult = true;
-      cancelIdleTimer();
-      List<String> finalEmotions = stopAiCamera();
+  void _startRound({bool playPrompt = true}) {
+    _currentWeather = _weathers[_roundIndex];
+    _currentElements = _allElements
+        .where((e) => e.weatherId == _currentWeather['id'])
+        .toList();
+    _currentPhases = _weatherPhases[_currentWeather['id']] ?? [];
 
-      LagoonDatabaseService.saveGameData(
-        gameId: 'lagoon_weather_scene',
-        activityName: 'Weather Scene Builder',
-        emotions: finalEmotions,
-        totalTaps: _tapTracker.totalTaps,
-        mistakes: _tapTracker.mistakeCount,
-        timePlayedSeconds: _tapTracker.formattedDuration,
-      ).catchError((e) {
-        debugPrint("Database Error saving metrics: $e");
-      });
+    final decoys =
+        _allElements.where((e) => e.weatherId != _currentWeather['id']).toList()
+          ..shuffle();
+    _choices = [..._currentElements, ...decoys.take(2)]..shuffle();
+    _placed.clear();
+    _roundLocked = false;
 
-      if (mounted) {
-        _showSuccessDialog();
-      }
-    }
-
-    void _showSuccessDialog() {
-      LagoonProgressService.instance.markLevelComplete(widget.level).catchError((
-        e,
-      ) {
-        debugPrint("Database Error marking level complete: $e");
-      });
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        useSafeArea: false,
-        barrierColor: Colors.black54,
-        builder: (_) => Material(
-          type: MaterialType.transparency,
-          child: GoodJobOverlay(
-            characterImage: _kikiFishboneImage,
-            characterSizeFactor: 0.9,
-            onNext: () {
-              Navigator.pop(context);
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AnimalLifecycleGame(level: widget.level + 1),
-                  ),
-                );
-            },
-            onRestart: () {
-              Navigator.pop(context);
-              setState(() {
-                _roundIndex = 0;
-                _hasSavedResult = false;
-                _tapTracker.startSession();
-                _startRound();
-              });
-            },
-            onBack: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-          ),
-        ),
+    for (final e in _choices) {
+      _itemCtrls[e.id]?.dispose();
+      _itemCtrls[e.id] = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 500),
       );
     }
 
-    // ── Build ─────────────────────────────────────────────────────────────────
+    if (playPrompt) _playPrompt();
+  }
 
-    @override
-    Widget build(BuildContext context) {
-      return Listener(
-          onPointerDown: (_) {
-            _tapTracker.recordGenericTap();
-            if (_screenPhase == LagoonScreenPhase.game &&
-                _inputEnabled &&
-                !_roundLocked) {
-              resetIdleTimer();
-            }
+  Future<void> _onTap(WeatherElement el) async {
+    if (!_inputEnabled || _roundLocked || _placed.contains(el.id)) return;
+    cancelIdleTimer();
+
+    if (el.weatherId == _currentWeather['id']) {
+      _tapTracker.recordCorrectTap();
+
+      showKikiReaction(KikiState.correct);
+
+      setState(() => _placed.add(el.id));
+      _itemCtrls[el.id]?.forward(from: 0);
+
+      if (_placed.length < _currentElements.length) startIdleTimer();
+
+      if (_placed.length == _currentElements.length) {
+        _roundLocked = true;
+        _inputEnabled = false;
+
+        await playVoiceRestartingOnFaceLoss(
+          _audioPlayer,
+          _currentWeather['winAudio']!,
+        );
+        if (!mounted) return;
+
+        if (_roundIndex >= _weathers.length - 1) {
+          await _saveDataAndShowSuccessDialog();
+        } else {
+          setState(() {
+            _roundIndex++;
+            _startRound();
+          });
+        }
+      }
+    } else {
+      _tapTracker.recordMistake();
+      _itemCtrls[el.id]?.forward(from: 0);
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showKikiReaction(KikiState.wrong);
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+      _itemCtrls[el.id]?.reverse();
+      startIdleTimer();
+    }
+  }
+
+  Future<void> _saveDataAndShowSuccessDialog() async {
+    if (_hasSavedResult) return;
+    _hasSavedResult = true;
+    cancelIdleTimer();
+    List<String> finalEmotions = stopAiCamera();
+
+    LagoonDatabaseService.saveGameData(
+      gameId: 'lagoon_weather_scene',
+      activityName: 'Weather Scene Builder',
+      emotions: finalEmotions,
+      totalTaps: _tapTracker.totalTaps,
+      mistakes: _tapTracker.mistakeCount,
+      timePlayedSeconds: _tapTracker.formattedDuration,
+    ).catchError((e) {
+      debugPrint("Database Error saving metrics: $e");
+    });
+
+    if (mounted) {
+      _showSuccessDialog();
+    }
+  }
+
+  void _showSuccessDialog() {
+    LagoonProgressService.instance.markLevelComplete(widget.level).catchError((
+      e,
+    ) {
+      debugPrint("Database Error marking level complete: $e");
+    });
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      useSafeArea: false,
+      barrierColor: Colors.black54,
+      builder: (_) => Material(
+        type: MaterialType.transparency,
+        child: GoodJobOverlay(
+          characterImage: _kikiFishboneImage,
+          characterSizeFactor: 0.9,
+          onNext: () {
+            Navigator.pop(context);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PickupSchoolGame(level: widget.level + 1),
+              ),
+            );
           },
-          child: Scaffold(
+          onRestart: () {
+            Navigator.pop(context);
+            setState(() {
+              _roundIndex = 0;
+              _hasSavedResult = false;
+              _tapTracker.startSession();
+              _startRound();
+            });
+          },
+          onBack: () {
+            Navigator.pop(context);
+            Navigator.pop(context);
+          },
+        ),
+      ),
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerDown: (_) {
+        _tapTracker.recordGenericTap();
+        if (_screenPhase == LagoonScreenPhase.game &&
+            _inputEnabled &&
+            !_roundLocked) {
+          resetIdleTimer();
+        }
+      },
+      child: Scaffold(
         body: Stack(
           children: [
             Positioned.fill(
@@ -442,80 +446,83 @@ import 'lagoon_game_ui.dart';
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Alignment _alignmentOf(GlobalKey key) {
+    final box = key.currentContext?.findRenderObject() as RenderBox?;
+    final root = context.findRenderObject() as RenderBox?;
+    if (box == null || root == null || !box.hasSize) return Alignment.center;
+
+    final center = box.localToGlobal(
+      box.size.center(Offset.zero),
+      ancestor: root,
+    );
+    return Alignment(
+      center.dx / root.size.width * 2 - 1,
+      center.dy / root.size.height * 2 - 1,
+    );
+  }
+
+  Widget _buildHowToPreview() {
+    const demoIds = ['sun', 'raincloud', 'rainbow', 'strong_wind'];
+    final demo = demoIds
+        .map((id) => _allElements.firstWhere((e) => e.id == id))
+        .toList();
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/objects/lagoon/sunny_day_phase2.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
           ),
-      );
-    }
-
-    Alignment _alignmentOf(GlobalKey key) {
-      final box = key.currentContext?.findRenderObject() as RenderBox?;
-      final root = context.findRenderObject() as RenderBox?;
-      if (box == null || root == null || !box.hasSize) return Alignment.center;
-
-      final center = box.localToGlobal(box.size.center(Offset.zero), ancestor: root);
-      return Alignment(
-        center.dx / root.size.width * 2 - 1,
-        center.dy / root.size.height * 2 - 1,
-      );
-    }
-
-    Widget _buildHowToPreview() {
-      const demoIds = ['sun', 'raincloud', 'rainbow', 'strong_wind'];
-      final demo = demoIds
-          .map((id) => _allElements.firstWhere((e) => e.id == id))
-          .toList();
-
-      return Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/objects/lagoon/sunny_day_phase2.png',
-              fit: BoxFit.cover,
-              alignment: Alignment.topCenter,
-            ),
-          ),
-          Column(
-            children: [
-              const Spacer(),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: demo.map((el) {
-                    return Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.all(10),
-                      child: Image.asset(el.imagePath, fit: BoxFit.contain),
-                    );
-                  }).toList(),
-                ),
+        ),
+        Column(
+          children: [
+            const Spacer(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: demo.map((el) {
+                  return Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(10),
+                    child: Image.asset(el.imagePath, fit: BoxFit.contain),
+                  );
+                }).toList(),
               ),
-              const SizedBox(height: 22),
-            ],
-          ),
-        ],
-      );
-    }
+            ),
+            const SizedBox(height: 22),
+          ],
+        ),
+      ],
+    );
+  }
 
-    Widget _buildIntroContent() {
-      return Stack(
-        children: [Positioned.fill(top: 48, child: buildLagoonIntroCharacter())],
-      );
-    }
+  Widget _buildIntroContent() {
+    return Stack(
+      children: [Positioned.fill(top: 48, child: buildLagoonIntroCharacter())],
+    );
+  }
 
-    Widget _buildGameContent() {
-      return Column(
+  Widget _buildGameContent() {
+    return Column(
       children: [
         const Spacer(),
         Opacity(
@@ -584,25 +591,25 @@ import 'lagoon_game_ui.dart';
   }
 
   final Map<String, List<String>> _weatherPhases = {
-      'sunny': [
-        'assets/images/objects/lagoon/sunny_day_phase1.png',
-        'assets/images/objects/lagoon/sunny_day_phase2.png',
-        'assets/images/objects/lagoon/sunny_day_phase3.png',
-      ],
-      'rainy': [
-        'assets/images/objects/lagoon/rainy_day_phase1.png',
-        'assets/images/objects/lagoon/rainy_day_phase2.png',
-        'assets/images/objects/lagoon/rainy_day_phase3.png',
-      ],
-      'cloudy': [
-        'assets/images/objects/lagoon/cloudy_day_phase1.png',
-        'assets/images/objects/lagoon/cloudy_day_phase2.png',
-        'assets/images/objects/lagoon/cloudy_day_phase3.png',
-      ],
-      'windy': [
-        'assets/images/objects/lagoon/windy_day_phase1.png',
-        'assets/images/objects/lagoon/windy_day_phase2.png',
-        'assets/images/objects/lagoon/windy_day_phase3.png',
-      ],
-    };
-  }
+    'sunny': [
+      'assets/images/objects/lagoon/sunny_day_phase1.png',
+      'assets/images/objects/lagoon/sunny_day_phase2.png',
+      'assets/images/objects/lagoon/sunny_day_phase3.png',
+    ],
+    'rainy': [
+      'assets/images/objects/lagoon/rainy_day_phase1.png',
+      'assets/images/objects/lagoon/rainy_day_phase2.png',
+      'assets/images/objects/lagoon/rainy_day_phase3.png',
+    ],
+    'cloudy': [
+      'assets/images/objects/lagoon/cloudy_day_phase1.png',
+      'assets/images/objects/lagoon/cloudy_day_phase2.png',
+      'assets/images/objects/lagoon/cloudy_day_phase3.png',
+    ],
+    'windy': [
+      'assets/images/objects/lagoon/windy_day_phase1.png',
+      'assets/images/objects/lagoon/windy_day_phase2.png',
+      'assets/images/objects/lagoon/windy_day_phase3.png',
+    ],
+  };
+}

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_scene_builder_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,7 +12,6 @@ import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/clothes_game.dart';
 import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
@@ -313,7 +313,7 @@ class _WeatherGameState extends State<WeatherGame>
                       context,
                       MaterialPageRoute(
                         builder: (context) =>
-                            ClothesGame(level: widget.level + 1),
+                            WeatherSceneBuilderScreen(level: widget.level + 1),
                       ),
                     );
                   }

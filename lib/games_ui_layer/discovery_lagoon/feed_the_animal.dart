@@ -10,14 +10,13 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/lunchbox_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
+import 'habitant_game.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -58,13 +57,16 @@ class FeedTheAnimalGame extends StatefulWidget {
 }
 
 class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
-    with AiCameraMixin, AppAudioLifecycleMixin<FeedTheAnimalGame>, KikiReactionMixin, IdleHintMixin  {
-
+    with
+        AiCameraMixin,
+        AppAudioLifecycleMixin<FeedTheAnimalGame>,
+        KikiReactionMixin,
+        IdleHintMixin {
   StreamSubscription? _audioSub;
   final GameTapTracker _tapTracker = GameTapTracker();
 
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _kikiPlayer= AudioPlayer();
+  final AudioPlayer _kikiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
@@ -82,7 +84,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
-  static const String _audioIntro = 'audio/discovery_lagoon/feed_the_animal_game_intro.wav';
+  static const String _audioIntro =
+      'audio/discovery_lagoon/feed_the_animal_game_intro.wav';
 
   late final List<AnimalLevel> _levels = [
     AnimalLevel(
@@ -286,11 +289,14 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
       });
 
       showKikiReaction(KikiState.correct);
-      
+
       Future.delayed(const Duration(milliseconds: 400), () async {
         if (!mounted) return;
 
-        await playVoiceRestartingOnFaceLoss(_audioPlayer, currentLevel.correctAudioPath);
+        await playVoiceRestartingOnFaceLoss(
+          _audioPlayer,
+          currentLevel.correctAudioPath,
+        );
         if (!mounted) return;
 
         if (_currentLevelIndex < _levels.length - 1) {
@@ -442,232 +448,235 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
     final currentLevel = _levels[_currentLevelIndex];
 
     return Listener(
-        onPointerDown: (_) {
-          if (_canDragFood) resetIdleTimer();
-        },
-        child:  Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            'assets/images/backgrounds/bg_rainbow_lagoon.png',
-            fit: BoxFit.cover,
-            errorBuilder: (ctx, err, st) =>
-                Container(color: const Color(0xFF90D060)),
-          ),
-          Positioned(
-            bottom: animalBottom,
-            left: 0,
-            right: 0,
-            child: DragTarget<String>(
-              onWillAcceptWithDetails: (details) => _canDragFood && !_isHappy,
-              onAcceptWithDetails: (details) {
-                _handleFoodAccepted(details.data);
-              },
-              builder: (context, candidateData, rejectedData) {
-                if (!_readyForEntrance) return const SizedBox.shrink();
-
-                return Center(
-                  child: _WalkingAnimalEntrance(
-                    key: ValueKey('entrance_${currentLevel.animalName}'),
-                    bounceHeightPx: animalHeight * 0.045,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child:
-                          Image.asset(
-                                _isHappy
-                                    ? currentLevel.animalHappyImagePath
-                                    : currentLevel.animalImagePath,
-                                key: ValueKey(
-                                  '${currentLevel.animalName}_$_isHappy',
-                                ),
-                                height: animalHeight,
-                                fit: BoxFit.contain,
-                                errorBuilder: (ctx, err, st) => Container(
-                                  height: animalHeight,
-                                  width: animalHeight * 0.6,
-                                  color: Colors.grey,
-                                ),
-                              )
-                              .animate(onPlay: (c) => c.repeat(reverse: true))
-                              .moveY(
-                                begin: 0,
-                                end: _isHappy ? -20 : -5,
-                                duration: Duration(
-                                  milliseconds: _isHappy ? 300 : 900,
-                                ),
-                                curve: Curves.easeInOut,
-                              ),
-                    ),
-                  ),
-                );
-              },
+      onPointerDown: (_) {
+        if (_canDragFood) resetIdleTimer();
+      },
+      child: Scaffold(
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/backgrounds/bg_rainbow_lagoon.png',
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, err, st) =>
+                  Container(color: const Color(0xFF90D060)),
             ),
-          ),
-          Positioned(
-            bottom: tableBottom,
-            left: 0,
-            right: 0,
-            child: IgnorePointer(
-              child: Image.asset(
-                'assets/images/objects/lumi/table.png',
-                width: sw,
-                fit: BoxFit.contain,
-                errorBuilder: (ctx, err, st) => Container(
-                  height: sh * 0.22,
-                  color: const Color(0xFFCD853F),
+            Positioned(
+              bottom: animalBottom,
+              left: 0,
+              right: 0,
+              child: DragTarget<String>(
+                onWillAcceptWithDetails: (details) => _canDragFood && !_isHappy,
+                onAcceptWithDetails: (details) {
+                  _handleFoodAccepted(details.data);
+                },
+                builder: (context, candidateData, rejectedData) {
+                  if (!_readyForEntrance) return const SizedBox.shrink();
+
+                  return Center(
+                    child: _WalkingAnimalEntrance(
+                      key: ValueKey('entrance_${currentLevel.animalName}'),
+                      bounceHeightPx: animalHeight * 0.045,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        child:
+                            Image.asset(
+                                  _isHappy
+                                      ? currentLevel.animalHappyImagePath
+                                      : currentLevel.animalImagePath,
+                                  key: ValueKey(
+                                    '${currentLevel.animalName}_$_isHappy',
+                                  ),
+                                  height: animalHeight,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (ctx, err, st) => Container(
+                                    height: animalHeight,
+                                    width: animalHeight * 0.6,
+                                    color: Colors.grey,
+                                  ),
+                                )
+                                .animate(onPlay: (c) => c.repeat(reverse: true))
+                                .moveY(
+                                  begin: 0,
+                                  end: _isHappy ? -20 : -5,
+                                  duration: Duration(
+                                    milliseconds: _isHappy ? 300 : 900,
+                                  ),
+                                  curve: Curves.easeInOut,
+                                ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Positioned(
+              bottom: tableBottom,
+              left: 0,
+              right: 0,
+              child: IgnorePointer(
+                child: Image.asset(
+                  'assets/images/objects/lumi/table.png',
+                  width: sw,
+                  fit: BoxFit.contain,
+                  errorBuilder: (ctx, err, st) => Container(
+                    height: sh * 0.22,
+                    color: const Color(0xFFCD853F),
+                  ),
                 ),
               ),
             ),
-          ),
-          Positioned(
-            bottom: foodBaseOffset,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: currentLevel.tableFoods.map((food) {
-                final double plateWidth = sw * 0.20;
-                final double foodWidth = sw * 0.14;
+            Positioned(
+              bottom: foodBaseOffset,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: currentLevel.tableFoods.map((food) {
+                  final double plateWidth = sw * 0.20;
+                  final double foodWidth = sw * 0.14;
 
-                final Widget foodWidget = Image.asset(
-                  food.imagePath,
-                  width: foodWidth,
-                  height: foodWidth,
-                  fit: BoxFit.contain,
-                  errorBuilder: (ctx, err, st) => Container(
+                  final Widget foodWidget = Image.asset(
+                    food.imagePath,
                     width: foodWidth,
                     height: foodWidth,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        food.id,
-                        style: const TextStyle(fontSize: 10),
+                    fit: BoxFit.contain,
+                    errorBuilder: (ctx, err, st) => Container(
+                      width: foodWidth,
+                      height: foodWidth,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          food.id,
+                          style: const TextStyle(fontSize: 10),
+                        ),
                       ),
                     ),
-                  ),
-                );
+                  );
 
-                return SizedBox(
-                  width: plateWidth,
-                  height: plateWidth,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    clipBehavior: Clip.none,
-                    children: [
-                      Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Image.asset(
-                          'assets/images/objects/lumi/plate.png',
-                          width: plateWidth,
-                          errorBuilder: (ctx, err, st) => Container(
+                  return SizedBox(
+                    width: plateWidth,
+                    height: plateWidth,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      clipBehavior: Clip.none,
+                      children: [
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Image.asset(
+                            'assets/images/objects/lumi/plate.png',
                             width: plateWidth,
-                            height: 14,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade300),
+                            errorBuilder: (ctx, err, st) => Container(
+                              width: plateWidth,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Padding(
-                          padding: EdgeInsets.only(bottom: plateWidth * 0.04),
-                          child: (_isHappy || !_canDragFood)
-                              ? Opacity(
-                                  opacity: _isHappy ? 0.5 : 0.7,
-                                  child: foodWidget,
-                                )
-                              : Draggable<String>(
-                                  data: food.id,
-                                  onDragStarted: cancelIdleTimer,                  
-                                  onDraggableCanceled: (_, __) => startIdleTimer(),
-                                  feedback: Material(
-                                    color: Colors.transparent,
-                                    child: Transform.scale(
-                                      scale: 1.2,
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Padding(
+                            padding: EdgeInsets.only(bottom: plateWidth * 0.04),
+                            child: (_isHappy || !_canDragFood)
+                                ? Opacity(
+                                    opacity: _isHappy ? 0.5 : 0.7,
+                                    child: foodWidget,
+                                  )
+                                : Draggable<String>(
+                                    data: food.id,
+                                    onDragStarted: cancelIdleTimer,
+                                    onDraggableCanceled: (_, __) =>
+                                        startIdleTimer(),
+                                    feedback: Material(
+                                      color: Colors.transparent,
+                                      child: Transform.scale(
+                                        scale: 1.2,
+                                        child: foodWidget,
+                                      ),
+                                    ),
+                                    childWhenDragging: Opacity(
+                                      opacity: 0.3,
                                       child: foodWidget,
                                     ),
-                                  ),
-                                  childWhenDragging: Opacity(
-                                    opacity: 0.3,
                                     child: foodWidget,
                                   ),
-                                  child: foodWidget,
-                                ),
+                          ),
                         ),
-                        ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ).animate().fadeIn(duration: 500.ms),
-          ),
-          Positioned(top: 25, left: 25, child: const LagoonXButton()),
-
-          if (showHowToPlay &&
-              _canDragFood &&
-              !_isHappy &&
-              !_showSuccessUI)
-            Positioned.fill(child: _buildHowToPlayOverlay(sw, sh)),
-
-          if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
-            LightingPromptCard(
-              onClose: () {
-                setState(() => _hideLightingCard = true);
-                releaseFaceGate();
-              },
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ).animate().fadeIn(duration: 500.ms),
             ),
+            Positioned(top: 25, left: 25, child: const LagoonXButton()),
+            Positioned(
+              top: 25,
+              right: 25,
+              child: LagoonLevelBadge(level: widget.level),
+            ),
+            if (showHowToPlay && _canDragFood && !_isHappy && !_showSuccessUI)
+              Positioned.fill(child: _buildHowToPlayOverlay(sw, sh)),
 
-          if (_showSuccessUI)
-            Positioned.fill(
-              child: GoodJobOverlay(
-                characterImage:
-                    'assets/images/characters/cat_holding_fishbone.png',
-                characterSizeFactor: 0.9,
-                onNext: () {
-                  if (context.mounted) {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            LunchboxGameIntro(level: widget.level + 1),
-                      ),
-                    );
-                  }
+            if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
+              LightingPromptCard(
+                onClose: () {
+                  setState(() => _hideLightingCard = true);
+                  releaseFaceGate();
                 },
-                onRestart: () {
-                  setState(() {
-                    _currentLevelIndex = 0;
-                    _isHappy = false;
-                    _showSuccessUI = false;
-                    _showIntro = false;
-                    _hasSavedResult = false;
-                    _tapTracker.startSession();
-                  });
-                  Future.delayed(const Duration(milliseconds: 200), () {
-                    if (mounted) setState(() => _readyForEntrance = true);
-                    _playQuestionAudioForCurrentLevel();
-                  });
-                },
-                onBack: () => Navigator.of(context).pop(),
               ),
-            ),
-        ],
-      ),
+
+            if (_showSuccessUI)
+              Positioned.fill(
+                child: GoodJobOverlay(
+                  characterImage:
+                      'assets/images/characters/cat_holding_fishbone.png',
+                  characterSizeFactor: 0.9,
+                  onNext: () {
+                    if (context.mounted) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              HabitantGame(level: widget.level + 1),
+                        ),
+                      );
+                    }
+                  },
+                  onRestart: () {
+                    setState(() {
+                      _currentLevelIndex = 0;
+                      _isHappy = false;
+                      _showSuccessUI = false;
+                      _showIntro = false;
+                      _hasSavedResult = false;
+                      _tapTracker.startSession();
+                    });
+                    Future.delayed(const Duration(milliseconds: 200), () {
+                      if (mounted) setState(() => _readyForEntrance = true);
+                      _playQuestionAudioForCurrentLevel();
+                    });
+                  },
+                  onBack: () => Navigator.of(context).pop(),
+                ),
+              ),
+          ],
         ),
+      ),
     );
   }
 
   Widget _buildHowToPlayOverlay(double sw, double sh) {
     final sample = _levels[(_currentLevelIndex + 1) % _levels.length];
-    final sampleFood =
-    sample.tableFoods.firstWhere((f) => f.id == sample.correctFood);
+    final sampleFood = sample.tableFoods.firstWhere(
+      (f) => f.id == sample.correctFood,
+    );
 
     final animalH = sh * 0.95;
     final plateW = sw * 0.20;
@@ -680,20 +689,31 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
     final preview = Stack(
       fit: StackFit.expand,
       children: [
-        Image.asset('assets/images/backgrounds/bg_rainbow_lagoon.png', fit: BoxFit.cover),
+        Image.asset(
+          'assets/images/backgrounds/bg_rainbow_lagoon.png',
+          fit: BoxFit.cover,
+        ),
         Positioned(
           bottom: 0,
           left: 0,
           right: 0,
           child: Center(
-            child: Image.asset(sample.animalImagePath, height: animalH, fit: BoxFit.contain),
+            child: Image.asset(
+              sample.animalImagePath,
+              height: animalH,
+              fit: BoxFit.contain,
+            ),
           ),
         ),
         Positioned(
           bottom: -sh * 0.60,
           left: 0,
           right: 0,
-          child: Image.asset('assets/images/objects/lumi/table.png', width: sw, fit: BoxFit.contain),
+          child: Image.asset(
+            'assets/images/objects/lumi/table.png',
+            width: sw,
+            fit: BoxFit.contain,
+          ),
         ),
         Positioned(
           bottom: foodBottom,
@@ -709,14 +729,21 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
                 children: [
                   Align(
                     alignment: Alignment.bottomCenter,
-                    child: Image.asset('assets/images/objects/lumi/plate.png', width: plateW),
+                    child: Image.asset(
+                      'assets/images/objects/lumi/plate.png',
+                      width: plateW,
+                    ),
                   ),
                   Align(
                     alignment: Alignment.bottomCenter,
                     child: Padding(
                       padding: EdgeInsets.only(bottom: plateW * 0.04),
-                      child: Image.asset(sampleFood.imagePath,
-                          width: foodW, height: foodW, fit: BoxFit.contain),
+                      child: Image.asset(
+                        sampleFood.imagePath,
+                        width: foodW,
+                        height: foodW,
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
                 ],
@@ -730,8 +757,8 @@ class _FeedTheAnimalGameState extends State<FeedTheAnimalGame>
     final foodCy = sh - foodBottom - plateW * 0.04 - foodW / 2;
     return HowToPlayOverlay(
       previewChild: preview,
-      handAlignment: al(sw / 2, foodCy),      
-      handEndAlignment: al(sw / 2, sh * 0.45), 
+      handAlignment: al(sw / 2, foodCy),
+      handEndAlignment: al(sw / 2, sh * 0.45),
       handOffset: const Offset(0.05, 0.46),
       onDismiss: resetIdleTimer,
     );

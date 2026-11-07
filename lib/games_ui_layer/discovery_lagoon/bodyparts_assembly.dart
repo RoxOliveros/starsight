@@ -55,6 +55,11 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
 
   final GameTapTracker _tapTracker = GameTapTracker();
 
+  bool _kikiIntroDone = false;
+
+  static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
+  static const String _kikiIntroAudio = 'assets/audio/discovery_lagoon/lagoon_kiki_intro.wav';
+
   static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_closeup2.png';
   static const String _kikiFishboneImage = 'assets/images/characters/cat_holding_fishbone.png';
   static const String _boyImage = 'assets/images/objects/lagoon/boy.png';
@@ -112,6 +117,19 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
 
     initLagoonIntro();
     _resetGame();
+
+    _playKikiIntro();
+  }
+
+  Future<void> _playKikiIntro() async {
+    try {
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _kikiIntroAudio);
+    } catch (e) {
+      debugPrint('Kiki intro audio error: $e');
+    }
+    if (!mounted) return;
+
+    setState(() => _kikiIntroDone = true);
 
     startLagoonIntro(
       introAudioAsset: _introAudio,
@@ -193,12 +211,28 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
               child: LagoonLevelBadge(level: widget.level),
             ),
 
-            Positioned.fill(
-              top: 50,
-              child: _screenPhase == LagoonScreenPhase.intro
-                  ? buildLagoonIntroCharacter()
-                  : _buildGameContent(),
-            ),
+            if (!_kikiIntroDone)
+              Positioned(
+                bottom: -80,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Image.asset(
+                    _kikiImage,
+                    height: MediaQuery.of(context).size.height * 0.9,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) =>
+                    const Text('🐱', style: TextStyle(fontSize: 120)),
+                  ),
+                ),
+              )
+            else
+              Positioned.fill(
+                top: 50,
+                child: _screenPhase == LagoonScreenPhase.intro
+                    ? buildLagoonIntroCharacter()
+                    : _buildGameContent(),
+              ),
 
             if (showHowToPlay &&
                 _screenPhase == LagoonScreenPhase.game &&

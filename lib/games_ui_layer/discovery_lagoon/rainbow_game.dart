@@ -2,7 +2,6 @@
   import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
   import 'package:StarSight/business_layer/lagoon_progress_service.dart';
   import 'package:StarSight/business_layer/orientation_service.dart';
-  import 'package:StarSight/games_ui_layer/discovery_lagoon/perfume_game.dart';
   import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
   import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
   import 'package:flutter/material.dart';
@@ -15,6 +14,7 @@
   import '../games_audio_helper.dart';
   import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
+import 'feed_the_animal.dart';
 import 'kiki_reaction.dart';
   import 'lagoon_game_ui.dart';
 
@@ -327,7 +327,7 @@ import 'kiki_reaction.dart';
                     if (context.mounted) {
                       Navigator.of(context).pushReplacement(
                         MaterialPageRoute(
-                          builder: (_) => PerfumeGame(level: widget.level + 1),
+                          builder: (_) => FeedTheAnimalGame(level: widget.level + 1),
                         ),
                       );
                     }
