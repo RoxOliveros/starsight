@@ -1,4 +1,5 @@
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/rainbow_game.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -300,8 +301,7 @@ class _TreeGameScreenState extends State<TreeGameScreen>
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            const SeasonSceneTapScreen(level: 14),
+                        builder: (context) => RainbowGameScreen(level: widget.level + 1),
                       ),
                     );
                   }

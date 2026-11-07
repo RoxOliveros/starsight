@@ -1,4 +1,5 @@
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_tap_sort_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,7 +9,6 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/habitant_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
@@ -447,7 +447,7 @@ class _ClothesGameState extends State<ClothesGame>
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          HabitantGame(level: widget.level + 1),
+                          WeatherTapSortScreen(level: widget.level + 1),
                     ),
                   );
                 }

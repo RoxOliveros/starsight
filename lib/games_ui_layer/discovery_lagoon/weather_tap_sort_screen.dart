@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_game.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -346,7 +347,7 @@ class _WeatherTapSortScreenState extends State<WeatherTapSortScreen>
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                      LivingNonLivingGame(level: widget.level + 1),
+                      WeatherGame(level: widget.level + 1),
                 ),
               );
             }
