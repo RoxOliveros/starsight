@@ -1,7 +1,9 @@
+import 'dart:async';
+
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/forest_database_service.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_pop.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/trace_letter_data.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
@@ -10,46 +12,36 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import '../../business_layer/forest_progress_service.dart';
 import '../../business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_puzzle.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_minigame_hunt.dart';
+import '../../ui_layer/alphabet_forest_ui/forest_level.dart';
+import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
-import 'alphabet_minigame_fall.dart';
-import 'alphabet_minigame_find.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
-class TraceLevel {
-  final String letterName;
-  final String imagePath;
-  final List<List<Offset>> strokes;
-
-  TraceLevel({
-    required this.letterName,
-    required this.imagePath,
-    required this.strokes,
-  });
-}
+import 'forest_flow.dart';
 
 class AlphabetTraceScreen extends StatefulWidget {
-  final String letter;
+  final int level;
 
-  const AlphabetTraceScreen({super.key, required this.letter});
+  const AlphabetTraceScreen({super.key, required this.level});
 
   @override
   State<AlphabetTraceScreen> createState() => _AlphabetTraceScreenState();
 }
 
 class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
-    with TofiReactionMixin, AiCameraMixin, AppAudioLifecycleMixin<AlphabetTraceScreen>, IdleHintMixin  {
-
+    with
+        TofiReactionMixin,
+        AiCameraMixin,
+        AppAudioLifecycleMixin<AlphabetTraceScreen>,
+        IdleHintMixin {
   final GameTapTracker _tapTracker = GameTapTracker();
   final GlobalKey _canvasKey = GlobalKey();
 
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -57,41 +49,36 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
   @override
   AudioPlayer get tofiPlayer => _tofiPlayer;
 
-  int _currentLevelIndex = 0;
   int _currentStrokeIndex = 0;
   int _currentPointIndex = 0;
 
-  int _nextMiniGame() {
-    if (_miniGameIndex >= _miniGameQueue.length) {
-      _miniGameQueue.shuffle(_random);
-      _miniGameIndex = 0;
-    }
-
-    return _miniGameQueue[_miniGameIndex++];
-  }
-
   List<List<Offset>> _denseStrokes = [];
-  late List<TraceLevel> _levels;
 
-  static final Random _random = Random();
-  static List<int> _miniGameQueue = [];
-  static int _miniGameIndex = 0;
-  static const String _traceInstructionWav = 'assets/audio/alphabet_forest/trace_letter_instruction.wav';
+  static const String _traceInstructionWav =
+      'assets/audio/alphabet_forest/trace_letter_instruction.wav';
+
+  late final List<TraceStep> _steps;
+  int _stepIndex = 0;
+
+  TraceStep get _step => _steps[_stepIndex];
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
   bool _awaitingLift = false;
   bool _touchValid = false;
   bool _audioFinished = false;
+
   bool _isDotStroke(List<Offset> stroke) => stroke.length <= 3;
 
   bool get _hintActive =>
       _audioFinished &&
-          !_hasSavedResult &&
-          _denseStrokes.isNotEmpty &&
-          _currentStrokeIndex < _denseStrokes.length;
+      !_hasSavedResult &&
+      _denseStrokes.isNotEmpty &&
+      _currentStrokeIndex < _denseStrokes.length;
 
   bool get _hintAllowed => showHowToPlay && _hintActive;
+
+  Timer? _demoTimer;
 
   Size _lastCanvasSize = Size.zero;
 
@@ -109,12 +96,10 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     onFaceDetectionChanged = (detected) {
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
-    if (_miniGameQueue.isEmpty) {
-      _miniGameQueue = List.generate(5, (i) => i);
-      _miniGameQueue.shuffle(_random);
-    }
-
-    _loadLetter(widget.letter);
+    _steps = [
+      for (final l in ForestFlow.traceLetters(widget.level))
+        for (final t in TraceData.forLetter(l)) TraceStep(l, t),
+    ];
     _playInstructionThenLetter();
   }
 
@@ -126,10 +111,9 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
         timeout: const Duration(seconds: 30),
       );
       if (!mounted) return;
-      await playVoiceRestartingOnFaceLoss(
-        _audioPlayer,
-        'assets/audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-      );
+      await _playDemo(); 
+      if (!mounted) return; 
+      await _playLetterSound();
     } finally {
       if (mounted) {
         setState(() => _audioFinished = true);
@@ -138,8 +122,57 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     }
   }
 
+  Future<void> _playDemo() async {
+    for (int i = 0; i < 50 && _denseStrokes.isEmpty && mounted; i++) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+    if (!mounted || _denseStrokes.isEmpty) return;
+
+    final done = Completer<void>();
+    int hold = 0;
+    _resetBoard();
+
+    _demoTimer = Timer.periodic(const Duration(milliseconds: 16), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      if (_currentStrokeIndex >= _denseStrokes.length) {
+        t.cancel();
+        if (!done.isCompleted) done.complete();
+        return;
+      }
+      final stroke = _denseStrokes[_currentStrokeIndex];
+      setState(() {
+        if (_isDotStroke(stroke)) {
+          if (++hold < 40) return;
+          hold = 0;
+          _currentStrokeIndex++;
+          _currentPointIndex = 0;
+        } else {
+          _currentPointIndex += 1;
+          if (_currentPointIndex >= stroke.length) {
+            _currentStrokeIndex++;
+            _currentPointIndex = 0;
+          }
+        }
+      });
+    });
+
+    await done.future;
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
+    _resetBoard();
+  }
+
+  Future<void> _playLetterSound() => playVoiceRestartingOnFaceLoss(
+    _audioPlayer,
+    'assets/audio/alphabet_forest/sound_effects/sound_${_step.letter.toLowerCase()}.wav',
+  );
+
   @override
   void dispose() {
+    _demoTimer?.cancel();
     disposeAiCamera();
     disposeIdleTimer();
     OrientationService.setLandscape();
@@ -148,862 +181,12 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     super.dispose();
   }
 
-  void _loadLetter(String letter) {
-    switch (letter.toUpperCase()) {
-      case 'A':
-        _levels = [
-          TraceLevel(
-            letterName: "Big A",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.5, 0.2), const Offset(0.2, 0.8)],
-              [const Offset(0.5, 0.2), const Offset(0.8, 0.8)],
-              [const Offset(0.35, 0.5), const Offset(0.65, 0.5)],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small a",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.66, 0.48),
-                const Offset(0.56, 0.41),
-                const Offset(0.44, 0.42),
-                const Offset(0.35, 0.52),
-                const Offset(0.34, 0.66),
-                const Offset(0.42, 0.77),
-                const Offset(0.54, 0.80),
-                const Offset(0.66, 0.74),
-              ],
-              [const Offset(0.66, 0.40), const Offset(0.66, 0.80)],
-            ],
-          ),
-        ];
-        break;
-      case 'B':
-        _levels = [
-          TraceLevel(
-            letterName: "Big B",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Vertical
-              [
-                const Offset(0.3, 0.2),
-                const Offset(0.6, 0.2),
-                const Offset(0.7, 0.35),
-                const Offset(0.6, 0.5),
-                const Offset(0.3, 0.5),
-              ], // Top Loop
-              [
-                const Offset(0.3, 0.5),
-                const Offset(0.65, 0.5),
-                const Offset(0.75, 0.65),
-                const Offset(0.65, 0.8),
-                const Offset(0.3, 0.8),
-              ], // Bot Loop
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small b",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.34, 0.20), const Offset(0.34, 0.80)],
-              [
-                const Offset(0.34, 0.50),
-                const Offset(0.42, 0.42),
-                const Offset(0.54, 0.40),
-                const Offset(0.64, 0.48),
-                const Offset(0.67, 0.60),
-                const Offset(0.64, 0.72),
-                const Offset(0.54, 0.80),
-                const Offset(0.42, 0.78),
-                const Offset(0.34, 0.70),
-              ],
-            ],
-          ),
-        ];
-        break;
-      case 'C':
-        _levels = [
-          TraceLevel(
-            letterName: "Big C",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.70, 0.30),
-                const Offset(0.60, 0.22),
-                const Offset(0.48, 0.20),
-                const Offset(0.37, 0.28),
-                const Offset(0.31, 0.50),
-                const Offset(0.37, 0.72),
-                const Offset(0.48, 0.80),
-                const Offset(0.60, 0.78),
-                const Offset(0.70, 0.70),
-              ],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small c",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.64, 0.48),
-                const Offset(0.56, 0.42),
-                const Offset(0.46, 0.41),
-                const Offset(0.38, 0.47),
-                const Offset(0.34, 0.60),
-                const Offset(0.38, 0.73),
-                const Offset(0.46, 0.79),
-                const Offset(0.56, 0.78),
-                const Offset(0.64, 0.72),
-              ],
-            ],
-          ),
-        ];
-        break;
-      case 'D':
-        _levels = [
-          TraceLevel(
-            letterName: "Big D",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Vertical
-              [
-                const Offset(0.3, 0.2),
-                const Offset(0.6, 0.2),
-                const Offset(0.75, 0.5),
-                const Offset(0.6, 0.8),
-                const Offset(0.3, 0.8),
-              ], // Big Loop
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small d",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.66, 0.48),
-                const Offset(0.56, 0.41),
-                const Offset(0.44, 0.42),
-                const Offset(0.35, 0.52),
-                const Offset(0.34, 0.66),
-                const Offset(0.42, 0.77),
-                const Offset(0.54, 0.80),
-                const Offset(0.66, 0.74),
-              ],
-              [const Offset(0.66, 0.20), const Offset(0.66, 0.80)],
-            ],
-          ),
-        ];
-        break;
-      case 'E':
-        _levels = [
-          TraceLevel(
-            letterName: "Big E",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Vertical
-              [const Offset(0.3, 0.2), const Offset(0.65, 0.2)], // Top
-              [const Offset(0.3, 0.5), const Offset(0.55, 0.5)], // Mid
-              [const Offset(0.3, 0.8), const Offset(0.65, 0.8)], // Bot
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small e",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.34, 0.60),
-                const Offset(0.50, 0.60),
-                const Offset(0.66, 0.60),
-                const Offset(0.63, 0.48),
-                const Offset(0.52, 0.41),
-                const Offset(0.40, 0.45),
-                const Offset(0.33, 0.60),
-                const Offset(0.38, 0.74),
-                const Offset(0.50, 0.80),
-                const Offset(0.64, 0.75),
-              ],
-            ],
-          ),
-        ];
-        break;
-      case 'F':
-        _levels = [
-          TraceLevel(
-            letterName: "Big F",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Vertical
-              [const Offset(0.3, 0.2), const Offset(0.65, 0.2)], // Top
-              [const Offset(0.3, 0.5), const Offset(0.55, 0.5)], // Mid
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small f",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.60, 0.25),
-                const Offset(0.50, 0.15),
-                const Offset(0.40, 0.25),
-                const Offset(0.40, 0.85),
-              ],
-              [
-                const Offset(0.25, 0.45),
-                const Offset(0.55, 0.45),
-              ],
-            ],
-          ),
-        ];
-        break;
-      case 'G':
-        _levels = [
-          TraceLevel(
-            letterName: "Big G",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.70, 0.30),
-                const Offset(0.60, 0.22),
-                const Offset(0.48, 0.20),
-                const Offset(0.37, 0.28),
-                const Offset(0.31, 0.50),
-                const Offset(0.37, 0.72),
-                const Offset(0.48, 0.80),
-                const Offset(0.60, 0.78),
-                const Offset(0.69, 0.70),
-                const Offset(0.70, 0.56),
-                const Offset(0.60, 0.55),
-                const Offset(0.52, 0.55),
-              ],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small g",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.66, 0.36),
-                const Offset(0.56, 0.29),
-                const Offset(0.44, 0.30),
-                const Offset(0.35, 0.40),
-                const Offset(0.34, 0.54),
-                const Offset(0.42, 0.65),
-                const Offset(0.54, 0.68),
-                const Offset(0.66, 0.62),
-              ],
-              [
-                const Offset(0.66, 0.28),
-                const Offset(0.66, 0.70),
-                const Offset(0.60, 0.80),
-                const Offset(0.48, 0.83),
-                const Offset(0.38, 0.78),
-              ],
-            ],
-          ),
-        ];
-        break;
-      case 'H':
-        _levels = [
-          TraceLevel(
-            letterName: "Big H",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Left vertical
-              [
-                const Offset(0.7, 0.2),
-                const Offset(0.7, 0.8),
-              ], // Right vertical
-              [const Offset(0.3, 0.5), const Offset(0.7, 0.5)], // Crossbar
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small h",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Tall vertical
-              [
-                const Offset(0.3, 0.5),
-                const Offset(0.5, 0.45),
-                const Offset(0.65, 0.55),
-                const Offset(0.65, 0.8),
-              ], // Arch down
-            ],
-          ),
-        ];
-        break;
-      case 'I':
-        _levels = [
-          TraceLevel(
-            letterName: "Big I",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.3, 0.2),
-                const Offset(0.7, 0.2),
-              ], // Top horizontal
-              [
-                const Offset(0.3, 0.8),
-                const Offset(0.7, 0.8),
-              ], // Bottom horizontal
-              [
-                const Offset(0.5, 0.2),
-                const Offset(0.5, 0.8),
-              ], // Middle vertical
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small i",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.5, 0.4), const Offset(0.5, 0.8)], // Stem
-              [
-                const Offset(0.5, 0.25),
-                const Offset(0.5, 0.26),
-              ], // Dot (tiny stroke)
-            ],
-          ),
-        ];
-        break;
-      case 'J':
-        _levels = [
-          TraceLevel(
-            letterName: "Big J",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.3, 0.2),
-                const Offset(0.7, 0.2),
-              ], // Top horizontal
-              [
-                const Offset(0.5, 0.2),
-                const Offset(0.5, 0.7),
-                const Offset(0.4, 0.8),
-                const Offset(0.3, 0.7),
-              ], // Stem & hook
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small j",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.5, 0.4),
-                const Offset(0.5, 0.8),
-                const Offset(0.4, 0.9),
-                const Offset(0.3, 0.85),
-              ], // Stem & hook
-              [const Offset(0.5, 0.25), const Offset(0.5, 0.26)], // Dot
-            ],
-          ),
-        ];
-        break;
-      case 'K':
-        _levels = [
-          TraceLevel(
-            letterName: "Big K",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)],
-              [const Offset(0.7, 0.2), const Offset(0.3, 0.5)],
-              [const Offset(0.3, 0.5), const Offset(0.7, 0.8)],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small k",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)],
-              [const Offset(0.6, 0.45), const Offset(0.3, 0.6)],
-              [const Offset(0.3, 0.6), const Offset(0.6, 0.8)],
-            ],
-          ),
-        ];
-        break;
-      case 'L':
-        _levels = [
-          TraceLevel(
-            letterName: "Big L",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)],
-              [const Offset(0.3, 0.8), const Offset(0.7, 0.8)],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small l",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.5, 0.2), const Offset(0.5, 0.8)],
-            ],
-          ),
-        ];
-        break;
-      case 'M':
-        _levels = [
-          TraceLevel(
-            letterName: "Big M",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.20, 0.8), const Offset(0.20, 0.2)],
-              [const Offset(0.20, 0.2), const Offset(0.50, 0.58)],
-              [const Offset(0.50, 0.58), const Offset(0.80, 0.2)],
-              [const Offset(0.80, 0.2), const Offset(0.80, 0.8)],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small m",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.25, 0.40), const Offset(0.25, 0.80)],
-              [
-                const Offset(0.25, 0.56),
-                const Offset(0.29, 0.46),
-                const Offset(0.37, 0.41),
-                const Offset(0.45, 0.46),
-                const Offset(0.50, 0.56),
-                const Offset(0.50, 0.80),
-              ],
-              [
-                const Offset(0.50, 0.56),
-                const Offset(0.54, 0.46),
-                const Offset(0.62, 0.41),
-                const Offset(0.70, 0.46),
-                const Offset(0.75, 0.56),
-                const Offset(0.75, 0.80),
-              ],
-            ],
-          ),
-        ];
-        break;
-      case 'N':
-        _levels = [
-          TraceLevel(
-            letterName: "Big N",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.30, 0.8), const Offset(0.30, 0.2)],
-              [const Offset(0.30, 0.2), const Offset(0.70, 0.8)],
-              [const Offset(0.70, 0.8), const Offset(0.70, 0.2)],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small n",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.35, 0.40), const Offset(0.35, 0.80)],
-              [
-                const Offset(0.35, 0.56),
-                const Offset(0.39, 0.46),
-                const Offset(0.50, 0.41),
-                const Offset(0.61, 0.46),
-                const Offset(0.65, 0.56),
-                const Offset(0.65, 0.80),
-              ],
-            ],
-          ),
-        ];
-        break;
-      case 'O':
-        _levels = [
-          TraceLevel(
-            letterName: "Big O",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.50, 0.20),
-                const Offset(0.40, 0.24),
-                const Offset(0.33, 0.35),
-                const Offset(0.30, 0.50),
-                const Offset(0.33, 0.65),
-                const Offset(0.40, 0.76),
-                const Offset(0.50, 0.80),
-                const Offset(0.60, 0.76),
-                const Offset(0.67, 0.65),
-                const Offset(0.70, 0.50),
-                const Offset(0.67, 0.35),
-                const Offset(0.60, 0.24),
-                const Offset(0.50, 0.20),
-                const Offset(0.40, 0.24),
-              ],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small o",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.50, 0.40),
-                const Offset(0.425, 0.43),
-                const Offset(0.37, 0.50),
-                const Offset(0.35, 0.60),
-                const Offset(0.37, 0.70),
-                const Offset(0.425, 0.77),
-                const Offset(0.50, 0.80),
-                const Offset(0.575, 0.77),
-                const Offset(0.63, 0.70),
-                const Offset(0.65, 0.60),
-                const Offset(0.63, 0.50),
-                const Offset(0.575, 0.43),
-                const Offset(0.50, 0.40),
-                const Offset(0.425, 0.43),
-              ],
-            ],
-          ),
-        ];
-        break;
-      case 'P':
-        _levels = [
-          TraceLevel(
-            letterName: "Big P",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)],
-              [
-                const Offset(0.3, 0.2),
-                const Offset(0.6, 0.2),
-                const Offset(0.7, 0.35),
-                const Offset(0.6, 0.5),
-                const Offset(0.3, 0.5),
-              ],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small p",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.34, 0.28), const Offset(0.34, 0.83)],
-              [
-                const Offset(0.34, 0.38),
-                const Offset(0.42, 0.30),
-                const Offset(0.54, 0.28),
-                const Offset(0.64, 0.36),
-                const Offset(0.67, 0.48),
-                const Offset(0.64, 0.60),
-                const Offset(0.54, 0.68),
-                const Offset(0.42, 0.66),
-                const Offset(0.34, 0.58),
-              ],
-            ],
-          ),
-        ];
-        break;
-      case 'Q':
-        _levels = [
-          TraceLevel(
-            letterName: "Big Q",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.50, 0.20),
-                const Offset(0.40, 0.24),
-                const Offset(0.33, 0.35),
-                const Offset(0.30, 0.50),
-                const Offset(0.33, 0.65),
-                const Offset(0.40, 0.76),
-                const Offset(0.50, 0.80),
-                const Offset(0.60, 0.76),
-                const Offset(0.67, 0.65),
-                const Offset(0.70, 0.50),
-                const Offset(0.67, 0.35),
-                const Offset(0.60, 0.24),
-                const Offset(0.50, 0.20),
-                const Offset(0.40, 0.24),
-              ], // Circle
-              [const Offset(0.56, 0.66), const Offset(0.76, 0.86)],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small q",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.66, 0.36),
-                const Offset(0.56, 0.29),
-                const Offset(0.44, 0.30),
-                const Offset(0.35, 0.40),
-                const Offset(0.34, 0.54),
-                const Offset(0.42, 0.65),
-                const Offset(0.54, 0.68),
-                const Offset(0.66, 0.62),
-              ],
-              [const Offset(0.66, 0.28), const Offset(0.66, 0.83)],
-            ],
-          ),
-        ];
-        break;
-      case 'R':
-        _levels = [
-          TraceLevel(
-            letterName: "Big R",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.2), const Offset(0.3, 0.8)], // Line down
-              [
-                const Offset(0.3, 0.2),
-                const Offset(0.6, 0.2),
-                const Offset(0.7, 0.35),
-                const Offset(0.6, 0.5),
-                const Offset(0.3, 0.5),
-              ], // Loop
-              [const Offset(0.3, 0.5), const Offset(0.7, 0.8)], // Diagonal leg
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small r",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.4), const Offset(0.3, 0.8)], // Line down
-              [
-                const Offset(0.3, 0.55),
-                const Offset(0.45, 0.4),
-                const Offset(0.6, 0.4),
-              ], // Small arc
-            ],
-          ),
-        ];
-        break;
-      case 'S':
-        _levels = [
-          TraceLevel(
-            letterName: "Big S",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.68, 0.28),
-                const Offset(0.62, 0.22),
-                const Offset(0.53, 0.20),
-                const Offset(0.44, 0.21),
-                const Offset(0.36, 0.26),
-                const Offset(0.33, 0.34),
-                const Offset(0.37, 0.42),
-                const Offset(0.46, 0.48),
-                const Offset(0.55, 0.52),
-                const Offset(0.64, 0.57),
-                const Offset(0.68, 0.65),
-                const Offset(0.64, 0.73),
-                const Offset(0.56, 0.78),
-                const Offset(0.46, 0.80),
-                const Offset(0.38, 0.77),
-                const Offset(0.32, 0.71),
-              ],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small s",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.635, 0.453),
-                const Offset(0.59, 0.413),
-                const Offset(0.52, 0.40),
-                const Offset(0.455, 0.407),
-                const Offset(0.395, 0.44),
-                const Offset(0.37, 0.493),
-                const Offset(0.40, 0.547),
-                const Offset(0.47, 0.587),
-                const Offset(0.54, 0.613),
-                const Offset(0.605, 0.647),
-                const Offset(0.635, 0.70),
-                const Offset(0.605, 0.753),
-                const Offset(0.545, 0.787),
-                const Offset(0.47, 0.80),
-                const Offset(0.41, 0.78),
-                const Offset(0.365, 0.74),
-              ],
-            ],
-          ),
-        ];
-        break;
-      case 'T':
-        _levels = [
-          TraceLevel(
-            letterName: "Big T",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.2, 0.2), const Offset(0.8, 0.2)],
-              [const Offset(0.5, 0.2), const Offset(0.5, 0.8)],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small t",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.5, 0.2), const Offset(0.5, 0.8)],
-              [const Offset(0.3, 0.45), const Offset(0.7, 0.45)],
-            ],
-          ),
-        ];
-        break;
-
-      case 'U':
-        _levels = [
-          TraceLevel(
-            letterName: "Capital U",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.3, 0.2),
-                const Offset(0.3, 0.6),
-                const Offset(0.35, 0.72),
-                const Offset(0.5, 0.78),
-                const Offset(0.65, 0.72),
-                const Offset(0.7, 0.6),
-                const Offset(0.7, 0.2),
-              ],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small u",
-            imagePath: '',
-            strokes: [
-              [
-                const Offset(0.35, 0.4),
-                const Offset(0.35, 0.65),
-                const Offset(0.4, 0.73),
-                const Offset(0.5, 0.76),
-                const Offset(0.6, 0.73),
-                const Offset(0.65, 0.65),
-                const Offset(0.65, 0.4),
-              ],
-              [const Offset(0.65, 0.4), const Offset(0.65, 0.76)],
-            ],
-          ),
-        ];
-        break;
-      case 'V':
-        _levels = [
-          TraceLevel(
-            letterName: "Capital V",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.25, 0.2), const Offset(0.5, 0.78)],
-              [const Offset(0.5, 0.78), const Offset(0.75, 0.2)],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small v",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.4), const Offset(0.5, 0.76)],
-              [const Offset(0.5, 0.76), const Offset(0.7, 0.4)],
-            ],
-          ),
-        ];
-        break;
-      case 'W':
-        _levels = [
-          TraceLevel(
-            letterName: "Capital W",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.15, 0.2), const Offset(0.32, 0.78)],
-              [const Offset(0.32, 0.78), const Offset(0.5, 0.35)],
-              [const Offset(0.5, 0.35), const Offset(0.68, 0.78)],
-              [const Offset(0.68, 0.78), const Offset(0.85, 0.2)],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small w",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.15, 0.4), const Offset(0.32, 0.76)],
-              [const Offset(0.32, 0.76), const Offset(0.5, 0.5)],
-              [const Offset(0.5, 0.5), const Offset(0.68, 0.76)],
-              [const Offset(0.68, 0.76), const Offset(0.85, 0.4)],
-            ],
-          ),
-        ];
-        break;
-
-      case 'X':
-        _levels = [
-          TraceLevel(
-            letterName: "Big X",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.25, 0.2), const Offset(0.75, 0.8)],
-              [const Offset(0.75, 0.2), const Offset(0.25, 0.8)],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small x",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.45), const Offset(0.7, 0.8)],
-              [const Offset(0.7, 0.45), const Offset(0.3, 0.8)],
-            ],
-          ),
-        ];
-        break;
-
-      case 'Y':
-        _levels = [
-          TraceLevel(
-            letterName: "Big Y",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.25, 0.2), const Offset(0.5, 0.45)],
-              [const Offset(0.75, 0.2), const Offset(0.5, 0.45)],
-              [const Offset(0.5, 0.45), const Offset(0.5, 0.8)],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small y",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.4), const Offset(0.5, 0.7)],
-              [const Offset(0.7, 0.4), const Offset(0.4, 0.9)],
-            ],
-          ),
-        ];
-        break;
-
-      case 'Z':
-        _levels = [
-          TraceLevel(
-            letterName: "Big Z",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.2, 0.2), const Offset(0.8, 0.2)],
-              [const Offset(0.8, 0.2), const Offset(0.2, 0.8)],
-              [const Offset(0.2, 0.8), const Offset(0.8, 0.8)],
-            ],
-          ),
-          TraceLevel(
-            letterName: "Small z",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.3, 0.45), const Offset(0.7, 0.45)],
-              [const Offset(0.7, 0.45), const Offset(0.3, 0.8)],
-              [const Offset(0.3, 0.8), const Offset(0.7, 0.8)],
-            ],
-          ),
-        ];
-        break;
-      default:
-        // Fallback to A if something goes wrong
-        _levels = [
-          TraceLevel(
-            letterName: "Big A",
-            imagePath: '',
-            strokes: [
-              [const Offset(0.5, 0.2), const Offset(0.2, 0.8)],
-              [const Offset(0.5, 0.2), const Offset(0.8, 0.8)],
-              [const Offset(0.35, 0.5), const Offset(0.65, 0.5)],
-            ],
-          ),
-        ];
-    }
-  }
-
   void _generateDensePaths(Size size) {
     if (size.isEmpty) return;
 
     List<List<Offset>> newDenseStrokes = [];
 
-    for (var stroke in _levels[_currentLevelIndex].strokes) {
+    for (var stroke in _step.trace.strokes) {
       final pts = stroke
           .map((p) => Offset(p.dx * size.width, p.dy * size.height))
           .toList();
@@ -1159,54 +342,93 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
     cancelIdleTimer();
     if (showHowToPlay) setState(() => showHowToPlay = false);
     await showTofiReaction(TofiState.correct);
-
-    bool isLastSubLevel = _currentLevelIndex == _levels.length - 1;
-
     if (!mounted) return;
 
-    if (!isLastSubLevel) {
+    if (_stepIndex + 1 < _steps.length) {
+      final bool newLetter = _steps[_stepIndex + 1].letter != _step.letter;
+
       setState(() {
         _resetBoard();
-        _currentLevelIndex++;
+        _stepIndex++;
+        _audioFinished = false;
       });
       _generateDensePaths(_lastCanvasSize);
+
+      await _playDemo();
+      if (!mounted) return;
+
+      if (newLetter) {
+        try {
+          await _playLetterSound();
+        } catch (e) {
+          debugPrint('Letter audio error: $e');
+        }
+        if (!mounted) return;
+      }
+
+      setState(() => _audioFinished = true);
       startIdleTimer();
       return;
     }
 
-    // --- 1. STOP CAMERA AND SAVE DATA ---
     if (_hasSavedResult) return;
     _hasSavedResult = true;
-    List<String> finalEmotions = stopAiCamera();
+    final List<String> finalEmotions = stopAiCamera();
+    final letters = ForestFlow.traceLetters(widget.level);
 
     ForestDatabaseService.saveGameData(
-      gameId: 'letter_trace_${widget.letter.toLowerCase()}',
-      activityName: "Alphabet Trace (${widget.letter.toUpperCase()})",
+      gameId: 'letter_trace_level_${widget.level}',
+      activityName: "Alphabet Trace (${letters.first}-${letters.last})",
       emotions: finalEmotions,
-      totalTaps: _tapTracker.totalTaps, // Represents strokes completed
-      mistakes: 0, // Tracing doesn't record discrete mistakes
+      totalTaps: _tapTracker.totalTaps,
+      // strokes completed
+      mistakes: 0,
       timePlayedSeconds: _tapTracker.formattedDuration,
     ).catchError((e) {
       debugPrint("Database Error saving metrics: $e");
     });
-    // --- 2. SMART MINI-GAME ROUTER ---
-    String letter = widget.letter.toUpperCase();
 
-    final miniGames = [
-      AlphabetPopScreen(letter: letter),
-      AlphabetPuzzleScreen(letter: letter),
-      AlphabetHuntScreen(letter: letter),
-      AlphabetFallScreen(letter: letter),
-      AlphabetFindScreen(letter: letter),
-    ];
+    _showGoodJob();
+  }
 
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 400),
-        pageBuilder: (_, __, ___) => miniGames[_nextMiniGame()],
-        transitionsBuilder: (_, animation, __, child) =>
-            FadeTransition(opacity: animation, child: child),
+  void _showGoodJob() {
+    ForestProgressService.instance.markLevelComplete(widget.level);
+
+    showDialog(
+      context: context,
+      useSafeArea: false,
+      barrierColor: Colors.transparent,
+      barrierDismissible: false,
+      builder: (_) => Material(
+        type: MaterialType.transparency,
+        child: GoodJobOverlay(
+          characterImage: 'assets/images/characters/dog.png',
+          onNext: () {
+            Navigator.pop(context);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ForestFlow.screenAfterLevel(widget.level),
+              ),
+            );
+          },
+          onRestart: () {
+            Navigator.pop(context);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AlphabetTraceScreen(level: widget.level),
+              ),
+            );
+          },
+          onBack: () {
+            Navigator.pop(context);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
+            );
+          },
+        ),
       ),
     );
   }
@@ -1271,13 +493,7 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
                       Positioned(
                         top: 25,
                         right: 20,
-                        child: ForestLevelBadge(
-                          level:
-                          ForestProgressService.levelNumberForLetter(
-                            widget.letter,
-                          ) ??
-                              1,
-                        ),
+                        child: ForestLevelBadge(level: widget.level),
                       ),
                     ],
                   ),
@@ -1303,7 +519,9 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
                               final size = constraints.biggest;
                               if (!preview && size != _lastCanvasSize) {
                                 _lastCanvasSize = size;
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
                                   if (mounted) _generateDensePaths(size);
                                 });
                               }

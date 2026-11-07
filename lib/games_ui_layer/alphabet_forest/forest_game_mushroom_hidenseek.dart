@@ -18,8 +18,8 @@ import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
-import 'alphabet_intro.dart';
 import 'forest_audio_path.dart';
+import 'forest_game_berry_bush_harvest.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -393,7 +393,7 @@ class _MushroomHideAndSeekGameState extends State<MushroomHideAndSeekGame>
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => AlphabetIntroScreen(letter: 'P'),
+                builder: (_) => BerryBushHarvestGame(level: widget.level + 1),
               ),
             );
           },

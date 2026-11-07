@@ -16,11 +16,12 @@ import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
-import 'alphabet_intro.dart';
 import 'forest_audio_path.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+import 'forest_game_mushroom_hidenseek.dart';
 
 class AcornBasketGame extends StatefulWidget {
   final int level;
@@ -399,10 +400,10 @@ class _AcornBasketGameState extends State<AcornBasketGame>
           characterImage: 'assets/images/characters/dog.png',
 
           onNext: () {
-            Navigator.of(context).pop(); // close the dialog
+            Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => AlphabetIntroScreen(letter: 'G'),
+                builder: (_) => MushroomHideAndSeekGame(level: widget.level + 1),
               ),
             );
           },

@@ -19,7 +19,7 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_audio_path.dart';
-import 'forest_game_letter_fireflies.dart';
+import 'forest_game_yak_zebra_race.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -355,7 +355,7 @@ class _AlphabetAppleTreeGameState extends State<AlphabetAppleTreeGame>
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => const LetterFirefliesGame(level: 21),
+                builder: (_) => YakZebraRaceGame(level: widget.level + 1),
               ),
             );
           },

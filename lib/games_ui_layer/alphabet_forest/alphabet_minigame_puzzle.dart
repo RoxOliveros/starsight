@@ -1,10 +1,9 @@
+import 'dart:math';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/forest_database_service.dart';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/alphabet_intro.dart';
 import 'package:StarSight/games_ui_layer/alphabet_forest/tofi_reaction.dart';
-import 'package:StarSight/games_ui_layer/alphabet_forest/forest_game_mail_delivery.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -16,14 +15,7 @@ import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
-import 'forest_game_acorn_basket.dart';
-import 'forest_game_berry_bush_harvest.dart';
-import 'forest_game_butterfly_flower.dart';
-import 'forest_game_letter_match.dart';
-import 'forest_game_mushroom_hidenseek.dart';
-import 'forest_game_paw_print.dart';
-import 'forest_game_stick_letter_builder.dart';
-import 'forest_game_yak_zebra_race.dart';
+import 'forest_flow.dart';
 import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -35,9 +27,8 @@ class PuzzlePiece {
 }
 
 class AlphabetPuzzleScreen extends StatefulWidget {
-  final String letter;
-
-  const AlphabetPuzzleScreen({super.key, required this.letter});
+  final List<String> letters;
+  const AlphabetPuzzleScreen({super.key, required this.letters});
 
   @override
   State<AlphabetPuzzleScreen> createState() => _AlphabetPuzzleScreenState();
@@ -65,14 +56,17 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   final Map<int, PuzzlePiece> _placedPieces = {};
 
   late List<PuzzlePiece> _allPieces;
-  late String _fullImagePath;
 
-  static const String _puzzleInstructionWav =
-      'assets/audio/alphabet_forest/alphabet_minigame_puzzle_instruction.wav';
+  static const String _puzzleInstructionWav = 'assets/audio/alphabet_forest/alphabet_minigame_puzzle_instruction.wav';
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
   bool _inputEnabled = false;
+
+  int _roundIndex = 0;
+  String get _letter =>
+      widget.letters[min(_roundIndex, widget.letters.length - 1)].toUpperCase();
+  String get _fullImagePath => _getObjectImage(_letter);
 
   @override
   void initState() {
@@ -87,10 +81,9 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
       if (detected && mounted) setState(() => _hideLightingCard = false);
     };
 
-    _fullImagePath = _getObjectImage(widget.letter);
     _allPieces = List.generate(4, (i) => PuzzlePiece(id: i));
-    _playInstructionThenLetter();
     _resetGame();
+    _playInstructionThenLetter();
   }
 
   @override
@@ -156,10 +149,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
         timeout: const Duration(seconds: 30),
       );
       if (!mounted) return;
-      await playVoiceRestartingOnFaceLoss(
-        _audioPlayer,
-        'assets/audio/alphabet_forest/sound_effects/sound_${widget.letter.toLowerCase()}.wav',
-      );
+      await _playLetterSound();
     } catch (e) {
       debugPrint('Instruction audio error: $e');
     } finally {
@@ -170,6 +160,49 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     }
   }
 
+  Future<void> _playLetterSound() => playVoiceRestartingOnFaceLoss(
+    _audioPlayer,
+    'assets/audio/alphabet_forest/sound_effects/sound_${_letter.toLowerCase()}.wav',
+  );
+
+  void _replayLetter() => _playLetterSound().catchError((_) {});
+
+  Future<void> _onPuzzleComplete() async {
+    cancelIdleTimer();
+    setState(() => _inputEnabled = false);
+    showTofiReaction(TofiState.correct);
+
+    try {
+      await playVoiceRestartingOnFaceLoss(
+        _audioPlayer,
+        _getObjectAudio(_letter),
+      );
+    } catch (e) {
+      debugPrint('Object audio error: $e');
+    }
+    if (!mounted) return;
+
+    if (_roundIndex + 1 >= widget.letters.length) {
+      _saveDataAndShowSuccessDialog();
+      return;
+    }
+
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
+
+    setState(() => _roundIndex++);
+    _resetGame(); // new picture, pieces back in the tray
+
+    try {
+      await _playLetterSound();
+    } catch (e) {
+      debugPrint('Letter audio error: $e');
+    }
+    if (!mounted) return;
+    setState(() => _inputEnabled = true);
+    startIdleTimer();
+  }
+
   Future<void> _saveDataAndShowSuccessDialog() async {
     cancelIdleTimer();
     if (_hasSavedResult) return;
@@ -177,8 +210,8 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     List<String> finalEmotions = stopAiCamera();
 
     ForestDatabaseService.saveGameData(
-      gameId: 'letter_puzzle_${widget.letter.toLowerCase()}',
-      activityName: "Alphabet Puzzle (${widget.letter.toUpperCase()})",
+      gameId: 'letter_puzzle_${widget.letters.map((l) => l.toLowerCase()).join()}',
+      activityName: "Alphabet Puzzle (${widget.letters.map((l) => l.toUpperCase()).join(', ')})",
       emotions: finalEmotions,
       totalTaps: _tapTracker.totalTaps,
       mistakes: _tapTracker.mistakeCount,
@@ -194,52 +227,9 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
   }
 
   void _showSuccessDialog() {
-    final String currentLetter = widget.letter.toUpperCase();
-
-    const skipGoodJobLetters = {
-      'A',
-      'B',
-      'D',
-      'E',
-      'G',
-      'H',
-      'J',
-      'K',
-      'M',
-      'N',
-      'P',
-      'Q',
-      'S',
-      'T',
-      'V',
-      'W',
-      'Y',
-    };
-
-    if (skipGoodJobLetters.contains(currentLetter)) {
-      String nextLetter = String.fromCharCode(currentLetter.codeUnitAt(0) + 1);
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AlphabetIntroScreen(letter: nextLetter),
-        ),
-      );
-      return;
-    }
-
-    // mark level complete for some letters
-    const completeLevelsLetters = {'C', 'F', 'I', 'L', 'O', 'R', 'U', 'X', 'Z'};
-
-    if (completeLevelsLetters.contains(currentLetter)) {
-      final completedLevel = ForestProgressService.levelNumberForLetter(
-        currentLetter,
-      );
-
-      if (completedLevel != null) {
-        ForestProgressService.instance.markLevelComplete(completedLevel);
-      }
-    }
+    ForestProgressService.instance.markLevelComplete(
+      ForestFlow.levelOf(widget.letters),
+    );
 
     showDialog(
       context: context,
@@ -250,122 +240,21 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: 'assets/images/characters/dog.png',
-
-          //Wag po buburahin 1
-          // 1. NEXT BUTTON: What happens when they click the right arrow?
-          // onNext: () {
-          // Navigator.pop(context);
-          // Navigator.pop(
-          //   context,
-          // );
-          // },
-          //Wag po buburahin 2
-
-          // 2. Goes from PUZZLE to PUZZLE continuously (D -> E -> F)
           onNext: () {
-            Navigator.pop(context); // Close the prompt
-
-            String current = widget.letter.toUpperCase();
-
-            if (currentLetter == 'C') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ForestMailDeliveryGame(level: 2),
-                ),
-              );
-            } else if (currentLetter == 'F') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AcornBasketGame(level: 4),
-                ),
-              );
-            } else if (currentLetter == 'I') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const ButterflyFlowerGardenGame(level: 6),
-                ),
-              );
-            } else if (currentLetter == 'L') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const ButterflyLetterMatchGame(level: 8),
-                ),
-              );
-            } else if (currentLetter == 'O') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const MushroomHideAndSeekGame(level: 10),
-                ),
-              );
-            } else if (currentLetter == 'R') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const BerryBushHarvestGame(level: 12),
-                ),
-              );
-            } else if (currentLetter == 'U') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const FollowThePawPrintsGame(level: 14),
-                ),
-              );
-            } else if (currentLetter == 'X') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      const FallenStickLetterBuilderGame(level: 16),
-                ),
-              );
-            } else if (currentLetter == 'Z') {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const YakZebraRaceGame(level: 18),
-                ),
-              );
-            } else {
-              // Otherwise, just go to the next normal Intro screen!
-              int charCode = current.codeUnitAt(0);
-              if (charCode >= 65 && charCode < 90) {
-                String nextLetter = String.fromCharCode(charCode + 1);
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        AlphabetIntroScreen(letter: nextLetter),
-                  ),
-                );
-              } else {
-                // Reached the end with no more letters/boss levels mapped.
-                // Go back to a fresh level-select screen so it reloads
-                // progress on its own, instead of popping back to a
-                // potentially stale existing instance.
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ForestLevelScreen(),
-                  ),
-                );
-              }
-            }
+            Navigator.pop(context);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ForestFlow.screenAfter(widget.letters),
+              ),
+            );
           },
           onRestart: () {
             Navigator.pop(context);
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => AlphabetPuzzleScreen(letter: widget.letter),
+                builder: (_) => AlphabetPuzzleScreen(letters: widget.letters),
               ),
             );
           },
@@ -415,11 +304,19 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
                   top: 25,
                   right: 20,
                   child: ForestLevelBadge(
-                    level:
-                        ForestProgressService.levelNumberForLetter(
-                          widget.letter.toUpperCase(),
-                        ) ??
-                        1,
+                    level: ForestFlow.levelOf(widget.letters),
+                  ),
+                ),
+
+                Positioned(
+                  top: 25,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: GestureDetector(
+                      onTap: _inputEnabled ? _replayLetter : null,
+                      child: _buildLetterCard(_letter),
+                    ),
                   ),
                 ),
 
@@ -558,6 +455,33 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     );
   }
 
+  Widget _buildLetterCard(String letter, {double size = 72}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: ForestColorTheme.darkseagreen, width: 4),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3)),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        letter,
+        textScaler: const TextScaler.linear(1.0),
+        style: TextStyle(
+          fontFamily: ForestAppTextStyles.fredoka,
+          fontSize: size * 0.62,
+          height: 1,
+          fontWeight: FontWeight.w900,
+          color: const Color(0xFF3C5729),
+        ),
+      ),
+    );
+  }
+
   Alignment _toAlignment(double cx, double cy, Size s) {
     return Alignment((2 * cx / s.width) - 1, (2 * cy / s.height) - 1);
   }
@@ -687,16 +611,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
         });
 
         if (_placedPieces.length == 4) {
-          try {
-            await playVoiceRestartingOnFaceLoss(
-              _audioPlayer,
-              _getObjectAudio(widget.letter),
-            );
-          } catch (e) {
-            debugPrint('Object audio error: $e');
-          }
-          if (!mounted) return;
-          _saveDataAndShowSuccessDialog();
+          _onPuzzleComplete();
         } else {
           showTofiReaction(TofiState.correct);
         }

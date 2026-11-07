@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
+import 'package:StarSight/games_ui_layer/alphabet_forest/trace_letter_data.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -19,6 +20,7 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import '../star_round_indicator.dart';
 import 'alphabet_game_ui.dart';
+import 'alphabet_trace.dart';
 import 'forest_audio_path.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
@@ -28,7 +30,7 @@ enum AlphabetFinaleChallenge {
   caseMatching,
   missingLetter,
   soundSound,
-  alphabetOrder,
+  trace,
 }
 
 class _FinaleQuestion {
@@ -38,6 +40,7 @@ class _FinaleQuestion {
   final String? promptLetter;
   final List<String>? sequence;
   final int? missingIndex;
+  final List<List<Offset>>? strokes;
 
   const _FinaleQuestion({
     required this.type,
@@ -46,6 +49,7 @@ class _FinaleQuestion {
     this.promptLetter,
     this.sequence,
     this.missingIndex,
+    this.strokes,
   });
 }
 
@@ -85,26 +89,18 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
   static const String _audioBase = ForestAudioAssets.base;
 
   static const String _audioIntro = '$_audioBase/forest_finale_intro.wav';
-  static const String _audioMainInstruction =
-      '$_audioBase/forest_finale_instruction.wav';
-  static const String _audioRecognitionInstruction =
-      '$_audioBase/forest_finale_recognition_instruction.wav';
-  static const String _audioCaseInstruction =
-      '$_audioBase/forest_finale_case_instruction.wav';
-  static const String _audioMissingInstruction =
-      '$_audioBase/forest_finale_missing_instruction.wav';
-  static const String _audioSoundInstruction =
-      '$_audioBase/forest_finale_sound_instruction.wav';
-  static const String _audioOrderInstruction =
-      '$_audioBase/forest_finale_order_instruction.wav';
+  static const String _audioMainInstruction = '$_audioBase/forest_finale_instruction.wav';
+  static const String _audioRecognitionInstruction = '$_audioBase/forest_finale_recognition_instruction.wav';
+  static const String _audioCaseInstruction = '$_audioBase/forest_finale_case_instruction.wav';
+  static const String _audioMissingInstruction = '$_audioBase/forest_finale_missing_instruction.wav';
+  static const String _audioSoundInstruction = '$_audioBase/forest_finale_sound_instruction.wav';
+  static const String _audioTraceInstruction = 'assets/audio/alphabet_forest/trace_letter_instruction.wav';
   static const String _audioWin = '$_audioBase/forest_finale_win.wav';
 
   static const String _audioCorrect = '$_audioBase/alphabet_train_correct.wav';
-  static const String _audioRoundComplete =
-      '$_audioBase/alphabet_train_round_complete.wav';
+  static const String _audioRoundComplete = '$_audioBase/alphabet_train_round_complete.wav';
 
-  static String _letterAudioAsset(String letter) =>
-      'assets/audio/alphabet_forest/sound_effects/sound_${letter.toLowerCase()}.wav';
+  static String _letterAudioAsset(String letter) => 'assets/audio/alphabet_forest/sound_effects/sound_${letter.toLowerCase()}.wav';
 
   static const int _totalRounds = 5;
 
@@ -223,7 +219,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
       AlphabetFinaleChallenge.caseMatching,
       AlphabetFinaleChallenge.missingLetter,
       AlphabetFinaleChallenge.soundSound,
-      AlphabetFinaleChallenge.alphabetOrder,
+      AlphabetFinaleChallenge.trace,
     ]..shuffle(_rand);
 
     _question = _generateQuestion(_challengeOrder[0]);
@@ -256,7 +252,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
       AlphabetFinaleChallenge.caseMatching => _audioCaseInstruction,
       AlphabetFinaleChallenge.missingLetter => _audioMissingInstruction,
       AlphabetFinaleChallenge.soundSound => _audioSoundInstruction,
-      AlphabetFinaleChallenge.alphabetOrder => _audioOrderInstruction,
+      AlphabetFinaleChallenge.trace => _audioTraceInstruction,
     };
     await playVoiceRestartingOnFaceLoss(_audioPlayer, asset);
   }
@@ -305,8 +301,8 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
         return _generateMissingLetter();
       case AlphabetFinaleChallenge.soundSound:
         return _generateSoundSound();
-      case AlphabetFinaleChallenge.alphabetOrder:
-        return _generateAlphabetOrder();
+      case AlphabetFinaleChallenge.trace:
+        return _generateTrace();
     }
   }
 
@@ -393,24 +389,15 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
     );
   }
 
-  _FinaleQuestion _generateAlphabetOrder() {
-    final codes = <int>{};
-    while (codes.length < 3) {
-      codes.add(_rand.nextInt(26));
-    }
-    final sorted = codes.toList()..sort();
-    final correct = String.fromCharCode(65 + sorted.first);
-    _usedTargets.add(correct);
-
-    final displayCodes = codes.toList()..shuffle(_rand);
-    final displayLetters = displayCodes
-        .map((c) => String.fromCharCode(65 + c))
-        .toList();
-
+  _FinaleQuestion _generateTrace() {
+    final letter = _pickUnusedLetter();
+    final traces = TraceData.forLetter(letter).toList();
+    final trace = traces[_rand.nextInt(traces.length)];
     return _FinaleQuestion(
-      type: AlphabetFinaleChallenge.alphabetOrder,
-      correctAnswer: correct,
-      choices: displayLetters,
+      type: AlphabetFinaleChallenge.trace,
+      correctAnswer: letter,
+      choices: const [],
+      strokes: trace.strokes,
     );
   }
 
@@ -535,10 +522,6 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
         type: MaterialType.transparency,
         child: GoodJobOverlay(
           characterImage: _dogImage,
-          onNext: () {
-            Navigator.of(context).pop();
-            Navigator.of(context).pop();
-          },
           onRestart: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
@@ -597,8 +580,9 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
               if (showHowToPlay &&
                   !_introPlaying &&
                   _inputEnabled &&
-                  !_roundLocked)
-                Positioned.fill(child: _buildHowToPlayOverlay()),   
+                  !_roundLocked &&
+                  _challengeOrder[_currentRoundIndex] != AlphabetFinaleChallenge.trace)
+                Positioned.fill(child: _buildHowToPlayOverlay()),
               if (hasCapturedFirstFrame &&
                   !isFaceDetected &&
                   !_hideLightingCard)
@@ -735,9 +719,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
         tapSpeakerFirst = true;
         break;
 
-      case AlphabetFinaleChallenge.alphabetOrder:
-        choices = const ['K', 'D', 'P'];
-        tapIdx = 1;
+      case AlphabetFinaleChallenge.trace: 
         break;
     }
 
@@ -855,8 +837,7 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
                       children: [
                         _buildChallengeVisual(),
 
-                        if (_question.type !=
-                            AlphabetFinaleChallenge.alphabetOrder) ...[
+                        if (_question.type != AlphabetFinaleChallenge.trace) ...[
                           const SizedBox(height: 24),
 
                           _buildAnswerRow(_question.choices),
@@ -894,9 +875,28 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
         return _buildSequenceRow();
       case AlphabetFinaleChallenge.soundSound:
         return _buildListenPrompt();
-      case AlphabetFinaleChallenge.alphabetOrder:
-        return _buildAnswerRow(_question.choices);
+      case AlphabetFinaleChallenge.trace:
+        return _buildTraceBoard();
     }
+  }
+
+  Widget _buildTraceBoard() {
+    final side = (MediaQuery.of(context).size.height - 170).clamp(160.0, 300.0);
+    return Container(
+      width: side,
+      height: side,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: ForestColorTheme.lightgreen, width: 4),
+      ),
+      child: FinaleTraceBoard(
+        key: ValueKey('trace_$_currentRoundIndex'),
+        strokes: _question.strokes ?? const [],
+        enabled: _inputEnabled && !_roundLocked,
+        onComplete: _handleCorrect,
+      ),
+    );
   }
 
   Widget _buildRecognitionTarget() {
@@ -1130,6 +1130,157 @@ class _AlphabetForestFinaleGameState extends State<AlphabetForestFinaleGame>
               }),
             );
           },
+        );
+      },
+    );
+  }
+}
+
+class FinaleTraceBoard extends StatefulWidget {
+  final List<List<Offset>> strokes; // normalized 0..1
+  final bool enabled;
+  final VoidCallback onComplete;
+
+  const FinaleTraceBoard({
+    super.key,
+    required this.strokes,
+    required this.enabled,
+    required this.onComplete,
+  });
+
+  @override
+  State<FinaleTraceBoard> createState() => _FinaleTraceBoardState();
+}
+
+class _FinaleTraceBoardState extends State<FinaleTraceBoard> {
+  List<List<Offset>> _dense = [];
+  Size _size = Size.zero;
+  int _stroke = 0;
+  int _point = 0;
+  bool _awaitingLift = false;
+  bool _touchValid = false;
+
+  bool _isDot(List<Offset> s) => s.length <= 3;
+
+  Offset _catmullRom(Offset p0, Offset p1, Offset p2, Offset p3, double t) {
+    final t2 = t * t;
+    final t3 = t2 * t;
+    final x = 0.5 *
+        ((2 * p1.dx) +
+            (p2.dx - p0.dx) * t +
+            (2 * p0.dx - 5 * p1.dx + 4 * p2.dx - p3.dx) * t2 +
+            (3 * p1.dx - p0.dx - 3 * p2.dx + p3.dx) * t3);
+    final y = 0.5 *
+        ((2 * p1.dy) +
+            (p2.dy - p0.dy) * t +
+            (2 * p0.dy - 5 * p1.dy + 4 * p2.dy - p3.dy) * t2 +
+            (3 * p1.dy - p0.dy - 3 * p2.dy + p3.dy) * t3);
+    return Offset(x, y);
+  }
+
+  void _generate(Size size) {
+    _size = size;
+    _dense = [];
+    for (final stroke in widget.strokes) {
+      final pts = stroke
+          .map((p) => Offset(p.dx * size.width, p.dy * size.height))
+          .toList();
+      if (pts.length < 2) {
+        _dense.add(pts);
+        continue;
+      }
+      final dense = <Offset>[];
+      for (int i = 0; i < pts.length - 1; i++) {
+        final p0 = i == 0 ? pts[i] : pts[i - 1];
+        final p1 = pts[i];
+        final p2 = pts[i + 1];
+        final p3 = i + 2 < pts.length ? pts[i + 2] : pts[i + 1];
+        final steps = ((p2 - p1).distance / 5.0).ceil().clamp(1, 999);
+        for (int j = 0; j <= steps; j++) {
+          dense.add(_catmullRom(p0, p1, p2, p3, j / steps));
+        }
+      }
+      _dense.add(dense);
+    }
+  }
+
+  bool get _ready => widget.enabled && _stroke < _dense.length;
+
+  void _next() {
+    _awaitingLift = true;
+    _touchValid = false;
+    setState(() {
+      _stroke++;
+      _point = 0;
+    });
+    if (_stroke >= _dense.length) widget.onComplete();
+  }
+
+  void _onTapDown(TapDownDetails d) {
+    if (!_ready) return;
+    final stroke = _dense[_stroke];
+    if (!_isDot(stroke)) return;
+    if ((d.localPosition - stroke.first).distance < 60.0) {
+      setState(() => _point = stroke.length);
+      _next();
+      _awaitingLift = false;
+    }
+  }
+
+  void _onPanStart(DragStartDetails d) {
+    _touchValid = false;
+    if (!_ready || _awaitingLift) return;
+    final stroke = _dense[_stroke];
+    if (_isDot(stroke) || _point >= stroke.length) return;
+    _touchValid = (d.localPosition - stroke[_point]).distance < 60.0;
+  }
+
+  void _onPanUpdate(DragUpdateDetails d) {
+    if (_awaitingLift || !_touchValid || !_ready) return;
+    final stroke = _dense[_stroke];
+    if (_point >= stroke.length) return;
+
+    int best = -1;
+    double bestDist = 40.0;
+    final end = min(stroke.length, _point + 20);
+    for (int i = _point; i < end; i++) {
+      final dist = (d.localPosition - stroke[i]).distance;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = i;
+      }
+    }
+    if (best < 0) return;
+
+    setState(() => _point = best + 1);
+    if (_point >= stroke.length) _next();
+  }
+
+  void _onPanEnd([_]) {
+    _awaitingLift = false;
+    _touchValid = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, c) {
+        if (c.biggest != _size) _generate(c.biggest);
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: _onTapDown,
+          onPanStart: _onPanStart,
+          onPanUpdate: _onPanUpdate,
+          onPanEnd: _onPanEnd,
+          onPanCancel: _onPanEnd,
+          child: CustomPaint(
+            painter: GuidedTracePainter(
+              denseStrokes: _dense,
+              currentStrokeIndex: _stroke,
+              currentPointIndex: _point,
+            ),
+            size: Size.infinite,
+          ),
         );
       },
     );

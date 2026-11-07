@@ -1,4 +1,3 @@
-// forest_game_stick_letter_builder.dart
 import 'dart:math';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:flutter/material.dart';
@@ -19,8 +18,8 @@ import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
-import 'alphabet_intro.dart';
 import 'forest_audio_path.dart';
+import 'forest_game_train.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -544,7 +543,7 @@ class _FallenStickLetterBuilderGameState
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => AlphabetIntroScreen(letter: 'Y'),
+                builder: (_) => AlphabetTrainGame(level: widget.level + 1),
               ),
             );
           },

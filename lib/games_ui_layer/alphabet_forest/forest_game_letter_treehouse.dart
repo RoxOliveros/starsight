@@ -19,7 +19,7 @@ import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'alphabet_game_ui.dart';
 import 'forest_audio_path.dart';
-import 'forest_game_finale.dart';
+import 'forest_game_acorn_basket.dart';
 import 'tofi_reaction.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 
@@ -39,6 +39,7 @@ class _ForestLetterData {
 
 class _RoundConfig {
   final int choiceCount;
+
   const _RoundConfig({required this.choiceCount});
 }
 
@@ -93,9 +94,8 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
         AiCameraMixin,
         AppAudioLifecycleMixin<LetterTreehouseGame>,
         IdleHintMixin {
-
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _tofiPlayer= AudioPlayer();
+  final AudioPlayer _tofiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _tofiPlayer];
@@ -109,11 +109,14 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
   // ASSETS
   // ═════════════════════════════════════════════════════════════════════
 
-  static const String _bgImage = 'assets/images/backgrounds/bg_game_forest_zoom_out.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_game_forest_zoom_out.png';
   static const String _dogImage = 'assets/images/characters/dog.png';
   static const String _plankImage = 'assets/images/objects/forest/plank.png';
-  static const String _treeHouseImage = 'assets/images/objects/forest/treehouse.png';
-  static const String _treeHouseBrokenImage = 'assets/images/objects/forest/treehouse_broken.png';
+  static const String _treeHouseImage =
+      'assets/images/objects/forest/treehouse.png';
+  static const String _treeHouseBrokenImage =
+      'assets/images/objects/forest/treehouse_broken.png';
 
   static const String _audioBase = ForestAudioAssets.base;
 
@@ -131,6 +134,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
     _RoundConfig(choiceCount: 3),
     _RoundConfig(choiceCount: 3),
   ];
+
   static int get _totalRounds => _roundConfigs.length;
   static const int _maxChoices = 3;
 
@@ -306,7 +310,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
 
   void _onDragStart(_ForestLetterData piece, DragStartDetails details) {
     if (_interactionLocked || piece.consumed) return;
-    resetIdleTimer();            
+    resetIdleTimer();
     setState(() {
       piece.dragging = true;
       _draggedPiece = piece;
@@ -345,14 +349,14 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
   }
 
   Future<void> _announceInstruction() async {
-    cancelIdleTimer();           
-    showHowToPlay = false;       
+    cancelIdleTimer();
+    showHowToPlay = false;
     await playVoiceRestartingOnFaceLoss(
       _audioPlayer,
       ForestAudioAssets.forLetter(_targetLetter),
     );
-    if (!mounted) return;        
-    startIdleTimer();            
+    if (!mounted) return;
+    startIdleTimer();
   }
 
   Future<void> _onLetterDropped(String letter, _ForestLetterData piece) async {
@@ -424,7 +428,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
 
   Future<void> _advanceRound() async {
     if (_currentRound >= _totalRounds - 1) {
-      await playVoiceRestartingOnFaceLoss( _audioPlayer, _audioWin);
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioWin);
       if (!mounted) return;
 
       ForestProgressService.instance.markLevelComplete(widget.level).catchError(
@@ -481,8 +485,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) =>
-                    AlphabetForestFinaleGame(level: widget.level + 1),
+                builder: (_) => AcornBasketGame(level: widget.level + 1),
               ),
             );
           },
@@ -544,7 +547,7 @@ class _LetterTreehouseGameState extends State<LetterTreehouseGame>
                   !_introPlaying &&
                   !_interactionLocked &&
                   _draggedPiece == null)
-                Positioned.fill(child: _buildHowToPlayOverlay()),   
+                Positioned.fill(child: _buildHowToPlayOverlay()),
               if (hasCapturedFirstFrame &&
                   !isFaceDetected &&
                   !_hideLightingCard)
