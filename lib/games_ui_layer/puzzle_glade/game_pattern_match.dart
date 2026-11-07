@@ -20,7 +20,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
-import 'game_memory_match.dart';
+import 'game_copy_pattern.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -824,7 +824,7 @@ class _PatternMatchScreenState extends State<PatternMatchScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => MemoryMatchScreen(level: widget.level + 1),
+            builder: (context) => CopyPatternScreen(level: widget.level + 1),
           ),
         );
       },

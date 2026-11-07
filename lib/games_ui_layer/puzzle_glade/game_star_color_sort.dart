@@ -11,7 +11,6 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:StarSight/games_ui_layer/puzzle_glade/game_shadow_match.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -21,6 +20,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
+import 'game_basket_sort.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -885,7 +885,7 @@ class _StarColorSortScreenState extends State<StarColorSortScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => ShadowMatchScreen(level: widget.level + 1),
+            builder: (context) => BasketSortScreen(level: widget.level + 1),
           ),
         );
       },

@@ -20,7 +20,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
-import 'game_same_or_different.dart';
+import 'game_spot_the_difference.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -727,7 +727,7 @@ class _OddOneOutScreenState extends State<OddOneOutScreen>
           context,
           MaterialPageRoute(
             builder: (context) =>
-                SameOrDifferentScreen(level: widget.level + 1),
+                SpotDifferenceScreen(level: widget.level + 1),
           ),
         );
       },

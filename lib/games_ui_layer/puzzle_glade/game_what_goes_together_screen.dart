@@ -20,7 +20,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
-import 'game_odd_one_out_screen.dart';
+import 'game_which_belongs_here.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -926,7 +926,7 @@ class _WhatGoesTogetherScreenState extends State<WhatGoesTogetherScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => OddOneOutScreen(level: widget.level + 1),
+            builder: (context) => WhichBelongsHereScreen(level: widget.level + 1),
           ),
         );
       },

@@ -319,45 +319,45 @@ class _LevelTile extends StatelessWidget {
   Widget? _screenForLevel() {
     switch (level) {
       case 1:
-        return const StarColorSortScreen(level: 1);
+        return const FindThePairScreen(level: 1);
       case 2:
-        return const FindThePairScreen(level: 2);
+        return const SameOrDifferentScreen(level: 2);
       case 3:
         return const ShadowMatchScreen(level: 3);
       case 4:
-        return const PuzzleObjectScreen(level: 4);
+        return const ShapeFitScreen(level: 4);
       case 5:
-        return const BasketSortScreen(level: 5);
+        return const PuzzleObjectScreen(level: 5);
       case 6:
-        return const SizeSortScreen(level: 6);
+        return const StarColorSortScreen(level: 6);
       case 7:
-        return const WhatsMissingScreen(level: 7);
+        return const BasketSortScreen(level: 7);
       case 8:
-        return const ConnectTheDotsScreen(level: 8);
+        return const OddOneOutScreen(level: 8);
       case 9:
-        return const CopyPatternScreen(level: 9);
+        return const SpotDifferenceScreen(level: 9);
       case 10:
-        return const SpotDifferenceScreen(level: 10);
+        return const HiddenObjectScreen(level: 10);
       case 11:
-        return const PatternMatchScreen(level: 11);
+        return const WhatGoesTogetherScreen(level: 11);
       case 12:
-        return const MemoryMatchScreen(level: 12);
+        return const WhichBelongsHereScreen(level: 12);
       case 13:
-        return const ShapeFitScreen(level: 13);
+        return const RotateTheShapeScreen(level: 13);
       case 14:
         return const MazePathScreen(level: 14);
       case 15:
-        return const HiddenObjectScreen(level: 15);
+        return const WhatsMissingScreen(level: 15);
       case 16:
-        return const RotateTheShapeScreen(level: 16);
+        return const SizeSortScreen(level: 16);
       case 17:
-        return const WhatGoesTogetherScreen(level: 17);
+        return const ConnectTheDotsScreen(level: 17);
       case 18:
-        return const OddOneOutScreen(level: 18);
+        return const PatternMatchScreen(level: 18);
       case 19:
-        return const SameOrDifferentScreen(level: 19);
+        return const CopyPatternScreen(level: 19);
       case 20:
-        return const WhichBelongsHereScreen(level: 20);
+        return const MemoryMatchScreen(level: 20);
       default:
         return null;
     }

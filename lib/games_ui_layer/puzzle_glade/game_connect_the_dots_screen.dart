@@ -19,7 +19,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
-import 'game_copy_pattern.dart';
+import 'game_pattern_match.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -978,7 +978,7 @@ class _ConnectTheDotsScreenState extends State<ConnectTheDotsScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => CopyPatternScreen(level: widget.level + 1),
+            builder: (context) => PatternMatchScreen(level: widget.level + 1),
           ),
         );
       },

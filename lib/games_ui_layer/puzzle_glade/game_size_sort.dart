@@ -20,7 +20,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
-import 'game_whats_missing.dart';
+import 'game_connect_the_dots_screen.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -828,7 +828,7 @@ class _SizeSortScreenState extends State<SizeSortScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => WhatsMissingScreen(level: widget.level + 1),
+            builder: (context) => ConnectTheDotsScreen(level: widget.level + 1),
           ),
         );
       },

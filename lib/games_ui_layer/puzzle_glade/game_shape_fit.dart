@@ -21,7 +21,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
-import 'game_maze_path.dart';
+import 'game_puzzle_object.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -870,7 +870,7 @@ class _ShapeFitScreenState extends State<ShapeFitScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => MazePathScreen(level: widget.level + 1),
+            builder: (context) => PuzzleObjectScreen(level: widget.level + 1),
           ),
         );
       },
