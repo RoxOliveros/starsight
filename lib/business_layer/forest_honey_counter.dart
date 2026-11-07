@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_theme.dart';
 import 'package:flutter/material.dart';
 
-/// Cream pill with "3/25" and the honey jar sitting on its right edge.
+/// A honey jar with a counter that bumps whenever the count changes.
 /// The jar wobbles and the number pops whenever [count] changes.
 class HoneyCounter extends StatefulWidget {
   final int count;
