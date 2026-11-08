@@ -20,7 +20,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
-import 'game_which_belongs_here.dart';
+import 'game_shadow_match.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -987,7 +987,7 @@ class _SameOrDifferentScreenState extends State<SameOrDifferentScreen>
           context,
           MaterialPageRoute(
             builder: (context) =>
-                WhichBelongsHereScreen(level: widget.level + 1),
+                ShadowMatchScreen(level: widget.level + 1),
           ),
         );
       },

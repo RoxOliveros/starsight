@@ -9,7 +9,6 @@ import 'package:StarSight/business_layer/game_tap_tracker.dart';
 import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
-import 'package:StarSight/games_ui_layer/puzzle_glade/game_pattern_match.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
@@ -21,6 +20,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
+import 'game_hidden_object.dart';
 
 enum _ScreenPhase { intro, playing }
 
@@ -755,7 +755,7 @@ class _SpotDifferenceScreenState extends State<SpotDifferenceScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => PatternMatchScreen(level: widget.level + 1),
+            builder: (context) => HiddenObjectScreen(level: widget.level + 1),
           ),
         );
       },

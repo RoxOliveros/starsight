@@ -11,7 +11,6 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/puzzle_progress_service.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/puzzle_game_ui.dart';
 import 'package:StarSight/games_ui_layer/puzzle_glade/roxie_reaction.dart';
-import 'package:StarSight/games_ui_layer/puzzle_glade/game_shadow_match.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import '../../ui_layer/game_loading_mixin.dart';
 import '../../ui_layer/loading_screen.dart';
@@ -21,6 +20,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
+import 'game_same_or_different.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -63,17 +63,15 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   final GameTapTracker _tapTracker = GameTapTracker();
 
   // ── Asset config ───────────────────────────────────────────────────────────
-  static const String _characterImage =
-      'assets/images/characters/roxie_the_rabbit.png';
+  static const String _characterImage = 'assets/images/characters/roxie_the_rabbit.png';
   static const String _bgImage = 'assets/images/backgrounds/bg_game_puzzle.png';
   static const String _objectAssetPath = 'assets/images/objects/puzzle';
 
-  static const String _audioIntro =
-      'assets/audio/puzzle_glade/find_the_pair_intro.wav';
-  static const String _audioInstructions =
-      'assets/audio/puzzle_glade/find_the_pair_instruction.wav';
-  static const String _audioComplete =
-      'assets/audio/puzzle_glade/find_the_pair_complete.wav';
+  static const String _audioIntro = 'assets/audio/puzzle_glade/find_the_pair_intro.wav';
+  static const String _audioInstructions = 'assets/audio/puzzle_glade/find_the_pair_instruction.wav';
+  static const String _audioComplete = 'assets/audio/puzzle_glade/find_the_pair_complete.wav';
+  static const String _audioRoxieIntro = 'assets/audio/puzzle_glade/puzzle_roxie_intro.wav';
+  bool _roxieIntro = false;
 
   // ── Phase ──────────────────────────────────────────────────────────────────
   _ScreenPhase _screenPhase = _ScreenPhase.intro;
@@ -240,6 +238,11 @@ class _FindThePairScreenState extends State<FindThePairScreen>
   }
 
   Future<void> _startIntroFlow() async {
+    if (widget.level == 1) {
+      await _playRoxieIntro();
+      if (!mounted) return;
+    }
+
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
 
@@ -267,6 +270,17 @@ class _FindThePairScreenState extends State<FindThePairScreen>
     });
     showHowToPlay = false;
     startIdleTimer();
+  }
+
+  Future<void> _playRoxieIntro() async {
+    setState(() => _roxieIntro = true);
+    try {
+      await playVoiceRestartingOnFaceLoss(_audioPlayer, _audioRoxieIntro);
+    } catch (e) {
+      debugPrint('Roxie intro audio error: $e');
+    }
+    if (!mounted) return;
+    setState(() => _roxieIntro = false);
   }
 
   void _startRound() {
@@ -446,6 +460,8 @@ class _FindThePairScreenState extends State<FindThePairScreen>
                       ],
                     ),
 
+              if (_roxieIntro) Positioned.fill(child: _buildRoxieGreeting()),
+
               Positioned(top: 25, left: 25, child: PuzzleXButton()),
 
               if (showHowToPlay &&
@@ -470,6 +486,42 @@ class _FindThePairScreenState extends State<FindThePairScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildRoxieGreeting() {
+    final h = MediaQuery.of(context).size.height;
+
+    return IgnorePointer(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            bottom: -50,
+            left: 0,
+            right: 0,
+            child: AnimatedBuilder(
+              animation: _roxieFloatCtrl,
+              builder: (_, child) {
+                final t = Curves.easeInOut.transform(_roxieFloatCtrl.value);
+                return Transform.translate(
+                  offset: Offset(0, -8 + 16 * t),
+                  child: child,
+                );
+              },
+              child: Center(
+                child: Image.asset(
+                  _characterImage,
+                  height: h * 0.9,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                      Text('🐰', style: TextStyle(fontSize: h * 0.5)),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -502,8 +554,12 @@ class _FindThePairScreenState extends State<FindThePairScreen>
         ],
       ),
       child: Center(
-        child: Image.asset('$_objectAssetPath/$object.png',
-            width: 72, height: 72, fit: BoxFit.contain),
+        child: Image.asset(
+          '$_objectAssetPath/$object.png',
+          width: 72,
+          height: 72,
+          fit: BoxFit.contain,
+        ),
       ),
     );
 
@@ -542,6 +598,7 @@ class _FindThePairScreenState extends State<FindThePairScreen>
       onDismiss: resetIdleTimer,
     );
   }
+
   Widget _buildIntroLayer() {
     return Column(
       children: [
@@ -561,7 +618,10 @@ class _FindThePairScreenState extends State<FindThePairScreen>
           child: Row(
             children: [
               Expanded(flex: 4, child: _buildIntroRoxie()),
-              Expanded(flex: 6, child: _buildIntroPreview()),
+              Expanded(
+                flex: 6,
+                child: _roxieIntro ? const SizedBox.shrink() : _buildIntroPreview(),
+              ),
             ],
           ),
         ),
@@ -820,7 +880,8 @@ class _FindThePairScreenState extends State<FindThePairScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => ShadowMatchScreen(level: widget.level + 1),
+            builder: (context) =>
+                SameOrDifferentScreen(level: widget.level + 1),
           ),
         );
       },

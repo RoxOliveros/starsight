@@ -20,7 +20,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
-import 'game_basket_sort.dart';
+import 'game_star_color_sort.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -1148,7 +1148,7 @@ class _PuzzleObjectScreenState extends State<PuzzleObjectScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => BasketSortScreen(level: widget.level + 1),
+            builder: (context) => StarColorSortScreen(level: widget.level + 1),
           ),
         );
       },

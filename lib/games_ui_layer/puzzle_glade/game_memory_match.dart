@@ -20,7 +20,6 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
-import 'game_shape_fit.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -802,14 +801,6 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-      onNext: () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ShapeFitScreen(level: widget.level + 1),
-          ),
-        );
-      },
       onRestart: () {
         setState(() {
           _round = 1;
