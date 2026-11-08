@@ -34,18 +34,35 @@ class LagoonBackButton extends StatelessWidget {
   }
 }
 
-class LagoonXButton extends StatelessWidget {
+/// Remembers the Lagoon level-select route so any game (or anything stacked on
+/// top of a game: intro, camera/calibration, dialogs...) can jump straight back
+/// to it. LagoonLevelScreen sets [levelRoute] while it is on the stack.
+class LagoonNav {
+  LagoonNav._();
+  static Route<dynamic>? levelRoute;
 
+  /// Closes everything above the Lagoon level screen.
+  static void backToLevels(BuildContext context) {
+    final route = levelRoute;
+    if (route != null && route.isActive) {
+      Navigator.of(context).popUntil((r) => identical(r, route));
+    } else {
+      Navigator.pop(context); // fallback: just close this screen
+    }
+  }
+}
+
+class LagoonXButton extends StatelessWidget {
   const LagoonXButton({super.key});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-        onTap: () {
-          GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
-          Navigator.pop(context);
-        },
-        child: Image.asset('assets/images/buttons/x_brown.png', width: 50)
+      onTap: () {
+        GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+        LagoonNav.backToLevels(context);
+      },
+      child: Image.asset('assets/images/buttons/x_brown.png', width: 50),
     );
   }
 }
@@ -58,7 +75,7 @@ class LagoonSkipButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: (){
+      onTap: () {
         GamesSfxPlayer.instance.play(GameSfx.bubblePop);
         onTap();
       },

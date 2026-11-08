@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:StarSight/business_layer/forest_honey_counter.dart';
+import 'package:StarSight/business_layer/global_star_counter.dart';
 import 'package:StarSight/business_layer/forest_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/ui_layer/alphabet_forest_ui/forest_buttons.dart';
@@ -330,7 +330,7 @@ class _ForestLevelScreenState extends State<ForestLevelScreen>
           Positioned(
             top: 22,
             right: 20,
-            child: HoneyCounter(
+            child: GlobalStarCounter(
               count: _shownLevels.length.clamp(
                 0,
                 ForestProgressService.totalLevels,

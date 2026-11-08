@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import '../../business_layer/audio_helper.dart';
 import '../../business_layer/music_zones.dart';
 import '../../business_layer/orientation_service.dart';
+import 'package:StarSight/business_layer/global_star_counter.dart';
 import '../../business_layer/puzzle_progress_service.dart';
 import '../../games_ui_layer/puzzle_glade/game_connect_the_dots_screen.dart';
 import '../../games_ui_layer/puzzle_glade/game_copy_pattern.dart';
@@ -43,6 +45,202 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen>
   bool _isLoadingProgress = true;
   final DateTime _loadStart = DateTime.now();
 
+  // --- star counter / star animation ---
+  final GlobalKey _jarKey = GlobalKey();
+  final Map<int, GlobalKey> _tileKeys = {};
+  Set<int> _playedLevels = {}; // what Firestore says the child has played
+  Set<int> _shownLevels = {}; // levels whose star badge is already on screen
+  int? _flyingLevel; // star is in the air toward this tile
+  int? _justLanded; // plays the little pop on the badge that just landed
+  bool _celebrating = false;
+
+  // Level games may leave with pushReplacement(...), which can build a NEW
+  // screen, so instance fields are lost. Remember which badges were on screen
+  // last time (per child) so a new screen knows which stars are new.
+  static Set<int> _carryShown = {};
+  static String? _carryChild;
+  bool _forceSetup = false;
+
+  void _remember() {
+    _carryShown = {..._shownLevels};
+    _carryChild = PuzzleProgressService.instance.activeChildId;
+  }
+
+  void _applyLoadedPlayed(Set<int> played) {
+    _playedLevels = played;
+    final carried = _carryChild == PuzzleProgressService.instance.activeChildId
+        ? _carryShown
+        : <int>{};
+    // Only trust the carried set if it still fits (no new playthrough).
+    _shownLevels = carried.isNotEmpty && played.containsAll(carried)
+        ? {...carried}
+        : {...played};
+    _remember();
+  }
+
+  void _afterFirstLoad() {
+    _forceSetup = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // New star(s) since this screen was last shown? Fly them first; the
+      // setup dialog opens when the last one has landed.
+      if (_playedLevels.difference(_shownLevels).isNotEmpty) {
+        _celebrateNext();
+      } else {
+        _showSetup();
+      }
+    });
+  }
+
+  void _showSetup() {
+    final force = _forceSetup;
+    _forceSetup = false;
+    StarsightSetupTutorial.show(
+      context,
+      levelId: 'puzzle_glade',
+      forceShow: force,
+      onDone: () {},
+    );
+  }
+
+  GlobalKey _keyFor(int level) =>
+      _tileKeys.putIfAbsent(level, () => GlobalKey());
+
+  /// Resolves once this screen is the visible one again (a game can swap
+  /// itself for the next game, so push() may complete while another game is
+  /// still on top).
+  Future<void> _waitUntilVisible() async {
+    final route = ModalRoute.of(context);
+    final anim = route?.secondaryAnimation;
+    if (route == null || anim == null || route.isCurrent) return;
+    if (anim.status == AnimationStatus.dismissed) return;
+
+    final visible = Completer<void>();
+    void onStatus(AnimationStatus status) {
+      if (status == AnimationStatus.dismissed && !visible.isCompleted) {
+        visible.complete();
+      }
+    }
+
+    anim.addStatusListener(onStatus);
+    await visible.future;
+    anim.removeStatusListener(onStatus);
+    // let the page finish sliding back before launching the star
+    await Future.delayed(const Duration(milliseconds: 400));
+  }
+
+  /// After a level screen closes: wait until visible, give the save a moment to
+  /// land, then fly a star for every newly played level.
+  Future<void> _checkForNewStars() async {
+    await _waitUntilVisible();
+    if (!mounted) return;
+
+    var played = await PuzzleProgressService.instance.getPlayedLevels();
+    for (
+      var i = 0;
+      i < 6 && mounted && played.difference(_shownLevels).isEmpty;
+      i++
+    ) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      played = await PuzzleProgressService.instance.getPlayedLevels();
+    }
+    if (!mounted) return;
+    _playedLevels = played;
+
+    // A new playthrough started (data was cleared): just resync, no star.
+    if (!played.containsAll(_shownLevels)) {
+      setState(() => _shownLevels = {...played});
+      _remember();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showSetup();
+      });
+      return;
+    }
+    _celebrateNext();
+  }
+
+  /// Flies a star from the jar to each newly played level's tile (one after
+  /// another) and ticks the counter as each one lands.
+  void _celebrateNext() {
+    if (!mounted || _celebrating) return;
+    final fresh = _playedLevels.difference(_shownLevels).toList()..sort();
+
+    if (fresh.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _showSetup();
+      });
+      return;
+    }
+
+    _celebrating = true;
+    final level = fresh.first;
+
+    // make sure the tile's page is showing (8 tiles per page, 3 pages)
+    final page = ((level - 1) ~/ 8).clamp(0, 2);
+    setState(() {
+      _page = page;
+      _flyingLevel = level;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final jarBox = _jarKey.currentContext?.findRenderObject() as RenderBox?;
+      final tileBox =
+          _keyFor(level).currentContext?.findRenderObject() as RenderBox?;
+
+      void land() {
+        if (!mounted) return;
+        setState(() {
+          _shownLevels = {..._shownLevels, level};
+          _flyingLevel = null;
+          _justLanded = level;
+        });
+        _celebrating = false;
+        _remember();
+
+        final remainingFresh = _playedLevels.difference(_shownLevels).toList();
+        if (remainingFresh.isEmpty) {
+          // Once ALL stars finish flying, THEN show the setup dialog.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _showSetup();
+          });
+        } else {
+          _celebrateNext();
+        }
+      }
+
+      if (jarBox == null || tileBox == null) {
+        land(); // can't animate (e.g. tile not laid out): just show the result
+        return;
+      }
+
+      // launch from where the star pops out of the jar's lid
+      final from = jarBox.localToGlobal(
+        Offset(jarBox.size.width * 0.5, jarBox.size.height * 0.28),
+      );
+      final tileRect = tileBox.localToGlobal(Offset.zero) & tileBox.size;
+      final badge = tileRect.width * 0.38;
+
+      // The badge is drawn slightly outside the tile's corner (see
+      // _LevelTile), so aim at its true center or the star jumps on landing.
+      final to = Offset(
+        tileRect.right + tileRect.width * 0.08 - badge * 0.5,
+        tileRect.bottom + tileRect.height * 0.08 - badge * 0.5,
+      );
+
+      SfxHelper.instance.play(Sfx.keyTap);
+      flyStar(
+        context: context,
+        from: from,
+        to: to,
+        endSize: badge,
+        onLanded: land,
+      );
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +250,7 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen>
 
   Future<void> _loadInitialProgress() async {
     final unlocked = await PuzzleProgressService.instance.getUnlockedLevel();
+    final played = await PuzzleProgressService.instance.getPlayedLevels();
 
     final elapsed = DateTime.now().difference(_loadStart);
     final remaining = const Duration(milliseconds: 1500) - elapsed;
@@ -63,17 +262,10 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen>
     setState(() {
       _unlockedLevel = unlocked;
       _isLoadingProgress = false;
+      _applyLoadedPlayed(played);
     });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      StarsightSetupTutorial.show(
-        context,
-        levelId: 'puzzle_glade',
-        forceShow: true,
-        onDone: () {},
-      );
-    });
+    _afterFirstLoad();
   }
 
   Future<void> _refreshProgress() async {
@@ -83,18 +275,26 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen>
   }
 
   Future<void> _openLevel(Widget screen) async {
-    final nextScreen = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => screen),
-    );
-
-    if (!mounted) return;
+    // A game can hand back the NEXT screen to open (pop(context, nextScreen)),
+    // so keep going until a game closes without one.
+    Widget? current = screen;
+    while (current != null) {
+      final target = current;
+      final route = MaterialPageRoute<dynamic>(builder: (context) => target);
+      final result = await Navigator.push(context, route);
+      // push() completes the moment the level is popped, while it is still
+      // sliding away. Wait for the transition before going on.
+      await route.completed.timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => null,
+      );
+      if (!mounted) return;
+      current = result is Widget ? result : null;
+    }
 
     await _refreshProgress();
-
-    if (nextScreen is Widget) {
-      _openLevel(nextScreen);
-    }
+    if (!mounted) return;
+    await _checkForNewStars();
   }
 
   @override
@@ -122,6 +322,20 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen>
 
           //back button
           Positioned(top: 25, left: 20, child: PuzzleBackButton()),
+
+          // Star counter (the jar is where the flying star launches from)
+          Positioned(
+            top: 22,
+            right: 20,
+            child: GlobalStarCounter(
+              count: _shownLevels.length.clamp(
+                0,
+                PuzzleProgressService.totalLevels,
+              ),
+              total: PuzzleProgressService.totalLevels,
+              jarKey: _jarKey,
+            ),
+          ),
 
           // 🌿 Content
           Center(
@@ -164,6 +378,9 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen>
                                   unlockedLevel: _unlockedLevel,
                                   onOpenLevel: _openLevel,
                                   size: tileSize,
+                                  tileKey: _keyFor(level),
+                                  hasStar: _shownLevels.contains(level),
+                                  popStar: _justLanded == level,
                                 );
                               }),
                             ),
@@ -177,6 +394,9 @@ class _PuzzleLevelScreenState extends State<PuzzleLevelScreen>
                                   unlockedLevel: _unlockedLevel,
                                   onOpenLevel: _openLevel,
                                   size: tileSize,
+                                  tileKey: _keyFor(level),
+                                  hasStar: _shownLevels.contains(level),
+                                  popStar: _justLanded == level,
                                 );
                               }),
                             ),
@@ -308,12 +528,18 @@ class _LevelTile extends StatelessWidget {
   final int unlockedLevel;
   final double size;
   final Future<void> Function(Widget screen) onOpenLevel;
+  final GlobalKey tileKey;
+  final bool hasStar;
+  final bool popStar;
 
   const _LevelTile({
     required this.level,
     required this.unlockedLevel,
     required this.onOpenLevel,
     required this.size,
+    required this.tileKey,
+    this.hasStar = false,
+    this.popStar = false,
   });
 
   Widget? _screenForLevel() {
@@ -390,6 +616,7 @@ class _LevelTile extends StatelessWidget {
         alignment: Alignment.bottomCenter,
         children: [
           Container(
+            key: tileKey,
             width: size,
             height: size,
             decoration: BoxDecoration(
@@ -411,6 +638,12 @@ class _LevelTile extends StatelessWidget {
               ),
             ),
           ),
+          if (hasStar)
+            Positioned(
+              right: -size * 0.08,
+              bottom: -size * 0.08,
+              child: StarBadge(size: size * 0.38, animateIn: popStar),
+            ),
         ],
       ),
     );

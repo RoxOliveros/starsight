@@ -39,6 +39,21 @@ class ArcticProgressService {
     }
   }
 
+  /// Levels the active child has played in the current playthrough.
+  Future<Set<int>> getPlayedLevels() async {
+    final ref = _docRef;
+    if (ref == null) return {};
+    try {
+      final snapshot = await ref.get();
+      return ((snapshot.data()?['playedLevels'] as List?) ?? const [])
+          .whereType<int>()
+          .toSet();
+    } catch (e) {
+      print('ArcticProgressService: failed to load played levels: $e');
+      return {};
+    }
+  }
+
   Future<int> markLevelComplete(int completedLevel) async {
     final ref = _docRef;
     if (ref == null) return _defaultUnlockedLevel;
@@ -48,11 +63,29 @@ class ArcticProgressService {
     try {
       return await FirebaseFirestore.instance.runTransaction<int>((txn) async {
         final snapshot = await txn.get(ref);
+        final data = snapshot.data();
         final current =
-            (snapshot.data()?['unlockedLevel'] as int?) ??
-            _defaultUnlockedLevel;
+            (data?['unlockedLevel'] as int?) ?? _defaultUnlockedLevel;
         final newUnlocked = nextLevel > current ? nextLevel : current;
-        txn.set(ref, {'unlockedLevel': newUnlocked}, SetOptions(merge: true));
+
+        // Levels played in the current playthrough (drives the star counter).
+        // Once every level is played and one is replayed, a new playthrough
+        // starts.
+        final played = ((data?['playedLevels'] as List?) ?? const [])
+            .whereType<int>()
+            .toSet();
+        if (played.length >= totalLevels && played.contains(completedLevel)) {
+          played
+            ..clear()
+            ..add(completedLevel);
+        } else {
+          played.add(completedLevel);
+        }
+
+        txn.set(ref, {
+          'unlockedLevel': newUnlocked,
+          'playedLevels': played.toList()..sort(),
+        }, SetOptions(merge: true));
         return newUnlocked;
       });
     } catch (e) {

@@ -43,7 +43,6 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
         LagoonIntroMixin<BodyPartsAssemblyScreen>,
         KikiReactionMixin,
         IdleHintMixin {
-
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer = AudioPlayer();
 
@@ -58,14 +57,19 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   bool _kikiIntroDone = false;
 
   static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
-  static const String _kikiIntroAudio = 'assets/audio/discovery_lagoon/lagoon_kiki_intro.wav';
+  static const String _kikiIntroAudio =
+      'assets/audio/discovery_lagoon/lagoon_kiki_intro.wav';
 
-  static const String _bgImage = 'assets/images/backgrounds/bg_rainbow_closeup2.png';
-  static const String _kikiFishboneImage = 'assets/images/characters/cat_holding_fishbone.png';
+  static const String _bgImage =
+      'assets/images/backgrounds/bg_rainbow_closeup2.png';
+  static const String _kikiFishboneImage =
+      'assets/images/characters/cat_holding_fishbone.png';
   static const String _boyImage = 'assets/images/objects/lagoon/boy.png';
 
-  static const String _introAudio = 'assets/audio/discovery_lagoon/bodyparts_assembly_intro.wav';
-  static const String _winAudio = 'assets/audio/discovery_lagoon/bodyparts_assembly_win.wav';
+  static const String _introAudio =
+      'assets/audio/discovery_lagoon/bodyparts_assembly_intro.wav';
+  static const String _winAudio =
+      'assets/audio/discovery_lagoon/bodyparts_assembly_win.wav';
 
   LagoonScreenPhase _screenPhase = LagoonScreenPhase.intro;
 
@@ -156,8 +160,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   void _resetGame() {
     setState(() {
       _matchedParts.clear();
-      _availableParts = List.from(_allParts)
-        ..shuffle();
+      _availableParts = List.from(_allParts)..shuffle();
       _hasSavedResult = false;
       _tapTracker.startSession();
     });
@@ -204,7 +207,6 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
           children: [
             Positioned.fill(child: Image.asset(_bgImage, fit: BoxFit.cover)),
 
-            Positioned(top: 25, left: 25, child: const LagoonXButton()),
             Positioned(
               top: 25,
               right: 25,
@@ -222,7 +224,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
                     height: MediaQuery.of(context).size.height * 0.9,
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) =>
-                    const Text('🐱', style: TextStyle(fontSize: 120)),
+                        const Text('🐱', style: TextStyle(fontSize: 120)),
                   ),
                 ),
               )
@@ -241,13 +243,12 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
               Positioned.fill(
                 child: Builder(
                   builder: (context) {
-                    final sz = MediaQuery
-                        .of(context)
-                        .size;
+                    final sz = MediaQuery.of(context).size;
                     final g = _hintGeometry();
-                    Alignment toAlign(Offset p) =>
-                        Alignment(
-                            p.dx / sz.width * 2 - 1, p.dy / sz.height * 2 - 1);
+                    Alignment toAlign(Offset p) => Alignment(
+                      p.dx / sz.width * 2 - 1,
+                      p.dy / sz.height * 2 - 1,
+                    );
                     return HowToPlayOverlay(
                       previewChild: _buildHowToPreview(),
                       handAlignment: toAlign(g.card),
@@ -258,6 +259,8 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
                   },
                 ),
               ),
+
+            Positioned(top: 25, left: 25, child: const LagoonXButton()),
 
             if (_showOverlay)
               GoodJobOverlay(
@@ -290,22 +293,18 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   }
 
   ({Offset card, Offset box}) _hintGeometry() {
-    final sz = MediaQuery
-        .of(context)
-        .size;
+    final sz = MediaQuery.of(context).size;
     final h = sz.height - 50; // game area sits 50px below the top
     final dw = sz.width * 0.62;
     final ow = sz.width * 0.38;
     return (
-    card: Offset(dw + ow / 2, 50 + h / 2),
-    box: Offset(dw / 2 - h * 0.32, 50 + h / 2 - h * 0.25),
+      card: Offset(dw + ow / 2, 50 + h / 2),
+      box: Offset(dw / 2 - h * 0.32, 50 + h / 2 - h * 0.25),
     );
   }
 
   Widget _buildHowToPreview() {
-    final sz = MediaQuery
-        .of(context)
-        .size;
+    final sz = MediaQuery.of(context).size;
     final h = sz.height - 50;
     final dw = sz.width * 0.62;
     final cx = dw / 2;
@@ -520,8 +519,7 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(20),
-                  gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: 18,
                     mainAxisSpacing: 18,
@@ -574,14 +572,12 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
   Widget _buildTargetBox(String targetId, double size) {
     bool isMatched = _matchedParts.contains(targetId);
     String? matchedImagePath = isMatched
-        ? _allParts
-        .firstWhere((p) => p.id == targetId)
-        .imagePath
+        ? _allParts.firstWhere((p) => p.id == targetId).imagePath
         : null;
 
     return DragTarget<String>(
       onWillAcceptWithDetails: (details) =>
-      details.data == targetId && !isMatched,
+          details.data == targetId && !isMatched,
       onAcceptWithDetails: (details) async {
         _tapTracker.recordCorrectTap();
         showKikiReaction(KikiState.correct);
@@ -592,7 +588,9 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
 
         if (_matchedParts.length == _allParts.length) {
           await playVoiceRestartingOnFaceLoss(
-              _audioPlayer, _partAudio[targetId]!);
+            _audioPlayer,
+            _partAudio[targetId]!,
+          );
           if (!mounted) return;
 
           await playVoiceRestartingOnFaceLoss(_audioPlayer, _winAudio);
@@ -601,7 +599,9 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
           }
         } else {
           await playVoiceRestartingOnFaceLoss(
-              _audioPlayer, _partAudio[targetId]!);
+            _audioPlayer,
+            _partAudio[targetId]!,
+          );
           if (mounted) startIdleTimer();
         }
       },
@@ -629,9 +629,9 @@ class _BodyPartsAssemblyScreenState extends State<BodyPartsAssemblyScreen>
           ),
           child: isMatched
               ? Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Image.asset(matchedImagePath!, fit: BoxFit.contain),
-          )
+                  padding: const EdgeInsets.all(8.0),
+                  child: Image.asset(matchedImagePath!, fit: BoxFit.contain),
+                )
               : null,
         );
       },
@@ -688,8 +688,7 @@ class _SampleLinePainter extends CustomPainter {
       ..strokeWidth = 4.0
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(box, target, paint);
-    canvas.drawCircle(target, 6.0, Paint()
-      ..color = Colors.black87);
+    canvas.drawCircle(target, 6.0, Paint()..color = Colors.black87);
   }
 
   @override
