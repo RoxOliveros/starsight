@@ -559,7 +559,14 @@ class _LevelTile extends StatelessWidget {
   final bool hasStar;
   final bool popStar;
 
-  const _LevelTile({required this.level, required this.size});
+  const _LevelTile({
+    required this.level,
+    required this.size,
+    required this.onOpenLevel,
+    required this.tileKey,
+    this.hasStar = false,
+    this.popStar = false,
+  });
 
   Widget? _screenForLevel() {
     switch (level) {
@@ -617,10 +624,7 @@ class _LevelTile extends StatelessWidget {
         if (!context.mounted) return;
         final screen = _screenForLevel();
         if (screen == null) return;
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => screen),
-        );
+        onOpenLevel(screen);
       },
       child: Stack(
         clipBehavior: Clip.none,
