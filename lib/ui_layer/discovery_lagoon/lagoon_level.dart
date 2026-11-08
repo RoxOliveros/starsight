@@ -302,8 +302,19 @@ class _LagoonLevelScreenState extends State<LagoonLevelScreen>
     await _checkForNewStars();
   }
 
+  Route<dynamic>? _route;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Let the games' X button find its way back to this screen.
+    _route = ModalRoute.of(context);
+    LagoonNav.levelRoute = _route;
+  }
+
   @override
   void dispose() {
+    if (identical(LagoonNav.levelRoute, _route)) LagoonNav.levelRoute = null;
     _progressSub?.cancel();
     OrientationService.setLandscape();
     super.dispose();
