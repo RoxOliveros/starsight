@@ -20,7 +20,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
-import 'game_rotate_shape.dart';
+import 'game_what_goes_together_screen.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -1062,7 +1062,7 @@ class _HiddenObjectScreenState extends State<HiddenObjectScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => RotateTheShapeScreen(level: widget.level + 1),
+            builder: (context) => WhatGoesTogetherScreen(level: widget.level + 1),
           ),
         );
       },

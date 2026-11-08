@@ -1,6 +1,6 @@
-import 'dart:async';
 import 'dart:math';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/season_scene_tap_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -11,7 +11,6 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/soft_hard_game.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
@@ -20,56 +19,48 @@ import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
-enum GamePhase {
-  intro,
-  sweetPrompt,
-  playing,
-  sourPrompt,
-  saltyPrompt,
-  bitterPrompt,
-  favoriteTaste,
-  goodJob,
-}
+enum GamePhase { intro, prompt, playing, favoriteTaste, goodJob }
 
 enum TasteRound { sweet, sour, salty, bitter }
 
-class FallingFood {
-  String imagePath;
-  double x;
-  double y;
-  double speed;
-  bool isTarget;
+class FoodItem {
+  final int id;
+  final String imagePath;
+  final bool isTarget;
 
-  FallingFood({
+  /// Center position as a fraction of screen width / height.
+  final double cx;
+  final double cy;
+
+  const FoodItem({
+    required this.id,
     required this.imagePath,
-    required this.x,
-    required this.y,
-    required this.speed,
     required this.isTarget,
+    required this.cx,
+    required this.cy,
   });
 }
 
-class CatchingGameScreen extends StatefulWidget {
+class CatchingDifferentTasteGameScreen extends StatefulWidget {
   final int level;
 
-  const CatchingGameScreen({super.key, required this.level});
+  const CatchingDifferentTasteGameScreen({super.key, required this.level});
 
   @override
-  State<CatchingGameScreen> createState() => _CatchingGameScreenState();
+  State<CatchingDifferentTasteGameScreen> createState() =>
+      _CatchingDifferentTasteGameScreenState();
 }
 
-class _CatchingGameScreenState extends State<CatchingGameScreen>
+class _CatchingDifferentTasteGameScreenState
+    extends State<CatchingDifferentTasteGameScreen>
     with
         SingleTickerProviderStateMixin,
         AiCameraMixin,
-        AppAudioLifecycleMixin<CatchingGameScreen>,
+        AppAudioLifecycleMixin<CatchingDifferentTasteGameScreen>,
         KikiReactionMixin,
         IdleHintMixin {
-
-  late AnimationController _gameLoopController;
-
   final AudioPlayer _audioPlayer = AudioPlayer();
-  final AudioPlayer _kikiPlayer= AudioPlayer();
+  final AudioPlayer _kikiPlayer = AudioPlayer();
 
   @override
   List<AudioPlayer> get lifecyclePlayers => [_audioPlayer, _kikiPlayer];
@@ -83,62 +74,90 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
   GamePhase _currentPhase = GamePhase.intro;
   TasteRound _currentRound = TasteRound.sweet;
 
-  double _basketX = 0.5;
-  final List<FallingFood> _fallingItems = [];
-  int _spawnTimer = 0;
-
+  List<FoodItem> _foods = [];
+  int _nextFoodId = 0;
   int _caughtCount = 0;
-  int _wrongCatchCount = 0;
-  final int _targetToWin = 15;
-
+  bool _roundLocked = true;
   bool _canTapFavorite = false;
-
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
 
-  static const double _catchTop = 0.65;
-  static const double _catchBottom = 0.90;
-  static const double _catchHalfWidth = 0.085;
+  static const int _targetsPerRound = 3;
+  static const int _distractorsPerRound = 3;
 
-  final String _catchMissedFoods = 'audio/discovery_lagoon/catching_missed_food.wav';
+  // ── Assets ───────────────────────────────────────────────────────────
+  static const String _bgPlaying = 'assets/images/backgrounds/bg_rainbow_closeup.png';
+  static const String _bgIntro = 'assets/images/backgrounds/bg_rainbow_closeup2.png';
+  static const String _kikiImage = 'assets/images/characters/kiki_the_cat.png';
+  static const String _basketImage = 'assets/images/objects/lagoon/basket.png';
 
-  final List<String> _sweetFoodImages = [
-    'assets/images/objects/lagoon/cookie.png',
-    'assets/images/objects/lagoon/chocolate.png',
-    'assets/images/objects/lagoon/candy_colored.png',
-    'assets/images/objects/lagoon/strawberry.png',
-    'assets/images/objects/lagoon/banana_colored.png',
-  ];
+  static const Map<TasteRound, String> _tasteImages = {
+    TasteRound.sweet: 'assets/images/objects/lagoon/sweet.png',
+    TasteRound.sour: 'assets/images/objects/lagoon/sour.png',
+    TasteRound.salty: 'assets/images/objects/lagoon/salty.png',
+    TasteRound.bitter: 'assets/images/objects/lagoon/bitter.png',
+  };
 
-  final List<String> _sourFoodImages = [
-    'assets/images/objects/lagoon/orange.png',
-    'assets/images/objects/lagoon/lemon.png',
-    'assets/images/objects/lagoon/yogurt.png',
-    'assets/images/objects/lagoon/tamarid.png',
-    'assets/images/objects/lagoon/vinegar.png',
-  ];
+  static const Map<TasteRound, String> _promptAudio = {
+    TasteRound.sweet: 'audio/discovery_lagoon/catching_sweet.wav',
+    TasteRound.sour: 'audio/discovery_lagoon/catching_sour.wav',
+    TasteRound.salty: 'audio/discovery_lagoon/catching_salty.wav',
+    TasteRound.bitter: 'audio/discovery_lagoon/catching_bitter.wav',
+  };
 
-  final List<String> _saltyFoodImages = [
-    'assets/images/objects/lagoon/pizza_colored.png',
-    'assets/images/objects/lagoon/fries.png',
-    'assets/images/objects/lagoon/chips.png',
-    'assets/images/objects/lagoon/cheese.png',
-    'assets/images/objects/lagoon/bacon.png',
-  ];
+  static const Map<TasteRound, List<String>> _foodsByTaste = {
+    TasteRound.sweet: [
+      'assets/images/objects/lagoon/cookie.png',
+      'assets/images/objects/lagoon/chocolate.png',
+      'assets/images/objects/lagoon/candy_colored.png',
+      'assets/images/objects/lagoon/strawberry.png',
+      'assets/images/objects/lagoon/banana_colored.png',
+    ],
+    TasteRound.sour: [
+      'assets/images/objects/lagoon/orange.png',
+      'assets/images/objects/lagoon/lemon.png',
+      'assets/images/objects/lagoon/yogurt.png',
+      'assets/images/objects/lagoon/tamarid.png',
+      'assets/images/objects/lagoon/vinegar.png',
+    ],
+    TasteRound.salty: [
+      'assets/images/objects/lagoon/pizza_colored.png',
+      'assets/images/objects/lagoon/fries.png',
+      'assets/images/objects/lagoon/chips.png',
+      'assets/images/objects/lagoon/cheese.png',
+      'assets/images/objects/lagoon/bacon.png',
+    ],
+    TasteRound.bitter: [
+      'assets/images/objects/lagoon/coffee.png',
+      'assets/images/objects/lagoon/lettuce.png',
+      'assets/images/objects/lagoon/bittergourd.png',
+      'assets/images/objects/lagoon/broccoli.png',
+    ],
+  };
 
-  final List<String> _bitterFoodImages = [
-    'assets/images/objects/lagoon/coffee.png',
-    'assets/images/objects/lagoon/lettuce.png',
-    'assets/images/objects/lagoon/bittergourd.png',
-    'assets/images/objects/lagoon/broccoli.png',
-  ];
-
-  final List<String> _wrongFoodImages = [
+  static const List<String> _wrongFoodImages = [
     'assets/images/objects/lagoon/onion.png',
     'assets/images/objects/lagoon/perfume_fish.png',
     'assets/images/objects/lagoon/socks.png',
   ];
 
+  // 3 columns x 2 rows, left side of the screen (basket is on the right).
+  static const List<Offset> _slots = [
+    Offset(0.14, 0.34), Offset(0.31, 0.34), Offset(0.48, 0.34),
+    Offset(0.14, 0.66), Offset(0.31, 0.66), Offset(0.48, 0.66),
+  ];
+
+  // ── Layout helpers ───────────────────────────────────────────────────
+  double _foodSize(double sh) => sh * 0.26;
+  double _basketW(double sh) => sh * 0.65;
+  double _basketH(double sh) => sh * 0.50;
+
+  Offset _basketCenter(double sw, double sh) =>
+      Offset(sw - sw * 0.04 - _basketW(sh) / 2, sh * 0.78);
+
+  bool get _canDrag => _currentPhase == GamePhase.playing && !_roundLocked;
+
+  // ── Lifecycle ────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
@@ -154,88 +173,127 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     };
 
     _playIntroSequence();
-
-    _gameLoopController = AnimationController(
-      vsync: this,
-      duration: const Duration(hours: 1),
-    )..addListener(_updateGame);
   }
 
+  @override
+  void dispose() {
+    disposeAiCamera();
+    disposeIdleTimer();
+    _audioPlayer.dispose();
+    _kikiPlayer.dispose();
+    OrientationService.setLandscape();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
+  }
+
+  // ── Flow ─────────────────────────────────────────────────────────────
   Future<void> _playIntroSequence() async {
     await playVoiceRestartingOnFaceLoss(
       _audioPlayer,
       'audio/discovery_lagoon/catching_intro.wav',
     );
     if (!mounted) return;
-    await _startSweetRound();
+    await _startRound(TasteRound.sweet);
   }
 
-  Future<void> _startRound(
-      TasteRound round,
-      GamePhase promptPhase,
-      String audio,
-      ) async {
+  Future<void> _startRound(TasteRound round) async {
     setState(() {
-      _fallingItems.clear();
+      _foods = _buildFoods(round);
       _caughtCount = 0;
-      _wrongCatchCount = 0;
       _currentRound = round;
-      _currentPhase = promptPhase;
+      _currentPhase = GamePhase.prompt;
+      _roundLocked = true;
     });
 
-    await playVoiceRestartingOnFaceLoss(_audioPlayer, audio);
+    await playVoiceRestartingOnFaceLoss(_audioPlayer, _promptAudio[round]!);
     if (!mounted) return;
 
-    setState(() => _currentPhase = GamePhase.playing);
-    _gameLoopController.forward();
+    setState(() {
+      _currentPhase = GamePhase.playing;
+      _roundLocked = false;
+    });
     showHowToPlay = false;
     startIdleTimer();
   }
 
-  Future<void> _startSweetRound() => _startRound(
-    TasteRound.sweet,
-    GamePhase.sweetPrompt,
-    'audio/discovery_lagoon/catching_sweet.wav',
-  );
+  List<FoodItem> _buildFoods(TasteRound round) {
+    final targets = [..._foodsByTaste[round]!]..shuffle(_random);
+    final distractors = [
+      ..._wrongFoodImages,
+      for (final e in _foodsByTaste.entries)
+        if (e.key != round) ...e.value,
+    ]..shuffle(_random);
 
-  Future<void> _startSourRound() => _startRound(
-    TasteRound.sour,
-    GamePhase.sourPrompt,
-    'audio/discovery_lagoon/catching_sour.wav',
-  );
+    final picks = <(String, bool)>[
+      for (final p in targets.take(_targetsPerRound)) (p, true),
+      for (final p in distractors.take(_distractorsPerRound)) (p, false),
+    ]..shuffle(_random);
 
-  Future<void> _startSaltyRound() => _startRound(
-    TasteRound.salty,
-    GamePhase.saltyPrompt,
-    'audio/discovery_lagoon/catching_salty.wav',
-  );
+    return [
+      for (var i = 0; i < picks.length; i++)
+        FoodItem(
+          id: _nextFoodId++,
+          imagePath: picks[i].$1,
+          isTarget: picks[i].$2,
+          cx: _slots[i].dx,
+          cy: _slots[i].dy,
+        ),
+    ];
+  }
 
-  Future<void> _startBitterRound() => _startRound(
-    TasteRound.bitter,
-    GamePhase.bitterPrompt,
-    'audio/discovery_lagoon/catching_bitter.wav',
-  );
+  Future<void> _onFoodDropped(int id) async {
+    if (!_canDrag) return;
+    final index = _foods.indexWhere((f) => f.id == id);
+    if (index < 0) return;
+    final food = _foods[index];
 
-  Future<void> _repeatCurrentRound() async {
-    switch (_currentRound) {
-      case TasteRound.sweet:
-        await _startSweetRound();
-        break;
-      case TasteRound.sour:
-        await _startSourRound();
-        break;
-      case TasteRound.salty:
-        await _startSaltyRound();
-        break;
-      case TasteRound.bitter:
-        await _startBitterRound();
-        break;
+    resetIdleTimer();
+
+    if (!food.isTarget) {
+      _tapTracker.recordMistake();
+      GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+      showKikiReaction(KikiState.wrong);
+      return; // food stays where it was
+    }
+
+    _tapTracker.recordCorrectTap();
+    GamesSfxPlayer.instance.play(GameSfx.bubblePop);
+
+    var roundDone = false;
+    setState(() {
+      _foods.removeAt(index);
+      _caughtCount++;
+      if (_caughtCount >= _targetsPerRound) {
+        roundDone = true;
+        _roundLocked = true;
+      }
+    });
+
+    if (roundDone) {
+      await _onRoundFinished();
+    } else {
+      showKikiReaction(KikiState.correct);
+    }
+  }
+
+  Future<void> _onRoundFinished() async {
+    cancelIdleTimer();
+    showHowToPlay = false;
+
+    await showKikiReaction(KikiState.correct);
+    if (!mounted) return;
+
+    final next = _currentRound.index + 1;
+    if (next < TasteRound.values.length) {
+      await _startRound(TasteRound.values[next]);
+    } else {
+      await _startFavoriteTastePhase();
     }
   }
 
   Future<void> _startFavoriteTastePhase() async {
     setState(() {
-      _fallingItems.clear();
+      _foods = [];
       _currentPhase = GamePhase.favoriteTaste;
       _canTapFavorite = false;
     });
@@ -287,8 +345,8 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     });
 
     LagoonProgressService.instance.markLevelComplete(widget.level).catchError((
-      e,
-    ) {
+        e,
+        ) {
       debugPrint("Database Error marking level complete: $e");
     });
 
@@ -297,155 +355,12 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     }
   }
 
-  void _updateGame() {
-    if (_currentPhase != GamePhase.playing || showHowToPlay) return;
-
-    var roundDone = false;
-
-    setState(() {
-      _spawnTimer++;
-      if (_spawnTimer >= 40) {
-        _spawnTimer = 0;
-        _spawnFood();
-      }
-
-      for (int i = _fallingItems.length - 1; i >= 0; i--) {
-        if (roundDone) break;
-
-        _fallingItems[i].y += _fallingItems[i].speed;
-
-        if (_fallingItems[i].y >= _catchTop &&
-            _fallingItems[i].y <= _catchBottom) {
-          final double horizontalDistance =
-          (_fallingItems[i].x - _basketX).abs();
-
-          if (horizontalDistance < _catchHalfWidth) {
-            final caughtItem = _fallingItems[i];
-            _fallingItems.removeAt(i);
-
-            if (caughtItem.isTarget) {
-              _tapTracker.recordCorrectTap();
-              _caughtCount++;
-            } else {
-              _tapTracker.recordMistake();
-              _wrongCatchCount++;
-            }
-
-            if (_caughtCount + _wrongCatchCount >= _targetToWin) {
-              _gameLoopController.stop();
-              roundDone = true;
-            } else if (caughtItem.isTarget) {
-              showKikiReaction(KikiState.correct);
-            } else {
-              GamesSfxPlayer.instance.play(GameSfx.bubblePop);
-              showKikiReaction(KikiState.wrong);
-            }
-            continue;
-          }
-        }
-
-        if (_fallingItems[i].y > 1.1) {
-          _fallingItems.removeAt(i);
-        }
-      }
-    });
-
-    if (roundDone) unawaited(_onRoundFinished());
-  }
-
-  Future<void> _onRoundFinished() async {
-    cancelIdleTimer();
-    showHowToPlay = false;
-    final passed = _caughtCount > _wrongCatchCount;
-
-    if (!passed) {
-      await playVoiceRestartingOnFaceLoss(_audioPlayer, _catchMissedFoods);
-      if (!mounted) return;
-      await _repeatCurrentRound();
-      return;
-    }
-
-    await showKikiReaction(KikiState.correct);
-    if (!mounted) return;
-
-    switch (_currentRound) {
-      case TasteRound.sweet:
-        await _startSourRound();
-      case TasteRound.sour:
-        await _startSaltyRound();
-      case TasteRound.salty:
-        await _startBitterRound();
-      case TasteRound.bitter:
-        await _startFavoriteTastePhase();
-    }
-  }
-
-  void _spawnFood() {
-    bool spawnTarget = _random.nextDouble() < 0.50;
-
-    String randomImage;
-    if (spawnTarget) {
-      if (_currentRound == TasteRound.sweet) {
-        randomImage =
-            _sweetFoodImages[_random.nextInt(_sweetFoodImages.length)];
-      } else if (_currentRound == TasteRound.sour) {
-        randomImage = _sourFoodImages[_random.nextInt(_sourFoodImages.length)];
-      } else if (_currentRound == TasteRound.salty) {
-        randomImage =
-            _saltyFoodImages[_random.nextInt(_saltyFoodImages.length)];
-      } else {
-        randomImage =
-            _bitterFoodImages[_random.nextInt(_bitterFoodImages.length)];
-      }
-    } else {
-      List<String> distractionPool = [..._wrongFoodImages];
-      if (_currentRound == TasteRound.sweet) {
-        distractionPool.addAll(_sourFoodImages);
-        distractionPool.addAll(_saltyFoodImages);
-        distractionPool.addAll(_bitterFoodImages);
-      } else if (_currentRound == TasteRound.sour) {
-        distractionPool.addAll(_sweetFoodImages);
-        distractionPool.addAll(_saltyFoodImages);
-        distractionPool.addAll(_bitterFoodImages);
-      } else if (_currentRound == TasteRound.salty) {
-        distractionPool.addAll(_sweetFoodImages);
-        distractionPool.addAll(_sourFoodImages);
-        distractionPool.addAll(_bitterFoodImages);
-      } else {
-        distractionPool.addAll(_sweetFoodImages);
-        distractionPool.addAll(_sourFoodImages);
-        distractionPool.addAll(_saltyFoodImages);
-      }
-      randomImage = distractionPool[_random.nextInt(distractionPool.length)];
-    }
-
-    _fallingItems.add(
-      FallingFood(
-        imagePath: randomImage,
-        x: 0.1 + (_random.nextDouble() * 0.8),
-        y: -0.15,
-        speed: 0.006 + (_random.nextDouble() * 0.005),
-        isTarget: spawnTarget,
-      ),
-    );
-  }
-
-  void _onPanUpdate(DragUpdateDetails details, double screenWidth) {
-    if (_currentPhase != GamePhase.playing) return;
-    resetIdleTimer(); 
-    
-    setState(() {
-      _basketX += details.delta.dx / screenWidth;
-      _basketX = _basketX.clamp(0.15, 0.85);
-    });
-  }
-
   void _restartGame() {
     cancelIdleTimer();
     setState(() {
+      _foods = [];
       _caughtCount = 0;
-      _wrongCatchCount = 0;
-      _fallingItems.clear();
+      _roundLocked = true;
       _currentRound = TasteRound.sweet;
       _currentPhase = GamePhase.intro;
       _hasSavedResult = false;
@@ -454,22 +369,15 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     _playIntroSequence();
   }
 
-  @override
-  void dispose() {
-    disposeAiCamera();
-    disposeIdleTimer();
-    _gameLoopController.dispose();
-    _audioPlayer.dispose();
-    _kikiPlayer.dispose();
-    OrientationService.setLandscape();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    super.dispose();
-  }
-
+  // ── Build ────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final double sw = MediaQuery.of(context).size.width;
     final double sh = MediaQuery.of(context).size.height;
+
+    final showPlayHint = showHowToPlay &&
+        ((_currentPhase == GamePhase.playing && !_roundLocked) ||
+            (_currentPhase == GamePhase.favoriteTaste && _canTapFavorite));
 
     return Scaffold(
       body: Stack(
@@ -478,7 +386,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
           _buildPhaseContent(sw, sh),
 
           if (_currentPhase != GamePhase.goodJob) ...[
-            Positioned(top: 25, left: 25, child: const LagoonXButton()),
+            const Positioned(top: 25, left: 25, child: LagoonXButton()),
             Positioned(
               top: 25,
               right: 25,
@@ -486,10 +394,7 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
             ),
           ],
 
-          if (showHowToPlay &&
-              (_currentPhase == GamePhase.playing ||
-                  (_currentPhase == GamePhase.favoriteTaste && _canTapFavorite)))
-            Positioned.fill(child: _buildHowToPlayOverlay(sw, sh)),
+          if (showPlayHint) Positioned.fill(child: _buildHowToPlayOverlay(sw, sh)),
 
           if (hasCapturedFirstFrame && !isFaceDetected && !_hideLightingCard)
             LightingPromptCard(
@@ -503,262 +408,36 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
     );
   }
 
-  Widget _buildHowToPlayOverlay(double sw, double sh) {
-    Alignment al(double cx, double cy) =>
-        Alignment(2 * cx / sw - 1, 2 * cy / sh - 1);
-
-    // ── Favorite taste: tap a basket ──
-    if (_currentPhase == GamePhase.favoriteTaste) {
-      final preview = Stack(
-        clipBehavior: Clip.none,
-        fit: StackFit.expand,
-        children: [
-          Image.asset('assets/images/backgrounds/bg_rainbow_closeup.png', fit: BoxFit.cover),
-          Positioned(
-            bottom: -sh * 0.20,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Image.asset('assets/images/characters/kiki_the_cat.png',
-                  height: sh * 1.15, fit: BoxFit.contain),
-            ),
-          ),
-          Positioned(
-            bottom: -sh * 0.12,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildFavoriteChoice('assets/images/objects/lagoon/chocolate.png', sh, sw),
-                _buildFavoriteChoice('assets/images/objects/lagoon/lemon.png', sh, sw),
-                _buildFavoriteChoice('assets/images/objects/lagoon/fries.png', sh, sw),
-                _buildFavoriteChoice('assets/images/objects/lagoon/bittergourd.png', sh, sw),
-              ],
-            ),
-          ),
-        ],
-      );
-      return HowToPlayOverlay(
-        previewChild: preview,
-        handAlignment: al(sw * 0.38, sh * 0.83), // 2nd basket's food
-        handOffset: const Offset(0.05, 0.46),
-        onDismiss: resetIdleTimer,
-      );
-    }
-
-    // ── Playing: drag the basket ──
-    final basketW = sh * 0.75, basketH = sh * 0.55, foodS = sh * 0.26;
-    final basketCy = sh * 0.85;
-    const startX = 0.35, endX = 0.65;
-
-    final preview = Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.asset('assets/images/backgrounds/bg_rainbow_closeup.png', fit: BoxFit.cover),
-        Positioned(
-          left: sw * 0.30 - foodS / 2,
-          top: sh * 0.15,
-          child: Image.asset(_sweetFoodImages[0], width: foodS, height: foodS),
-        ),
-        Positioned(
-          left: sw * 0.70 - foodS / 2,
-          top: sh * 0.30,
-          child: Image.asset(_sourFoodImages[1], width: foodS, height: foodS),
-        ),
-        Positioned(
-          left: sw * startX - basketW / 2,
-          bottom: -sh * 0.15,
-          child: Image.asset('assets/images/objects/lagoon/basket.png',
-              width: basketW, height: basketH, fit: BoxFit.contain),
-        ),
-      ],
-    );
-    return HowToPlayOverlay(
-      previewChild: preview,
-      handAlignment: al(sw * startX, basketCy),
-      handEndAlignment: al(sw * endX, basketCy),
-      handOffset: const Offset(0.05, 0.46),
-      onDismiss: resetIdleTimer,
-    );
-  }
-
   Widget _buildPhaseContent(double sw, double sh) {
-    if (_currentPhase == GamePhase.intro) {
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            'assets/images/backgrounds/bg_rainbow_closeup2.png',
-            fit: BoxFit.cover,
-          ),
-          Positioned(
-            bottom: -sh * 0.10,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Image.asset(
-                'assets/images/characters/kiki_the_cat.png',
-                height: sh * 0.90,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -sh * 0.15,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Image.asset(
-                'assets/images/objects/lagoon/basket.png',
-                width: sh * 0.75,
-                height: sh * 0.55,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-        ],
-      );
-    }
+    switch (_currentPhase) {
+      case GamePhase.intro:
+        return _buildIntro(sh);
 
-    if (_currentPhase == GamePhase.sweetPrompt) {
-      return Image.asset(
-        'assets/images/objects/lagoon/sweet.png',
-        width: sw,
-        height: sh,
-        fit: BoxFit.cover,
-      );
-    }
+      case GamePhase.prompt:
+        return Image.asset(
+          _tasteImages[_currentRound]!,
+          width: sw,
+          height: sh,
+          fit: BoxFit.cover,
+        );
 
-    if (_currentPhase == GamePhase.sourPrompt) {
-      return Image.asset(
-        'assets/images/objects/lagoon/sour.png',
-        width: sw,
-        height: sh,
-        fit: BoxFit.cover,
-      );
-    }
+      case GamePhase.favoriteTaste:
+        return _buildFavoriteScene(sw, sh);
 
-    if (_currentPhase == GamePhase.saltyPrompt) {
-      return Image.asset(
-        'assets/images/objects/lagoon/salty.png',
-        width: sw,
-        height: sh,
-        fit: BoxFit.cover,
-      );
-    }
-
-    if (_currentPhase == GamePhase.bitterPrompt) {
-      return Image.asset(
-        'assets/images/objects/lagoon/bitter.png',
-        width: sw,
-        height: sh,
-        fit: BoxFit.cover,
-      );
-    }
-
-    if (_currentPhase == GamePhase.favoriteTaste) {
-      return Stack(
-        clipBehavior: Clip.none,
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            'assets/images/backgrounds/bg_rainbow_closeup.png',
-            fit: BoxFit.cover,
-          ),
-          Positioned(
-            bottom: -sh * 0.20,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Image.asset(
-                'assets/images/characters/kiki_the_cat.png',
-                height: sh * 1.15,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -sh * 0.12,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildFavoriteChoice(
-                  'assets/images/objects/lagoon/chocolate.png',
-                  sh,
-                  sw,
-                ),
-                _buildFavoriteChoice(
-                  'assets/images/objects/lagoon/lemon.png',
-                  sh,
-                  sw,
-                ),
-                _buildFavoriteChoice(
-                  'assets/images/objects/lagoon/fries.png',
-                  sh,
-                  sw,
-                ),
-                _buildFavoriteChoice(
-                  'assets/images/objects/lagoon/bittergourd.png',
-                  sh,
-                  sw,
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-
-    final double basketWidth = sh * 0.75;
-    final double basketHeight = sh * 0.55;
-    final double foodSize = sh * 0.26;
-
-    return GestureDetector(
-      onPanUpdate: (details) => _onPanUpdate(details, sw),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            'assets/images/backgrounds/bg_rainbow_closeup.png',
-            fit: BoxFit.cover,
-          ),
-          Positioned(
-            left: (_basketX * sw) - (basketWidth / 2),
-            bottom: -sh * 0.15,
-            child: Image.asset(
-              'assets/images/objects/lagoon/basket.png',
-              width: basketWidth,
-              height: basketHeight,
-              fit: BoxFit.contain,
-            ),
-          ),
-          ..._fallingItems.map((food) {
-            return Positioned(
-              left: (food.x * sw) - (foodSize / 2),
-              top: food.y * sh,
-              child: Image.asset(
-                food.imagePath,
-                width: foodSize,
-                height: foodSize,
-                fit: BoxFit.contain,
-              ),
-            );
-          }),
-          if (_currentPhase == GamePhase.goodJob)
+      case GamePhase.goodJob:
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(_bgPlaying, fit: BoxFit.cover),
             GoodJobOverlay(
-              characterImage:
-                  'assets/images/characters/cat_holding_fishbone.png',
+              characterImage: 'assets/images/characters/cat_holding_fishbone.png',
               characterSizeFactor: 0.9,
               onNext: () {
                 if (context.mounted) {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          SoftHardGameScreen(level: widget.level + 1),
+                      builder: (_) => SeasonSceneTapScreen(level: widget.level + 1),
                     ),
                   );
                 }
@@ -766,16 +445,145 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
               onRestart: _restartGame,
               onBack: () => Navigator.of(context).pop(),
             ),
-        ],
+          ],
+        );
+
+      case GamePhase.playing:
+        return _buildPlayArea(sw, sh);
+    }
+  }
+
+  Widget _buildIntro(double sh) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgIntro, fit: BoxFit.cover),
+        Positioned(
+          bottom: -sh * 0.10,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Image.asset(_kikiImage, height: sh * 0.90, fit: BoxFit.contain),
+          ),
+        ),
+        Positioned(
+          bottom: -sh * 0.15,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Image.asset(
+              _basketImage,
+              width: sh * 0.75,
+              height: sh * 0.55,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Playing: drag foods to the basket ────────────────────────────────
+  Widget _buildPlayArea(double sw, double sh) {
+    final size = _foodSize(sh);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgPlaying, fit: BoxFit.cover),
+        _buildBasket(sw, sh, isTarget: true),
+        ..._foods.map((f) => _buildDraggableFood(f, sw, sh, size)),
+      ],
+    );
+  }
+
+  Widget _buildBasket(double sw, double sh, {required bool isTarget}) {
+    final image = Image.asset(
+      _basketImage,
+      width: _basketW(sh),
+      height: _basketH(sh),
+      fit: BoxFit.contain,
+    );
+
+    return Positioned(
+      right: sw * 0.04,
+      bottom: -sh * 0.08,
+      child: isTarget
+          ? DragTarget<int>(
+        onWillAcceptWithDetails: (_) => _canDrag,
+        onAcceptWithDetails: (details) => _onFoodDropped(details.data),
+        builder: (context, candidate, rejected) => AnimatedScale(
+          scale: candidate.isNotEmpty ? 1.08 : 1.0,
+          duration: const Duration(milliseconds: 150),
+          child: image,
+        ),
+      )
+          : image,
+    );
+  }
+
+  Widget _foodImage(FoodItem f, double size) => Image.asset(
+    f.imagePath,
+    width: size,
+    height: size,
+    fit: BoxFit.contain,
+  );
+
+  Widget _buildDraggableFood(FoodItem f, double sw, double sh, double size) {
+    final child = _foodImage(f, size);
+
+    return Positioned(
+      key: ValueKey(f.id),
+      left: f.cx * sw - size / 2,
+      top: f.cy * sh - size / 2,
+      child: Draggable<int>(
+        data: f.id,
+        maxSimultaneousDrags: _canDrag ? 1 : 0,
+        onDragStarted: resetIdleTimer,
+        feedback: Material(color: Colors.transparent, child: child),
+        childWhenDragging: Opacity(opacity: 0.3, child: child),
+        child: child,
       ),
     );
   }
 
+  // ── Favorite taste ───────────────────────────────────────────────────
+  Widget _buildFavoriteScene(double sw, double sh) {
+    return Stack(
+      clipBehavior: Clip.none,
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgPlaying, fit: BoxFit.cover),
+        Positioned(
+          bottom: -sh * 0.20,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Image.asset(_kikiImage, height: sh * 1.15, fit: BoxFit.contain),
+          ),
+        ),
+        Positioned(
+          bottom: -sh * 0.12,
+          left: 0,
+          right: 0,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildFavoriteChoice('assets/images/objects/lagoon/chocolate.png', sh, sw),
+              _buildFavoriteChoice('assets/images/objects/lagoon/lemon.png', sh, sw),
+              _buildFavoriteChoice('assets/images/objects/lagoon/fries.png', sh, sw),
+              _buildFavoriteChoice('assets/images/objects/lagoon/bittergourd.png', sh, sw),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildFavoriteChoice(
-    String foodImagePath,
-    double screenHeight,
-    double screenWidth,
-  ) {
+      String foodImagePath,
+      double screenHeight,
+      double screenWidth,
+      ) {
     final double basketW = screenWidth * 0.23;
     final double basketH = screenHeight * 0.38;
     final double foodS = screenHeight * 0.28;
@@ -786,23 +594,66 @@ class _CatchingGameScreenState extends State<CatchingGameScreen>
         clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,
         children: [
-          Image.asset(
-            'assets/images/objects/lagoon/basket.png',
-            width: basketW,
-            height: basketH,
-            fit: BoxFit.contain,
-          ),
+          Image.asset(_basketImage, width: basketW, height: basketH, fit: BoxFit.contain),
           Positioned(
             bottom: screenHeight * 0.15,
-            child: Image.asset(
-              foodImagePath,
-              width: foodS,
-              height: foodS,
-              fit: BoxFit.contain,
-            ),
+            child: Image.asset(foodImagePath, width: foodS, height: foodS, fit: BoxFit.contain),
           ),
         ],
       ),
+    );
+  }
+
+  // ── How to play ──────────────────────────────────────────────────────
+  FoodItem? _pickHintFood() {
+    for (final f in _foods) {
+      if (f.isTarget) return f;
+    }
+    return null;
+  }
+
+  Widget _buildHowToPlayOverlay(double sw, double sh) {
+    Alignment al(double cx, double cy) =>
+        Alignment(2 * cx / sw - 1, 2 * cy / sh - 1);
+
+    // Favorite taste: tap a basket
+    if (_currentPhase == GamePhase.favoriteTaste) {
+      return HowToPlayOverlay(
+        previewChild: _buildFavoriteScene(sw, sh),
+        handAlignment: al(sw * 0.38, sh * 0.83), // 2nd basket's food
+        handOffset: const Offset(0.05, 0.46),
+        onDismiss: resetIdleTimer,
+      );
+    }
+
+    // Playing: drag a food of the current taste into the basket
+    final hint = _pickHintFood();
+    if (hint == null) return const SizedBox.shrink();
+
+    final size = _foodSize(sh);
+    final basket = _basketCenter(sw, sh);
+
+    final preview = Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(_bgPlaying, fit: BoxFit.cover),
+        _buildBasket(sw, sh, isTarget: false),
+        ..._foods.map(
+              (f) => Positioned(
+            left: f.cx * sw - size / 2,
+            top: f.cy * sh - size / 2,
+            child: _foodImage(f, size),
+          ),
+        ),
+      ],
+    );
+
+    return HowToPlayOverlay(
+      previewChild: preview,
+      handAlignment: al(hint.cx * sw, hint.cy * sh),
+      handEndAlignment: al(basket.dx, basket.dy),
+      handOffset: const Offset(0.05, 0.46),
+      onDismiss: resetIdleTimer,
     );
   }
 }

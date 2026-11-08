@@ -1,7 +1,7 @@
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/listening_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/seed_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -921,7 +921,7 @@ class _PerfumeGameState extends State<PerfumeGame>
                 if (context.mounted) {
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (_) => ListeningGame(level: widget.level + 1),
+                      builder: (_) => SeedGame(level: widget.level + 1),
                     ),
                   );
                 }

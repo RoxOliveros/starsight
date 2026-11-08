@@ -11,13 +11,13 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_tap_sort_screen.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
+import 'lunchbox_game.dart';
 
 class SortableItem {
   final String imagePath;
@@ -405,7 +405,7 @@ class _ColdHotGameState extends State<ColdHotGame>
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => WeatherTapSortScreen(level: 19),
+                      builder: (context) => LunchboxHealthyUnhealthyFoodsGameIntro(level: widget.level + 1),
                     ),
                   );
                 }

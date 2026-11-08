@@ -9,13 +9,13 @@ import 'package:StarSight/games_ui_layer/ai_camera_mixin.dart';
 import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/weather_game.dart';
 import 'package:StarSight/games_ui_layer/goodjob_prompt.dart';
 import '../../ui_layer/discovery_lagoon/lagoon_buttons.dart';
 import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import '../tryagain_prompt.dart';
+import 'catching_game.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -26,16 +26,16 @@ class SauceStroke {
   SauceStroke({required this.sauceId, required this.points});
 }
 
-class LunchboxGameIntro extends StatefulWidget {
+class LunchboxHealthyUnhealthyFoodsGameIntro extends StatefulWidget {
   final int level;
 
-  const LunchboxGameIntro({super.key, required this.level});
+  const LunchboxHealthyUnhealthyFoodsGameIntro({super.key, required this.level});
 
   @override
-  State<LunchboxGameIntro> createState() => _LunchboxGameIntroState();
+  State<LunchboxHealthyUnhealthyFoodsGameIntro> createState() => _LunchboxHealthyUnhealthyFoodsGameIntroState();
 }
 
-class _LunchboxGameIntroState extends State<LunchboxGameIntro>
+class _LunchboxHealthyUnhealthyFoodsGameIntroState extends State<LunchboxHealthyUnhealthyFoodsGameIntro>
   with AiCameraMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
 
@@ -182,7 +182,7 @@ class _LunchboxGameUnhealthyEndingState
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => LunchboxGameIntro(level: widget.level),
+        builder: (context) => LunchboxHealthyUnhealthyFoodsGameIntro(level: widget.level),
       ),
     );
   }
@@ -305,7 +305,7 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding>
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => LunchboxGameIntro(level: widget.level),
+        builder: (context) => LunchboxHealthyUnhealthyFoodsGameIntro(level: widget.level),
       ),
     );
   }
@@ -370,7 +370,7 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding>
                           context,
                           MaterialPageRoute(
                             builder: (context) =>
-                                WeatherGame(level: widget.level + 1),
+                                CatchingDifferentTasteGameScreen(level: widget.level + 1),
                           ),
                         );
                       }

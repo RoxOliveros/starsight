@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:StarSight/business_layer/app_audio_lifecycle_mixin.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/business_layer/orientation_service.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/catching_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/perfume_game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -30,17 +30,17 @@ enum GamePhase {
   bodyPartsAnswered,
 }
 
-class ListeningGame extends StatefulWidget {
+class ListeningAnimalGame extends StatefulWidget {
   final int level;
 
-  const ListeningGame({super.key, required this.level});
+  const ListeningAnimalGame({super.key, required this.level});
 
   @override
-  State<ListeningGame> createState() => _ListeningGameState();
+  State<ListeningAnimalGame> createState() => _ListeningAnimalGameState();
 }
 
-class _ListeningGameState extends State<ListeningGame>
-    with AiCameraMixin, AppAudioLifecycleMixin<ListeningGame>, KikiReactionMixin, IdleHintMixin  {
+class _ListeningAnimalGameState extends State<ListeningAnimalGame>
+    with AiCameraMixin, AppAudioLifecycleMixin<ListeningAnimalGame>, KikiReactionMixin, IdleHintMixin  {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _kikiPlayer= AudioPlayer();
@@ -384,7 +384,7 @@ class _ListeningGameState extends State<ListeningGame>
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
                       builder: (_) =>
-                          CatchingGameScreen(level: widget.level + 1),
+                          PerfumeGame(level: widget.level + 1),
                     ),
                   );
                 }

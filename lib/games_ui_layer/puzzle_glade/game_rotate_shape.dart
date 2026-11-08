@@ -20,7 +20,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
-import 'game_what_goes_together_screen.dart';
+import 'game_maze_path.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -989,7 +989,7 @@ class _RotateTheShapeScreenState extends State<RotateTheShapeScreen>
           context,
           MaterialPageRoute(
             builder: (context) =>
-                WhatGoesTogetherScreen(level: widget.level + 1),
+                MazePathScreen(level: widget.level + 1),
           ),
         );
       },

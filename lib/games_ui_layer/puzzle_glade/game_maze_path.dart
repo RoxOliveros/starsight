@@ -20,7 +20,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
-import 'game_hidden_object.dart';
+import 'game_whats_missing.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -808,12 +808,11 @@ class _MazePathScreenState extends State<MazePathScreen>
   Widget _buildWinOverlay() {
     return GoodJobOverlay(
       characterImage: _characterImage,
-
       onNext: () {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => HiddenObjectScreen(level: widget.level + 1),
+            builder: (context) => WhatsMissingScreen(level: widget.level + 1),
           ),
         );
       },

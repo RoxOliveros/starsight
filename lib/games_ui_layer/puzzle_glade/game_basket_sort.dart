@@ -20,7 +20,7 @@ import '../games_audio_helper.dart';
 import '../goodjob_prompt.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
-import 'game_size_sort.dart';
+import 'game_odd_one_out_screen.dart';
 
 enum _ScreenPhase { intro, game }
 
@@ -1037,7 +1037,7 @@ class _BasketSortScreenState extends State<BasketSortScreen>
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => SizeSortScreen(level: widget.level + 1),
+            builder: (context) => OddOneOutScreen(level: widget.level + 1),
           ),
         );
       },
