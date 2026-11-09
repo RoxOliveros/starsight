@@ -7,6 +7,9 @@ import '../business_layer/orientation_service.dart';
 import '../business_layer/audio_helper.dart';
 import 'parent_age_verification.dart';
 import 'password_reset_screen.dart';
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'legal_links.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -70,6 +73,8 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _fadeController;
   late final Animation<double> _fadeIn;
+  late final TapGestureRecognizer _termsTap;
+  late final TapGestureRecognizer _privacyTap;
 
   bool _animationsReady = false;
 
@@ -77,9 +82,16 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
   StreamSubscription<Uri>? _linkSubscription;
   static bool _hasHandledInitialLink = false;
   String? _lastHandledCode;
+
   @override
   void initState() {
     super.initState();
+
+    _termsTap = TapGestureRecognizer()
+      ..onTap = () => _openLegal(LegalUrls.terms);
+    _privacyTap = TapGestureRecognizer()
+      ..onTap = () => _openLegal(LegalUrls.privacy);
+
     OrientationService.setPortrait();
     _loadAnimations();
 
@@ -136,6 +148,8 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
   void dispose() {
     _fadeController.dispose();
     _linkSubscription?.cancel();
+    _termsTap.dispose();
+    _privacyTap.dispose();
     super.dispose();
   }
 
@@ -148,6 +162,26 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
       setState(() => _animationsReady = true);
       _fadeController.forward();
     }
+  }
+
+  Future<void> _openLegal(String url) async {
+    try {
+      final opened = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.inAppBrowserView,
+      );
+      if (!opened && mounted) _showLegalError();
+    } catch (_) {
+      if (mounted) _showLegalError();
+    }
+  }
+
+  void _showLegalError() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Could not open the page. Check your internet connection.'),
+      ),
+    );
   }
 
   @override
@@ -234,22 +268,22 @@ class _SignUpSignInScreenState extends State<SignUpSignInScreen>
                           Center(
                             child: RichText(
                               textAlign: TextAlign.center,
-                              text: const TextSpan(
+                              text: TextSpan(
                                 style: AppTextStyles.body,
                                 children: [
+                                  const TextSpan(text: 'By continuing, you agree to our '),
                                   TextSpan(
-                                    text: 'By continuing, you agree to our ',
-                                  ),
-                                  TextSpan(
-                                    text: 'Terms and\nConditions',
+                                    text: 'Terms of Use',
                                     style: AppTextStyles.bodylink,
+                                    recognizer: _termsTap,
                                   ),
-                                  TextSpan(text: ' and '),
+                                  const TextSpan(text: ' and '),
                                   TextSpan(
                                     text: 'Privacy Policy',
                                     style: AppTextStyles.bodylink,
+                                    recognizer: _privacyTap,
                                   ),
-                                  TextSpan(text: '.'),
+                                  const TextSpan(text: '.'),
                                 ],
                               ),
                             ),

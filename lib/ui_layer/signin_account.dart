@@ -10,6 +10,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:StarSight/ui_layer/consent_screen.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'legal_links.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -56,9 +59,19 @@ class _SignInAccountState extends State<SignInAccount>
   late final AnimationController _fadeController;
   late final Animation<double> _fadeIn;
 
+  late final TapGestureRecognizer _termsTap;
+  late final TapGestureRecognizer _privacyTap;
+
+
   @override
   void initState() {
     super.initState();
+
+    _termsTap = TapGestureRecognizer()
+      ..onTap = () => openLegal(context, LegalUrls.terms);
+    _privacyTap = TapGestureRecognizer()
+      ..onTap = () => openLegal(context, LegalUrls.privacy);
+
     OrientationService.setPortrait();
 
     _fadeController = AnimationController(
@@ -73,6 +86,8 @@ class _SignInAccountState extends State<SignInAccount>
     _fadeController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _termsTap.dispose();
+    _privacyTap.dispose();
     super.dispose();
   }
 
@@ -590,9 +605,10 @@ class _SignInAccountState extends State<SignInAccount>
                                   SfxHelper.instance.play(Sfx.keyTap);
                                   _onGoogleSignIn();
                                 },
-                                child: Image.asset(
-                                  'assets/images/buttons/google_signin.png',
-                                  height: 52,
+                                child: SvgPicture.asset(
+                                  'assets/images/buttons/btn_signin.svg',
+                                  height: 43,
+                                  semanticsLabel: 'Sign in with Google',
                                 ),
                               ),
                             ],
@@ -614,22 +630,22 @@ class _SignInAccountState extends State<SignInAccount>
                           ),
                           child: RichText(
                             textAlign: TextAlign.center,
-                            text: const TextSpan(
+                            text: TextSpan(
                               style: AppTextStyles.body,
                               children: [
+                                const TextSpan(text: 'By signing in, you agree to our '),
                                 TextSpan(
-                                  text: 'By signing in, you agree to our ',
-                                ),
-                                TextSpan(
-                                  text: 'Terms and Conditions',
+                                  text: 'Terms of Use',
                                   style: AppTextStyles.bodylink,
+                                  recognizer: _termsTap,
                                 ),
-                                TextSpan(text: '\nand '),
+                                const TextSpan(text: '\nand '),
                                 TextSpan(
                                   text: 'Privacy Policy',
                                   style: AppTextStyles.bodylink,
+                                  recognizer: _privacyTap,
                                 ),
-                                TextSpan(text: '.'),
+                                const TextSpan(text: '.'),
                               ],
                             ),
                           ),
