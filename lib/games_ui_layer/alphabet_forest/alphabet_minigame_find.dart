@@ -62,7 +62,8 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
   static const String _vaseAsset = 'assets/images/objects/forest/vase.png';
   static const String _hammerAsset = 'assets/images/objects/forest/hammer.png';
 
-  static const String _findInstructionAudio = 'assets/audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
+  static const String _findInstructionAudio =
+      'assets/audio/alphabet_forest/alphabet_minigame_find_instruction.wav';
 
   List<String> _vaseLetters = [];
 
@@ -279,11 +280,7 @@ class _AlphabetFindScreenState extends State<AlphabetFindScreen>
             );
           },
           onBack: () {
-            Navigator.pop(context);
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
-            );
+            ForestNav.backToLevels(context);
           },
         ),
       ),

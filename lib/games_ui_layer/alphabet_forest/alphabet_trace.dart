@@ -422,11 +422,8 @@ class _AlphabetTraceScreenState extends State<AlphabetTraceScreen>
             );
           },
           onBack: () {
-            Navigator.pop(context);
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
-            );
+            Navigator.of(context).pop(); // close dialog
+            ForestNav.backToLevels(context);
           },
         ),
       ),

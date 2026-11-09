@@ -236,8 +236,10 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     List<String> finalEmotions = stopAiCamera();
 
     ForestDatabaseService.saveGameData(
-      gameId: 'letter_hunt_${widget.letters.map((l) => l.toLowerCase()).join()}',
-      activityName: "Alphabet Hunt (${widget.letters.map((l) => l.toUpperCase()).join(', ')})",
+      gameId:
+          'letter_hunt_${widget.letters.map((l) => l.toLowerCase()).join()}',
+      activityName:
+          "Alphabet Hunt (${widget.letters.map((l) => l.toUpperCase()).join(', ')})",
       emotions: finalEmotions,
       totalTaps: _tapTracker.totalTaps,
       mistakes: _tapTracker.mistakeCount,
@@ -285,11 +287,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
             );
           },
           onBack: () {
-            Navigator.pop(context);
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
-            );
+            ForestNav.backToLevels(context);
           },
         ),
       ),
@@ -347,7 +345,9 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
                   child: Center(
                     child: GestureDetector(
                       // tap the card to hear the letter again
-                      onTap: _inputEnabled ? () => _playTargetSound().catchError((_) {}) : null,
+                      onTap: _inputEnabled
+                          ? () => _playTargetSound().catchError((_) {})
+                          : null,
                       child: _buildTargetCard(_target),
                     ),
                   ),
@@ -384,7 +384,10 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
                               key: obj.key,
                               behavior: HitTestBehavior.opaque,
                               onTap: () => _onObjectTap(obj, obj.key),
-                              child: _buildObjectTile(obj.letter, letterFontSize),
+                              child: _buildObjectTile(
+                                obj.letter,
+                                letterFontSize,
+                              ),
                             ),
                           );
                         }).toList(),
@@ -448,10 +451,7 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     return Stack(
       alignment: Alignment.center,
       children: [
-        Image.asset(
-          _getObjectImage(letter),
-          fit: BoxFit.contain,
-        ),
+        Image.asset(_getObjectImage(letter), fit: BoxFit.contain),
 
         // Letter outline
         Text(
@@ -490,9 +490,9 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
 
   List<String> _previewLetters() {
     final inLevel = widget.letters.map((l) => l.toUpperCase()).toSet();
-    final spare = [for (var c = 65; c < 91; c++) String.fromCharCode(c)]
-        .where((l) => !inLevel.contains(l))
-        .toList();
+    final spare = [
+      for (var c = 65; c < 91; c++) String.fromCharCode(c),
+    ].where((l) => !inLevel.contains(l)).toList();
     final s = spare[0], a = spare[1], b = spare[2];
     return [a, s, b, s, b, a, s, a];
   }
@@ -519,7 +519,10 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.asset('assets/images/backgrounds/bg_game_forest.png', fit: BoxFit.cover),
+        Image.asset(
+          'assets/images/backgrounds/bg_game_forest.png',
+          fit: BoxFit.cover,
+        ),
         Positioned(
           top: 12,
           left: 180,
@@ -535,7 +538,9 @@ class _AlphabetHuntScreenState extends State<AlphabetHuntScreen>
             builder: (context, constraints) {
               final double itemWidth = (constraints.maxWidth - (3 * 12)) / 4;
               final double itemHeight = (constraints.maxHeight - (2 * 12)) / 2;
-              final double itemSize = itemWidth < itemHeight ? itemWidth : itemHeight;
+              final double itemSize = itemWidth < itemHeight
+                  ? itemWidth
+                  : itemHeight;
 
               return GridView.count(
                 physics: const NeverScrollableScrollPhysics(),

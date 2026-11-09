@@ -12,6 +12,51 @@ import '../loading_screen.dart';
 import '../starsight_setup_dialog.dart';
 import 'forest_theme.dart';
 
+/// Lets the minigames jump straight back to the (single) Forest level screen,
+/// closing everything above it (dialogs, minigame, intro...). This replaces
+/// pushReplacement(ForestLevelScreen()), which stacked a SECOND level screen on
+/// top of the first (so Back had to be pressed twice, and the star animation
+/// ran on the screen hidden underneath).
+class ForestNav {
+  ForestNav._();
+  static Route<dynamic>? levelRoute;
+
+  /// Set by the level screen; called right after backToLevels so the star check
+  /// does not depend on route animation events alone.
+  static VoidCallback? onReturned;
+
+  /// Used by the X button: return to the level screen if it is on the stack
+  /// (popping any chained games/intros above it), otherwise just pop once.
+  static void leaveGame(BuildContext context) {
+    final route = levelRoute;
+    if (route != null && route.isActive) {
+      Navigator.of(context).popUntil((r) => identical(r, route));
+      debugPrint('[ForestLevel] leaveGame: popped to level route');
+      WidgetsBinding.instance.addPostFrameCallback((_) => onReturned?.call());
+    } else {
+      Navigator.pop(context);
+    }
+  }
+
+  static void backToLevels(BuildContext context) {
+    final route = levelRoute;
+    if (route != null && route.isActive) {
+      Navigator.of(context).popUntil((r) => identical(r, route));
+      debugPrint('[ForestLevel] backToLevels: popped to level route');
+      WidgetsBinding.instance.addPostFrameCallback((_) => onReturned?.call());
+    } else {
+      debugPrint(
+        '[ForestLevel] backToLevels: level route NOT active, opening a fresh screen',
+      );
+      // Fallback (level screen not on the stack): open a fresh one.
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
+      );
+    }
+  }
+}
+
 class ForestLevelScreen extends StatefulWidget {
   const ForestLevelScreen({super.key});
 
@@ -113,6 +158,10 @@ class _ForestLevelScreenState extends State<ForestLevelScreen>
 
       // FIX: Move the setup dialog inside a check for fresh launch (wasLoading)
       // but ensure we wait for layout first.
+      // The progress doc changed while we are showing (e.g. the level's save
+      // arrived late): look for new stars. No-op while a game covers us.
+      if (!wasLoading) _refreshAndCelebrate(fromReturn: false);
+
       if (wasLoading) {
         _forceSetup = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -129,55 +178,170 @@ class _ForestLevelScreenState extends State<ForestLevelScreen>
     });
   }
 
+  ModalRoute<dynamic>? _route;
+  VoidCallback? _detachVisibility;
+  bool _checking = false;
+  bool _recheck = false;
+  DateTime? _lastReturnCheck;
+
+  void _log(String m) => debugPrint('[ForestLevel] $m');
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (!identical(route, _route)) {
+      _detachVisibility?.call();
+      _route = route;
+      // Let the minigames find their way back to this screen.
+      ForestNav.levelRoute = route;
+      ForestNav.onReturned = () {
+        if (mounted) _onBecameVisible(why: 'backToLevels');
+      };
+      _watchVisibility(route);
+    }
+  }
+
+  /// Fires whenever a screen that was on top of this one has finished leaving,
+  /// i.e. this screen is visible again. This works however the player got back
+  /// (X, Back, Good Job > Back, a chain of Next > Next ...), so we no longer
+  /// depend on _openLevel's Future (which completes too early when a game is
+  /// swapped for the next one with pushReplacement).
+  void _watchVisibility(ModalRoute<dynamic>? route) {
+    final anim = route?.secondaryAnimation;
+    if (anim == null) return;
+    void onStatus(AnimationStatus status) {
+      _log('secondaryAnimation status: $status');
+      if (status == AnimationStatus.dismissed) {
+        _onBecameVisible(why: 'secondaryAnimation');
+      }
+    }
+
+    anim.addStatusListener(onStatus);
+    _detachVisibility = () => anim.removeStatusListener(onStatus);
+  }
+
+  bool get _isVisible {
+    final route = _route;
+    if (route == null || !route.isCurrent) return false;
+    final anim = route.secondaryAnimation;
+    return anim == null || anim.status == AnimationStatus.dismissed;
+  }
+
+  Future<void> _onBecameVisible({String why = ''}) async {
+    final now = DateTime.now();
+    final last = _lastReturnCheck;
+    if (last != null && now.difference(last) < const Duration(seconds: 2)) {
+      _log('_onBecameVisible($why): skipped (duplicate trigger)');
+      return;
+    }
+    _lastReturnCheck = now;
+    _log('_onBecameVisible($why)');
+    // let the page finish sliding back before launching the star
+    await Future.delayed(const Duration(milliseconds: 400));
+    await _refreshAndCelebrate(fromReturn: true);
+  }
+
   @override
   void dispose() {
+    _detachVisibility?.call();
+    if (identical(ForestNav.levelRoute, _route)) {
+      ForestNav.levelRoute = null;
+      ForestNav.onReturned = null;
+    }
     _progressSub?.cancel();
     OrientationService.setLandscape();
     super.dispose();
   }
 
-  Future<void> _openLevel(Widget screen) async {
-    final route = MaterialPageRoute<void>(builder: (context) => screen);
-    await Navigator.push(context, route);
-    // push() completes the moment the level is popped, while it is still
-    // sliding away. Wait for the transition to end so the star isn't launched
-    // behind/over a half-gone page.
-    await route.completed.timeout(
-      const Duration(seconds: 2),
-      onTimeout: () => null,
+  /// Reads what Firestore says was played and flies a star for each new level.
+  ///
+  /// [fromReturn] is true when we just came back from a game; then we also give
+  /// the save a moment to land and open the setup dialog if nothing is new.
+  Future<void> _refreshAndCelebrate({required bool fromReturn}) async {
+    _log(
+      'refresh(fromReturn=$fromReturn) mounted=$mounted '
+      'loading=$_isLoadingProgress celebrating=$_celebrating checking=$_checking',
     );
-    if (!mounted) return;
-    // If the level replaced itself with a NEW level screen, that one is on top
-    // and handles the celebration. Don't fly a star under it.
-    if (ModalRoute.of(context)?.isCurrent != true) return;
-
-    var played = await ForestProgressService.instance.getPlayedLevels();
-    // The level's save can land AFTER we get back here. If we looked now and
-    // found nothing new, we'd skip the star and open the setup dialog on top
-    // of the screen. So give the save a moment to arrive before deciding.
-    for (
-      var i = 0;
-      i < 6 && mounted && played.difference(_shownLevels).isEmpty;
-      i++
-    ) {
-      await Future.delayed(const Duration(milliseconds: 300));
-      played = await ForestProgressService.instance.getPlayedLevels();
-    }
-    if (!mounted) return;
-    _playedLevels = played;
-
-    // A new cycle started (data was cleared): just resync, no celebration.
-    if (!played.containsAll(_shownLevels)) {
-      setState(() => _shownLevels = {...played});
-      _remember();
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _showSetup();
-      });
+    if (!mounted || _isLoadingProgress) return;
+    if (_celebrating || _checking) {
+      // Don't drop a return check: run again once the current pass ends.
+      if (fromReturn) _recheck = true;
       return;
     }
-    _celebrateNext();
+    _checking = true;
+    try {
+      if (fromReturn) {
+        // Wait for the game's save transaction to actually commit.
+        await ForestProgressService.instance.lastSave.timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {},
+        );
+        if (!mounted) return;
+      }
+
+      // Let the route finish settling instead of bailing out.
+      for (var i = 0; i < 10 && mounted && !_isVisible; i++) {
+        await Future.delayed(const Duration(milliseconds: 150));
+      }
+      if (!mounted || !_isVisible || _celebrating) {
+        _log(
+          'refresh: bailing, visible=$_isVisible '
+          'isCurrent=${_route?.isCurrent} '
+          'secAnim=${_route?.secondaryAnimation?.status}',
+        );
+        return;
+      }
+
+      final played = await ForestProgressService.instance.getPlayedLevels();
+      _log('refresh: played=$played shown=$_shownLevels carry=$_carryShown');
+      if (!mounted || _celebrating) return;
+
+      // Another (newer) level screen may already have shown some of these.
+      if (_carryChild == ForestProgressService.instance.activeChildId) {
+        _shownLevels = {..._shownLevels, ..._carryShown.intersection(played)};
+      }
+      _playedLevels = played;
+
+      // A new cycle started (data was cleared): just resync, no celebration.
+      if (!played.containsAll(_shownLevels)) {
+        setState(() => _shownLevels = {...played});
+        _remember();
+        if (fromReturn) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _showSetup();
+          });
+        }
+        return;
+      }
+
+      if (played.difference(_shownLevels).isEmpty) {
+        if (fromReturn) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _showSetup();
+          });
+        }
+        return;
+      }
+
+      _log('refresh: celebrating new stars');
+      _celebrateNext();
+    } finally {
+      _checking = false;
+      if (_recheck && mounted) {
+        _recheck = false;
+        _refreshAndCelebrate(fromReturn: true);
+      }
+    }
+  }
+
+  Future<void> _openLevel(Widget screen) async {
+    // Coming back is handled by the visibility listener above, however many
+    // games were chained or however the player left.
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(builder: (context) => screen),
+    );
   }
 
   /// Flies a star from the honey jar to each newly played level's tile
@@ -265,6 +429,11 @@ class _ForestLevelScreenState extends State<ForestLevelScreen>
         endSize: badge,
         onLanded: land,
       );
+
+      // Safety net: if onLanded never fires, don't leave _celebrating stuck.
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted && _celebrating && _flyingLevel == level) land();
+      });
     });
   }
 

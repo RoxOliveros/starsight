@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../business_layer/audio_helper.dart';
 import '../../games_ui_layer/games_audio_helper.dart';
+import 'forest_level.dart';
 import 'forest_theme.dart';
 
 class ForestBackButton extends StatelessWidget {
@@ -42,15 +43,15 @@ class ForestXButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-        onTap: () {
-          GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
-          if (onTap != null) {
-            onTap!();
-          } else {
-            Navigator.pop(context);
-          }
-        },
-        child: Image.asset('assets/images/buttons/x_darkgreen.png', width: 50)
+      onTap: () {
+        GamesSfxPlayer.instance.play(GameSfx.bubbleClick);
+        if (onTap != null) {
+          onTap!();
+        } else {
+          ForestNav.leaveGame(context);
+        }
+      },
+      child: Image.asset('assets/images/buttons/x_darkgreen.png', width: 50),
     );
   }
 }

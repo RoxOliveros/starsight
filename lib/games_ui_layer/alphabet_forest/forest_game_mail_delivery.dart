@@ -7,6 +7,7 @@ import 'package:StarSight/games_ui_layer/lighting_prompt_card.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../../business_layer/forest_progress_service.dart';
+import '../../ui_layer/alphabet_forest_ui/forest_level.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_buttons.dart';
 import '../../ui_layer/alphabet_forest_ui/forest_theme.dart';
 import '../../ui_layer/game_loading_mixin.dart';
@@ -322,8 +323,8 @@ class _ForestMailDeliveryGameState extends State<ForestMailDeliveryGame>
             );
           },
           onBack: () {
-            Navigator.of(context).pop();
-            Navigator.of(context).pop();
+            Navigator.of(context).pop(); // close dialog
+            ForestNav.backToLevels(context);
           },
         ),
       ),
