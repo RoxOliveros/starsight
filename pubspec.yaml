@@ -61,6 +61,7 @@ dependencies:
   image: ^4.2.0
   url_launcher: ^6.3.3
   flutter_svg: ^2.3.2
+  video_player: ^2.9.0
 
 dev_dependencies:
   flutter_launcher_icons: ^0.14.1
@@ -73,7 +74,10 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/logo_transparent_bg.png"
+  image_path: "assets/images/icons/icon.png"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#FAF7EB"
+  adaptive_icon_foreground: "assets/images/icons/icon.png"
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -156,6 +160,7 @@ flutter:
     - assets/audio/lumi_town/level11/
     - assets/audio/lumi_town/level12/
     - assets/audio/lumi_town/level13/
+    - assets/videos/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
