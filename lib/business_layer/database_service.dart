@@ -6,7 +6,7 @@ class DatabaseService {
 
   // Screen time: parent picks from these presets (no free-text input).
   static const int defaultScreenTimeLimitMinutes = 30;
-  static const List<int> screenTimeLimitOptions = [0, 1, 15, 30, 45, 60];
+  static const List<int> screenTimeLimitOptions = [0, 15, 30, 45, 60];
 
   Future<void> createParentAndChild({
     required String uid,
