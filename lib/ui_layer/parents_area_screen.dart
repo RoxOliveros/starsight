@@ -16,6 +16,7 @@ import 'download_analysis_screen.dart';
 import 'about_us_screen.dart';
 import 'help_center_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'legal_links.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -683,7 +684,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton(
-              onPressed: () => _openMenuItem('Privacy & Data'),
+              onPressed: () => openLegal(context, LegalUrls.privacy),
               style: TextButton.styleFrom(
                 foregroundColor: ColorTheme.mutedGrey,
               ),
@@ -699,7 +700,7 @@ class _ParentsAreaScreenState extends State<ParentsAreaScreen> {
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton(
-              onPressed: () => _openMenuItem('Terms of Use'),
+              onPressed: () => openLegal(context, LegalUrls.terms),
               style: TextButton.styleFrom(
                 foregroundColor: ColorTheme.mutedGrey,
               ),

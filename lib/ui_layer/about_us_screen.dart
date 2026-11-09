@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 abstract class _AbPalette {
   static const Color cream = Color(0xFFFAF7EB);
@@ -18,8 +20,42 @@ abstract class _AbFonts {
   static const String fredoka = 'Fredoka';
 }
 
+abstract class _AbSupport {
+  static const String email = 'intellistar.support@gmail.com';
+  static const String subject = 'StarSight Support';
+}
+
 class AboutUsScreen extends StatelessWidget {
   const AboutUsScreen({super.key});
+
+  /// Opens the user's email app with a new message to StarSight support.
+  /// If no email app is available, copies the address instead.
+  Future<void> _contactSupport(BuildContext context) async {
+    final uri = Uri.parse(
+      'mailto:${_AbSupport.email}'
+          '?subject=${Uri.encodeComponent(_AbSupport.subject)}',
+    );
+
+    bool opened = false;
+    try {
+      opened = await launchUrl(uri);
+    } catch (_) {
+      opened = false;
+    }
+
+    if (!opened) {
+      await Clipboard.setData(const ClipboardData(text: _AbSupport.email));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No email app found. The address ${_AbSupport.email} was copied.',
+            ),
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,41 +78,92 @@ class AboutUsScreen extends StatelessWidget {
                     _buildIntroCard(),
                     const SizedBox(height: 24),
 
-                    // ── Mission ──
+                    // ── Purpose ──
                     _buildInfoCard(
                       color: _AbPalette.orange,
                       icon: Icons.favorite_rounded,
-                      title: 'OUR MISSION',
+                      title: 'OUR PURPOSE',
                       body:
-                      'We believe every child learns in their own way and '
-                          'at their own pace. StarSight turns learning into '
-                          'play, while giving grownups gentle insights into '
-                          'how their child experiences each activity.',
+                      'We believe that early childhood learning should be '
+                          'engaging, interactive, and enjoyable. StarSight was '
+                          'developed to support parents and teachers in '
+                          'observing children\'s interactions with various '
+                          'learning activities while encouraging curiosity, '
+                          'exploration, and discovery.\n\n'
+                          'Through play-based activities and behavioral '
+                          'insights, we aim to make observation more '
+                          'accessible and provide useful information that can '
+                          'help adults better understand each child\'s '
+                          'learning experience.',
                     ),
                     const SizedBox(height: 20),
 
-                    // ── What we do ──
-                    _buildSectionTitle('WHAT WE OFFER', _AbPalette.teal),
+                    // ── What we offer ──
+                    _buildSectionTitle('WHAT STARSIGHT OFFERS', _AbPalette.teal),
                     const SizedBox(height: 14),
                     _buildFeaturesCard(),
                     const SizedBox(height: 20),
 
-                    // ── Disclaimer ──
+                    // ── Learning worlds ──
+                    _buildSectionTitle('OUR LEARNING WORLDS', _AbPalette.orange),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'StarSight features five interactive learning categories:',
+                      style: TextStyle(
+                        fontFamily: 'Nunito',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                        color: _AbPalette.brown,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _buildWorldsCard(),
+                    const SizedBox(height: 20),
+
+                    // ── Commitment ──
                     _buildInfoCard(
                       color: _AbPalette.deepNavyBlue,
-                      icon: Icons.info_outline_rounded,
-                      title: 'GOOD TO KNOW',
+                      icon: Icons.shield_outlined,
+                      title: 'OUR COMMITMENT',
                       body:
-                      'Our reports are a helpful guide based on gameplay. '
-                          'They are not a medical, psychological, or formal '
-                          'educational assessment.',
+                      'StarSight is designed to support, not replace, the '
+                          'guidance and supervision of parents and teachers. '
+                          'Its behavioral indicators are estimates based on '
+                          'observable actions during gameplay and are not '
+                          'intended to provide medical, psychological, '
+                          'educational, or developmental diagnoses.\n\n'
+                          'We value responsible technology use, child privacy, '
+                          'and adult supervision throughout the learning '
+                          'experience. Our goal is to make technology a '
+                          'helpful tool in supporting children\'s early '
+                          'learning and observation.',
                     ),
+                    const SizedBox(height: 20),
+
+                    // ── Team ──
+                    _buildSectionTitle(
+                        'MEET THE DEVELOPMENT TEAM', _AbPalette.titleSky),
+                    const SizedBox(height: 14),
+                    _buildTeamCard(),
                     const SizedBox(height: 20),
 
                     // ── Contact ──
                     _buildSectionTitle('GET IN TOUCH', _AbPalette.yellow),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Have questions, feedback, or concerns? '
+                          'We\'d love to hear from you!',
+                      style: TextStyle(
+                        fontFamily: 'Nunito',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                        color: _AbPalette.brown,
+                      ),
+                    ),
                     const SizedBox(height: 14),
-                    _buildContactCard(),
+                    _buildContactCard(context),
                     const SizedBox(height: 32),
 
                     // ── Footer ──
@@ -172,7 +259,7 @@ class AboutUsScreen extends StatelessWidget {
     );
   }
 
-  // App logo + name + tagline
+  // App logo + name + tagline + description
   Widget _buildIntroCard() {
     return Container(
       width: double.infinity,
@@ -184,18 +271,17 @@ class AboutUsScreen extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 84,
-            height: 84,
+            width: 96,
+            height: 96,
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white,
               border: Border.all(color: _AbPalette.orange, width: 4),
             ),
-            // TODO: replace with your app logo, e.g. Image.asset('assets/...')
-            child: const Icon(
-              Icons.star_rounded,
-              size: 46,
-              color: _AbPalette.titleGold,
+            child: Image.asset(
+              'assets/images/logo_transparent_bg.png',
+              fit: BoxFit.contain,
             ),
           ),
           const SizedBox(height: 14),
@@ -211,13 +297,44 @@ class AboutUsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Learning through play, with insights\nfor the grownups who care.',
+            'Start your child\'s journey with StarSight!',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: 'Nunito',
               fontSize: 14,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
               height: 1.4,
+              color: _AbPalette.brown,
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'StarSight is an AI-assisted learning and behavioral observation '
+                'application designed to support early childhood development '
+                'through interactive, play-based learning activities.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Nunito',
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+              color: _AbPalette.brown,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Developed by IntelliStar, StarSight provides parents and '
+                'teachers with an additional way to observe how children '
+                'interact with different learning activities. By combining '
+                'engaging educational games with AI-assisted behavioral '
+                'tracking, the application provides insights into children\'s '
+                'observable attention, focus, and engagement during gameplay.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Nunito',
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
               color: _AbPalette.brown,
             ),
           ),
@@ -276,39 +393,22 @@ class AboutUsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFeaturesCard() {
-    const features = [
-      (
-      Icons.sports_esports_rounded,
-      _AbPalette.orange,
-      'Fun learning games',
-      'Letters, numbers, science, and puzzles in playful worlds.',
-      ),
-      (
-      Icons.insights_rounded,
-      _AbPalette.teal,
-      'Gentle insights',
-      'See how engaged, attentive, and focused your child is.',
-      ),
-      (
-      Icons.hourglass_bottom_rounded,
-      _AbPalette.deepNavyBlue,
-      'Healthy screen time',
-      'Set limits that fit your family\'s routine.',
-      ),
-    ];
-
+  // Shared card: list of (icon, color, title, description) rows with dividers
+  Widget _buildItemsCard({
+    required Color borderColor,
+    required List<(IconData, Color, String, String)> items,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: _AbPalette.cream,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _AbPalette.teal, width: 1.6),
+        border: Border.all(color: borderColor, width: 1.6),
       ),
       child: Column(
         children: [
-          for (int i = 0; i < features.length; i++) ...[
+          for (int i = 0; i < items.length; i++) ...[
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Row(
@@ -318,10 +418,10 @@ class AboutUsScreen extends StatelessWidget {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: features[i].$2.withValues(alpha: 0.15),
+                      color: items[i].$2.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Icon(features[i].$1, size: 22, color: features[i].$2),
+                    child: Icon(items[i].$1, size: 22, color: items[i].$2),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -329,7 +429,7 @@ class AboutUsScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          features[i].$3,
+                          items[i].$3,
                           style: const TextStyle(
                             fontFamily: _AbFonts.fredoka,
                             fontSize: 17,
@@ -339,7 +439,7 @@ class AboutUsScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          features[i].$4,
+                          items[i].$4,
                           style: const TextStyle(
                             fontFamily: 'Nunito',
                             fontSize: 12.5,
@@ -354,10 +454,10 @@ class AboutUsScreen extends StatelessWidget {
                 ],
               ),
             ),
-            if (i != features.length - 1)
+            if (i != items.length - 1)
               Divider(
                 height: 1,
-                color: _AbPalette.teal.withValues(alpha: 0.25),
+                color: borderColor.withValues(alpha: 0.25),
               ),
           ],
         ],
@@ -365,7 +465,169 @@ class AboutUsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildContactCard() {
+  Widget _buildFeaturesCard() {
+    return _buildItemsCard(
+      borderColor: _AbPalette.teal,
+      items: const [
+        (
+        Icons.sports_esports_rounded,
+        _AbPalette.orange,
+        'Play-Based Learning',
+        'Interactive activities covering letters, numbers, values, basic '
+            'concepts, colors, patterns, and puzzles.',
+        ),
+        (
+        Icons.visibility_rounded,
+        _AbPalette.teal,
+        'Behavioral Observation',
+        'AI-assisted tracking of observable behaviors during gameplay, '
+            'including eye and gaze movement, head movement, facial cues, '
+            'and screen interactions.',
+        ),
+        (
+        Icons.insights_rounded,
+        _AbPalette.titleSky,
+        'Behavioral Reports',
+        'Organized insights into estimated attention, focus, and '
+            'engagement to help parents and teachers observe children\'s '
+            'interactions with learning activities.',
+        ),
+        (
+        Icons.family_restroom_rounded,
+        _AbPalette.deepNavyBlue,
+        'Parental Controls',
+        'Settings for managing child profiles, audio preferences, and '
+            'screen-time limits.',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWorldsCard() {
+    return _buildItemsCard(
+      borderColor: _AbPalette.orange,
+      items: const [
+        (
+        Icons.park_rounded,
+        _AbPalette.teal,
+        'Alphabet Forest',
+        'Explore letters, letter recognition, and pronunciation.',
+        ),
+        (
+        Icons.home_rounded,
+        _AbPalette.orange,
+        'Lumi Town',
+        'Discover values, emotions, family, and everyday manners.',
+        ),
+        (
+        Icons.ac_unit_rounded,
+        _AbPalette.titleSky,
+        'Arctic Numberland',
+        'Practice number recognition, tracing, and counting.',
+        ),
+        (
+        Icons.water_rounded,
+        _AbPalette.deepNavyBlue,
+        'Discovery Lagoon',
+        'Explore basic concepts and learn about the world around us.',
+        ),
+        (
+        Icons.extension_rounded,
+        _AbPalette.titleGold,
+        'Puzzle Glade',
+        'Develop problem-solving skills through matching, sorting, '
+            'patterns, and puzzles.',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTeamCard() {
+    const members = [
+      'Roxanne Oliveros',
+      'Christine Domat-ol',
+      'Ron Cyrus Medina',
+    ];
+    const colors = [
+      _AbPalette.orange,
+      _AbPalette.teal,
+      _AbPalette.deepNavyBlue,
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+      decoration: BoxDecoration(
+        color: _AbPalette.cream,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _AbPalette.titleSky, width: 1.6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'StarSight is developed by IntelliStar, a team of three Bachelor '
+                'of Science in Information Technology students:',
+            style: TextStyle(
+              fontFamily: 'Nunito',
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+              color: _AbPalette.brown,
+            ),
+          ),
+          const SizedBox(height: 14),
+          for (int i = 0; i < members.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: colors[i].withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.person_rounded,
+                      size: 20,
+                      color: colors[i],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    members[i],
+                    style: const TextStyle(
+                      fontFamily: _AbFonts.fredoka,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: _AbPalette.deepNavyBlue,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 4),
+          const Text(
+            'Together, the team developed StarSight as a project that brings '
+                'together technology, interactive learning, and AI-assisted '
+                'behavioral observation to support early childhood '
+                'development.',
+            style: TextStyle(
+              fontFamily: 'Nunito',
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+              color: _AbPalette.brown,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContactCard(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -377,20 +639,28 @@ class AboutUsScreen extends StatelessWidget {
       child: Column(
         children: [
           _ContactRow(
-            icon: Icons.email_outlined,
-            label: 'Email us',
-            value: 'support@starsight.app', // TODO: your real email
-            onTap: () {}, // UI only
+            icon: Icons.groups_rounded,
+            label: 'Development Team',
+            value: 'IntelliStar',
           ),
           Divider(
             height: 1,
             color: _AbPalette.yellow.withValues(alpha: 0.4),
           ),
           _ContactRow(
-            icon: Icons.language_rounded,
-            label: 'Website',
-            value: 'www.starsight.app', // TODO: your real website
-            onTap: () {}, // UI only
+            icon: Icons.star_rounded,
+            label: 'Application',
+            value: 'StarSight',
+          ),
+          Divider(
+            height: 1,
+            color: _AbPalette.yellow.withValues(alpha: 0.4),
+          ),
+          _ContactRow(
+            icon: Icons.email_outlined,
+            label: 'Email',
+            value: _AbSupport.email,
+            onTap: () => _contactSupport(context),
           ),
         ],
       ),
@@ -402,13 +672,13 @@ class _ContactRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _ContactRow({
     required this.icon,
     required this.label,
     required this.value,
-    required this.onTap,
+    this.onTap,
   });
 
   @override
@@ -449,11 +719,12 @@ class _ContactRow extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 22,
-                color: _AbPalette.deepNavyBlue.withValues(alpha: 0.5),
-              ),
+              if (onTap != null)
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 22,
+                  color: _AbPalette.deepNavyBlue.withValues(alpha: 0.5),
+                ),
             ],
           ),
         ),

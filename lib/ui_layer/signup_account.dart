@@ -8,6 +8,9 @@ import '../business_layer/audio_helper.dart';
 import 'app_dialog.dart';
 import 'consent_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/gestures.dart';
+import 'legal_links.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -66,9 +69,18 @@ class _SignUpAccountState extends State<SignUpAccount>
   late final AnimationController _fadeController;
   late final Animation<double> _fadeIn;
 
+  late final TapGestureRecognizer _termsTap;
+  late final TapGestureRecognizer _privacyTap;
+
   @override
   void initState() {
     super.initState();
+
+    _termsTap = TapGestureRecognizer()
+      ..onTap = () => openLegal(context, LegalUrls.terms);
+    _privacyTap = TapGestureRecognizer()
+      ..onTap = () => openLegal(context, LegalUrls.privacy);
+
     OrientationService.setPortrait();
     _fadeController = AnimationController(
       vsync: this,
@@ -83,6 +95,8 @@ class _SignUpAccountState extends State<SignUpAccount>
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _termsTap.dispose();
+    _privacyTap.dispose();
     super.dispose();
   }
 
@@ -476,13 +490,14 @@ class _SignUpAccountState extends State<SignUpAccount>
                               const SizedBox(height: 16),
 
                               GestureDetector(
-                                onTap: (){
+                                onTap: () {
                                   SfxHelper.instance.play(Sfx.keyTap);
                                   _onGoogleSignUp();
                                 },
-                                child: Image.asset(
-                                  'assets/images/buttons/google_signup.png',
-                                  height: 52,
+                                child: SvgPicture.asset(
+                                  'assets/images/buttons/btn_signup.svg',
+                                  height: 43,
+                                  semanticsLabel: 'Sign up with Google',
                                 ),
                               ),
                             ],
@@ -500,22 +515,22 @@ class _SignUpAccountState extends State<SignUpAccount>
                           ),
                           child: RichText(
                             textAlign: TextAlign.center,
-                            text: const TextSpan(
+                            text: TextSpan(
                               style: AppTextStyles.body,
                               children: [
+                                const TextSpan(text: 'By signing up, you agree to our '),
                                 TextSpan(
-                                  text: 'By signing up, you agree to our ',
-                                ),
-                                TextSpan(
-                                  text: 'Terms and Conditions',
+                                  text: 'Terms of Use',
                                   style: AppTextStyles.bodylink,
+                                  recognizer: _termsTap,
                                 ),
-                                TextSpan(text: '\nand '),
+                                const TextSpan(text: '\nand '),
                                 TextSpan(
                                   text: 'Privacy Policy',
                                   style: AppTextStyles.bodylink,
+                                  recognizer: _privacyTap,
                                 ),
-                                TextSpan(text: '.'),
+                                const TextSpan(text: '.'),
                               ],
                             ),
                           ),
