@@ -23,6 +23,8 @@ import 'discovery_lagoon/lagoon_level.dart';
 import 'loading_screen.dart';
 import 'lumi_town/town_level.dart';
 import 'menu_dialog.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'intro_video_screen.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -192,6 +194,28 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  Future<void> _replayIntro() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    SfxHelper.instance.play(Sfx.keyTap);
+    _audioHelper.stopBackgroundMusic(); // so it doesn't overlap the video
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (introContext) => IntroVideoScreen(
+          uid: uid,
+          assetPath: 'assets/videos/intro.mp4',
+          onFinished: () => Navigator.of(introContext).pop(), // back to dashboard
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    OrientationService.setLandscape();
+    _audioHelper.playBackgroundMusic();
+  }
+
   @override
   void dispose() {
     ScreenTimeService.instance.stopSession(this);
@@ -349,7 +373,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
                       _activities.length,
-                      (index) => AnimatedContainer(
+                          (index) => AnimatedContainer(
                         duration: const Duration(milliseconds: 250),
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         width: _currentIndex == index ? 18 : 10,
@@ -364,8 +388,23 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ),
                   ),
                 ),
+
+                // ── Replay intro video (clapperboard) ──
+                Positioned(
+                  right: 16,
+                  bottom: 12,
+                  child: GestureDetector(
+                    onTap: _replayIntro,
+                    child: Image.asset(
+                      'assets/animations/movie_clapperboard.webp',
+                      width: 70,
+                      height: 70,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
               ],
-            )
+      )
           : LoadingScreen.arctic(),
     );
   }

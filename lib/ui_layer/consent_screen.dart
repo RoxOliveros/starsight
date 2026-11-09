@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../business_layer/database_service.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:StarSight/ui_layer/intro_video_screen.dart';
 
 abstract class ColorTheme {
   static const Color cream = Color(0xFFFAF7EB);
@@ -923,8 +924,22 @@ class _GoToDashboardDialog extends StatelessWidget {
               width: 200,
               child: ElevatedButton(
                 onPressed: () async {
+                  // Grab the navigator now, because this dialog's context
+                  // goes away as soon as the dialog is popped.
+                  final navigator = Navigator.of(context);
+
                   String? fetchedNickname = await DatabaseService()
                       .getNickname();
+
+                  if (!context.mounted) return;
+
+                  // Decide whether this account still needs to see the
+                  // intro video (only when the profile is valid).
+                  final uid = FirebaseAuth.instance.currentUser?.uid;
+                  final bool seenIntro =
+                  (fetchedNickname == null || uid == null)
+                      ? true
+                      : await IntroVideoPrefs.hasSeen(uid);
 
                   if (!context.mounted) return;
 
@@ -939,7 +954,7 @@ class _GoToDashboardDialog extends StatelessWidget {
                     AppDialog.showError(
                       context,
                       message:
-                          "Profile data missing! It looks like this account's data was deleted. Please Sign Up again.",
+                      "Profile data missing! It looks like this account's data was deleted. Please Sign Up again.",
                     );
 
                     Navigator.pushAndRemoveUntil(
@@ -947,20 +962,39 @@ class _GoToDashboardDialog extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (_) => const SignUpSignInScreen(),
                       ),
-                      (route) => false,
+                          (route) => false,
                     );
                     return;
                   }
 
-                  // 3. Normal Dashboard route if everything is perfect!
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          DashboardScreen(nickname: fetchedNickname),
-                    ),
-                    (route) => false,
-                  );
+                  final String nickname = fetchedNickname;
+
+                  void goToDashboard() {
+                    navigator.pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => DashboardScreen(nickname: nickname),
+                      ),
+                          (route) => false,
+                    );
+                  }
+
+                  if (seenIntro || uid == null) {
+                    // Returning user (or no uid): straight to the dashboard.
+                    goToDashboard();
+                  } else {
+                    // New user: show the world intro video once,
+                    // then continue to the dashboard.
+                    navigator.pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => IntroVideoScreen(
+                          uid: uid,
+                          assetPath: 'assets/videos/intro.mp4',
+                          onFinished: goToDashboard,
+                        ),
+                      ),
+                          (route) => false,
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: ColorTheme.yellow,
