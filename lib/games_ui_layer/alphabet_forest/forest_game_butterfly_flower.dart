@@ -604,6 +604,47 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
     );
   }
 
+  Widget _buildButterfly() {
+    const double size = 110;
+    final letter = _targets[_currentRound];
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Image.asset(_butterflyImage, width: size, fit: BoxFit.contain),
+          Stack(
+            children: [
+              Text(
+                letter,
+                style: TextStyle(
+                  fontFamily: ForestAppTextStyles.fredoka,
+                  fontWeight: FontWeight.w900,
+                  fontSize: size * 0.4,
+                  foreground: Paint()
+                    ..style = PaintingStyle.stroke
+                    ..strokeWidth = 6
+                    ..color = Colors.white,
+                ),
+              ),
+              Text(
+                letter,
+                style: TextStyle(
+                  fontFamily: ForestAppTextStyles.fredoka,
+                  fontWeight: FontWeight.w900,
+                  fontSize: size * 0.4,
+                  color: ForestColorTheme.darkseagreen,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildGardenArea(double w, double h) {
     return SizedBox(
       width: w,
@@ -618,7 +659,7 @@ class _ButterflyFlowerGardenGameState extends State<ButterflyFlowerGardenGame>
               return Positioned(
                 left: pos.dx * w - 35,
                 top: pos.dy * h - 35,
-                child: Image.asset(_butterflyImage, width: 110),
+                child: _buildButterfly(),
               );
             },
           ),
