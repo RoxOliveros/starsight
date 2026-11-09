@@ -40,7 +40,6 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
         AiCameraMixin,
         AppAudioLifecycleMixin<AlphabetPuzzleScreen>,
         IdleHintMixin {
-
   final AudioPlayer _audioPlayer = AudioPlayer();
   final AudioPlayer _tofiPlayer = AudioPlayer();
 
@@ -57,7 +56,8 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
 
   late List<PuzzlePiece> _allPieces;
 
-  static const String _puzzleInstructionWav = 'assets/audio/alphabet_forest/alphabet_minigame_puzzle_instruction.wav';
+  static const String _puzzleInstructionWav =
+      'assets/audio/alphabet_forest/alphabet_minigame_puzzle_instruction.wav';
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -210,8 +210,10 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
     List<String> finalEmotions = stopAiCamera();
 
     ForestDatabaseService.saveGameData(
-      gameId: 'letter_puzzle_${widget.letters.map((l) => l.toLowerCase()).join()}',
-      activityName: "Alphabet Puzzle (${widget.letters.map((l) => l.toUpperCase()).join(', ')})",
+      gameId:
+          'letter_puzzle_${widget.letters.map((l) => l.toLowerCase()).join()}',
+      activityName:
+          "Alphabet Puzzle (${widget.letters.map((l) => l.toUpperCase()).join(', ')})",
       emotions: finalEmotions,
       totalTaps: _tapTracker.totalTaps,
       mistakes: _tapTracker.mistakeCount,
@@ -260,13 +262,7 @@ class _AlphabetPuzzleScreenState extends State<AlphabetPuzzleScreen>
           },
 
           onBack: () {
-            Navigator.pop(context); // Close the prompt
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ForestLevelScreen(),
-              ),
-            );
+            ForestNav.backToLevels(context);
           },
         ),
       ),

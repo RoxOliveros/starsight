@@ -55,7 +55,8 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   Timer? _spawnTimer;
   Timer? _gameTimer;
 
-  static const String _fallInstructionWav = 'assets/audio/alphabet_forest/alphabet_minigame_fall_instruction.wav';
+  static const String _fallInstructionWav =
+      'assets/audio/alphabet_forest/alphabet_minigame_fall_instruction.wav';
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -334,11 +335,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
             );
           },
           onBack: () {
-            Navigator.pop(context);
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
-            );
+            ForestNav.backToLevels(context);
           },
         ),
       ),
@@ -506,7 +503,7 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
     );
   }
 
-// --- how-to demo: apple -> basket (shared by preview and hand) ---
+  // --- how-to demo: apple -> basket (shared by preview and hand) ---
   static const String _demoLetter = 'A'; // apple
 
   Offset _demoAppleTopLeft(Size s) => Offset(s.width * 0.35, s.height * 0.2);
@@ -514,14 +511,14 @@ class _AlphabetFallScreenState extends State<AlphabetFallScreen>
   Alignment _toAlignment(Offset p, Size s) =>
       Alignment((2 * p.dx / s.width) - 1, (2 * p.dy / s.height) - 1);
 
-// center of the apple
+  // center of the apple
   Alignment _demoHandStart(Size s) {
     final o = _demoAppleTopLeft(s);
     final half = s.width * 0.12 / 2;
     return _toAlignment(Offset(o.dx + half, o.dy + half), s);
   }
 
-// center of the basket
+  // center of the basket
   Alignment _demoHandEnd(Size s) {
     final half = s.width * 0.2 / 2;
     return _toAlignment(

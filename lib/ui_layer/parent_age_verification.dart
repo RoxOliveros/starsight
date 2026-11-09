@@ -79,7 +79,7 @@ class _ParentAgeVerificationState extends State<ParentAgeVerification> {
       AppDialog.showError(
         context,
         message:
-            "Access Denied. Grownups must be between 15 and 100 years old.",
+            "Access Denied. Grownups must be between 18 and 100 years old.",
       );
     }
   }

@@ -62,7 +62,18 @@ class ForestProgressService {
     });
   }
 
-  Future<int> markLevelComplete(int completedLevel) async {
+  Future<void>? _lastSave;
+
+  /// Completes when the most recent markLevelComplete has finished (never throws).
+  Future<void> get lastSave => _lastSave ?? Future.value();
+
+  Future<int> markLevelComplete(int completedLevel) {
+    final f = _markLevelComplete(completedLevel);
+    _lastSave = f.then((_) {}, onError: (_) {});
+    return f;
+  }
+
+  Future<int> _markLevelComplete(int completedLevel) async {
     final ref = _docRef;
     if (ref == null) return _defaultUnlockedLevel;
 

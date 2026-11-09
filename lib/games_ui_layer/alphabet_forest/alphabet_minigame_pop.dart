@@ -68,7 +68,8 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
   late List<double> _availableLanes;
 
-  static const String _popInstructionWav = 'assets/audio/alphabet_forest/alphabet_minigame_pop_instruction.wav';
+  static const String _popInstructionWav =
+      'assets/audio/alphabet_forest/alphabet_minigame_pop_instruction.wav';
 
   bool _hideLightingCard = false;
   bool _hasSavedResult = false;
@@ -225,9 +226,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
           setState(() {
-            _wrongEffects.removeWhere(
-                  (e) => e['x'] == tapX && e['y'] == tapY,
-            );
+            _wrongEffects.removeWhere((e) => e['x'] == tapX && e['y'] == tapY);
           });
         }
       });
@@ -287,7 +286,8 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
 
     ForestDatabaseService.saveGameData(
       gameId: 'letter_pop_${widget.letters.map((l) => l.toLowerCase()).join()}',
-      activityName: "Alphabet Pop (${widget.letters.map((l) => l.toUpperCase()).join(', ')})",
+      activityName:
+          "Alphabet Pop (${widget.letters.map((l) => l.toUpperCase()).join(', ')})",
       emotions: finalEmotions,
       totalTaps: _tapTracker.totalTaps,
       mistakes: _tapTracker.mistakeCount,
@@ -332,11 +332,7 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
             );
           },
           onBack: () {
-            Navigator.pop(context);
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const ForestLevelScreen()),
-            );
+            ForestNav.backToLevels(context);
           },
         ),
       ),
@@ -474,10 +470,16 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
               Positioned.fill(
                 child: HowToPlayOverlay(
                   previewChild: _buildHowToPreview(
-                    screenSize, ballSize, letterFontSize, preview,
+                    screenSize,
+                    ballSize,
+                    letterFontSize,
+                    preview,
                   ),
                   handAlignment: _handAlignmentForBall(
-                    screenSize, ballSize, preview[1].$2, preview[1].$3,
+                    screenSize,
+                    ballSize,
+                    preview[1].$2,
+                    preview[1].$3,
                   ),
                   handOffset: const Offset(0.15, 0.60),
                   onDismiss: resetIdleTimer,
@@ -524,13 +526,13 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
     );
   }
 
-// Static sample from letters NOT in this level; index 1 is the match.
-// (letter, xPos, yPos), same 0..1 space as the live balls
+  // Static sample from letters NOT in this level; index 1 is the match.
+  // (letter, xPos, yPos), same 0..1 space as the live balls
   List<(String, double, double)> _previewBalls() {
     final inLevel = widget.letters.map((l) => l.toUpperCase()).toSet();
-    final spare = [for (var c = 65; c < 91; c++) String.fromCharCode(c)]
-        .where((l) => !inLevel.contains(l))
-        .toList();
+    final spare = [
+      for (var c = 65; c < 91; c++) String.fromCharCode(c),
+    ].where((l) => !inLevel.contains(l)).toList();
     final s = spare[0], a = spare[1], b = spare[2];
     return [(a, 0.12, 0.25), (s, 0.40, 0.55), (b, 0.68, 0.20), (s, 0.88, 0.60)];
   }
@@ -546,15 +548,18 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
   }
 
   Widget _buildHowToPreview(
-      Size screenSize,
-      double ballSize,
-      double letterFontSize,
-      List<(String, double, double)> balls,
-      ) {
+    Size screenSize,
+    double ballSize,
+    double letterFontSize,
+    List<(String, double, double)> balls,
+  ) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.asset('assets/images/backgrounds/bg_game_forest.png', fit: BoxFit.cover),
+        Image.asset(
+          'assets/images/backgrounds/bg_game_forest.png',
+          fit: BoxFit.cover,
+        ),
         Positioned(
           top: 12,
           left: 0,
@@ -579,7 +584,10 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          Image.asset('assets/images/objects/forest/ball.png', fit: BoxFit.contain),
+                          Image.asset(
+                            'assets/images/objects/forest/ball.png',
+                            fit: BoxFit.contain,
+                          ),
                           Text(
                             b.$1,
                             textScaler: const TextScaler.linear(1.0),
@@ -589,7 +597,11 @@ class _AlphabetPopScreenState extends State<AlphabetPopScreen>
                               fontWeight: FontWeight.w900,
                               color: Colors.white,
                               shadows: const [
-                                Shadow(blurRadius: 6, color: Colors.black87, offset: Offset(2, 2)),
+                                Shadow(
+                                  blurRadius: 6,
+                                  color: Colors.black87,
+                                  offset: Offset(2, 2),
+                                ),
                               ],
                             ),
                           ),
