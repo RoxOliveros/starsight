@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'avatar_picker_dialog.dart'; // for kDefaultAvatarPath
@@ -25,7 +24,7 @@ abstract class _DlFonts {
 class _DlSubject {
   final String id;
   final String name;
-  final String lottie;
+  final String? lottie;
   final IconData fallbackIcon;
   final Color color; // outline / check color
   final Color softBg; // background when selected
@@ -33,7 +32,7 @@ class _DlSubject {
   const _DlSubject({
     required this.id,
     required this.name,
-    required this.lottie,
+    this.lottie,
     required this.fallbackIcon,
     required this.color,
     required this.softBg,
@@ -59,6 +58,15 @@ class DownloadAnalysisScreen extends StatefulWidget {
 }
 
 class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
+  /// Not a category: ticking this adds the overall summary to the PDF.
+  static const _DlSubject _overall = _DlSubject(
+    id: 'overall_summary',
+    name: 'Overall Summary',
+    fallbackIcon: Icons.auto_awesome_rounded,
+    color: _DlPalette.titleGold,
+    softBg: Color(0xFFFCEFD1),
+  );
+
   static const List<_DlSubject> _subjects = [
     _DlSubject(
       id: 'alphabet_forest',
@@ -126,7 +134,7 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
     if (name != _displayName) setState(() => _displayName = name);
   }
 
-  bool get _allSelected => _selected.length == _subjects.length;
+  bool get _allSelected => _selected.length == _subjects.length + 1;
 
   void _toggle(String id) {
     setState(() {
@@ -141,6 +149,7 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
       } else {
         _selected
           ..clear()
+          ..add(_overall.id)
           ..addAll(_subjects.map((s) => s.id));
       }
     });
@@ -361,6 +370,7 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
         childName: _displayName,
         nameVerified: _nameVerified,
         subjects: chosen,
+        includeOverall: _selected.contains(_overall.id),
       );
       if (!mounted) return;
 
@@ -501,6 +511,8 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
                     const SizedBox(height: 14),
 
                     // ── Subject cards ──
+                    _buildSubjectCard(_overall),
+                    const SizedBox(height: 14),
                     for (final s in _subjects) ...[
                       _buildSubjectCard(s),
                       const SizedBox(height: 14),
@@ -669,12 +681,14 @@ class _DownloadAnalysisScreenState extends State<DownloadAnalysisScreen> {
             SizedBox(
               width: 52,
               height: 52,
-              child: Lottie.asset(
-                s.lottie,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stack) =>
-                    Icon(s.fallbackIcon, size: 28, color: s.color),
-              ),
+              child: s.lottie == null
+                  ? Icon(s.fallbackIcon, size: 28, color: s.color)
+                  : Lottie.asset(
+                      s.lottie!,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stack) =>
+                          Icon(s.fallbackIcon, size: 28, color: s.color),
+                    ),
             ),
             const SizedBox(width: 12),
             // Title only (description removed)

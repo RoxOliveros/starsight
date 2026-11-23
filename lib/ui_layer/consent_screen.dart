@@ -447,7 +447,7 @@ class _Section1State extends State<_Section1> {
             _AnimatedSensorItem(
               visible: _visibleSensors >= 4,
               asset: 'assets/images/icons/face.png',
-              label: 'Facial\nExpressions',
+              label: 'Head\nMovement',
             ),
           ],
         ),
@@ -937,7 +937,7 @@ class _GoToDashboardDialog extends StatelessWidget {
                   // intro video (only when the profile is valid).
                   final uid = FirebaseAuth.instance.currentUser?.uid;
                   final bool seenIntro =
-                  (fetchedNickname == null || uid == null)
+                      (fetchedNickname == null || uid == null)
                       ? true
                       : await IntroVideoPrefs.hasSeen(uid);
 
@@ -954,7 +954,7 @@ class _GoToDashboardDialog extends StatelessWidget {
                     AppDialog.showError(
                       context,
                       message:
-                      "Profile data missing! It looks like this account's data was deleted. Please Sign Up again.",
+                          "Profile data missing! It looks like this account's data was deleted. Please Sign Up again.",
                     );
 
                     Navigator.pushAndRemoveUntil(
@@ -962,7 +962,7 @@ class _GoToDashboardDialog extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (_) => const SignUpSignInScreen(),
                       ),
-                          (route) => false,
+                      (route) => false,
                     );
                     return;
                   }
@@ -974,7 +974,7 @@ class _GoToDashboardDialog extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (_) => DashboardScreen(nickname: nickname),
                       ),
-                          (route) => false,
+                      (route) => false,
                     );
                   }
 
@@ -992,7 +992,7 @@ class _GoToDashboardDialog extends StatelessWidget {
                           onFinished: goToDashboard,
                         ),
                       ),
-                          (route) => false,
+                      (route) => false,
                     );
                   }
                 },

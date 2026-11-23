@@ -46,8 +46,22 @@ class _FaqGroup {
   });
 }
 
-class HelpCenterScreen extends StatelessWidget {
+class HelpCenterScreen extends StatefulWidget {
   const HelpCenterScreen({super.key});
+
+  @override
+  State<HelpCenterScreen> createState() => _HelpCenterScreenState();
+}
+
+class _HelpCenterScreenState extends State<HelpCenterScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   static const List<_FaqGroup> _groups = [
     _FaqGroup(
@@ -138,7 +152,7 @@ class HelpCenterScreen extends StatelessWidget {
               "• Alphabet Forest: letters, pronunciation, and uppercase-to-lowercase matching.\n"
               "• Lumi Town: stories and activities about sharing, emotions, family, house chores, and basic manners.\n"
               "• Arctic Numberland: number tracing, number recognition, counting, and object identification.\n"
-              "• Discovery Lagoon: basic science topics such as body parts, the five senses, weather, animals, food groups, and seasons.\n"
+              "• Discovery Lagoon: basic conceptual awareness topics such as body parts, the five senses, weather, animals, food groups, and seasons.\n"
               "• Puzzle Glade: color sorting, pattern recognition, memory matching, shadow matching, puzzles, and other logic-based activities.",
         ),
         _FaqItem(
@@ -162,7 +176,7 @@ class HelpCenterScreen extends StatelessWidget {
       items: [
         _FaqItem(
           "Why does StarSight need camera access?",
-          "During learning activities, StarSight uses the device camera to observe visible behavioral cues such as eye or gaze movement, head movement, and facial expressions. These observations help generate attention, focus, and engagement indicators.",
+          "During learning activities, StarSight uses the device camera to observe visible behavioral cues such as eye or gaze movement, and head movement. These observations help generate attention, focus, and engagement indicators.",
         ),
         _FaqItem(
           "Does StarSight record or save videos or photos of my child?",
@@ -302,12 +316,50 @@ class HelpCenterScreen extends StatelessWidget {
     ),
   ];
 
+  bool get _isSearching => _query.trim().isNotEmpty;
+
+  /// Groups narrowed down to the questions that match the search text.
+  /// Every word typed must appear in the question or the answer
+  /// (case-insensitive). Groups with no match are left out.
+  List<_FaqGroup> get _visibleGroups {
+    final words = _query
+        .toLowerCase()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+    if (words.isEmpty) return _groups;
+
+    final result = <_FaqGroup>[];
+    for (final g in _groups) {
+      final matches = g.items.where((item) {
+        final text = '${item.question} ${item.answer}'.toLowerCase();
+        return words.every((w) => text.contains(w));
+      }).toList();
+      if (matches.isNotEmpty) {
+        result.add(
+          _FaqGroup(
+            title: g.title,
+            icon: g.icon,
+            color: g.color,
+            items: matches,
+          ),
+        );
+      }
+    }
+    return result;
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() => _query = '');
+  }
+
   /// Opens the user's email app with a new message to StarSight support.
   /// If no email app is available, copies the address instead.
   Future<void> _contactSupport(BuildContext context) async {
     final uri = Uri.parse(
       'mailto:${_HcSupport.email}'
-          '?subject=${Uri.encodeComponent(_HcSupport.subject)}',
+      '?subject=${Uri.encodeComponent(_HcSupport.subject)}',
     );
 
     bool opened = false;
@@ -333,6 +385,8 @@ class HelpCenterScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visibleGroups = _visibleGroups;
+
     return Scaffold(
       backgroundColor: _HcPalette.cream,
       body: SafeArea(
@@ -341,6 +395,8 @@ class HelpCenterScreen extends StatelessWidget {
             _buildHeader(context),
             Expanded(
               child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -359,17 +415,20 @@ class HelpCenterScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 22),
 
-                    // ── Search (UI only) ──
+                    // ── Search ──
                     _buildSearchBar(),
                     const SizedBox(height: 26),
 
-                    // ── FAQ groups ──
-                    for (final g in _groups) ...[
-                      _buildGroupTitle(g),
-                      const SizedBox(height: 14),
-                      _buildFaqCard(g),
-                      const SizedBox(height: 26),
-                    ],
+                    // ── FAQ groups (filtered by the search text) ──
+                    if (visibleGroups.isEmpty)
+                      _buildNoResults()
+                    else
+                      for (final g in visibleGroups) ...[
+                        _buildGroupTitle(g),
+                        const SizedBox(height: 14),
+                        _buildFaqCard(g),
+                        const SizedBox(height: 26),
+                      ],
 
                     // ── Contact support ──
                     _buildContactCard(context),
@@ -379,10 +438,10 @@ class HelpCenterScreen extends StatelessWidget {
                       padding: EdgeInsets.symmetric(horizontal: 8),
                       child: Text(
                         'StarSight is an AI-assisted observational and '
-                            'play-based learning application. It is intended to '
-                            'support parents and teachers, not replace adult '
-                            'supervision, professional judgment, or formal '
-                            'developmental assessment.',
+                        'play-based learning application. It is intended to '
+                        'support parents and teachers, not replace adult '
+                        'supervision, professional judgment, or formal '
+                        'developmental assessment.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontFamily: 'Nunito',
@@ -448,7 +507,12 @@ class HelpCenterScreen extends StatelessWidget {
         color = palette[(letterIndex ~/ 2) % palette.length];
         letterIndex++;
       }
-      spans.add(TextSpan(text: char, style: TextStyle(color: color)));
+      spans.add(
+        TextSpan(
+          text: char,
+          style: TextStyle(color: color),
+        ),
+      );
     }
     return RichText(
       textAlign: TextAlign.center,
@@ -473,20 +537,26 @@ class HelpCenterScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(26),
         border: Border.all(color: _HcPalette.deepNavyBlue, width: 1.6),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.search_rounded, size: 22, color: _HcPalette.deepNavyBlue),
-          SizedBox(width: 10),
+          const Icon(
+            Icons.search_rounded,
+            size: 22,
+            color: _HcPalette.deepNavyBlue,
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: TextField(
-              // UI only: no search logic yet
-              style: TextStyle(
+              controller: _searchController,
+              onChanged: (value) => setState(() => _query = value),
+              textInputAction: TextInputAction.search,
+              style: const TextStyle(
                 fontFamily: 'Nunito',
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: _HcPalette.brown,
               ),
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Search for help',
                 hintStyle: TextStyle(
                   fontFamily: 'Nunito',
@@ -499,6 +569,56 @@ class HelpCenterScreen extends StatelessWidget {
               ),
             ),
           ),
+          if (_query.isNotEmpty)
+            GestureDetector(
+              onTap: _clearSearch,
+              child: const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 20,
+                  color: _HcPalette.mutedGrey,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoResults() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        children: [
+          Icon(
+            Icons.search_off_rounded,
+            size: 44,
+            color: _HcPalette.mutedGrey.withValues(alpha: 0.9),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'NO RESULTS FOUND',
+            style: TextStyle(
+              fontFamily: _HcFonts.fredoka,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+              color: _HcPalette.deepNavyBlue,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Try different words, or send us a message below.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Nunito',
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: _HcPalette.brown,
+            ),
+          ),
+          const SizedBox(height: 26),
         ],
       ),
     );
@@ -538,7 +658,16 @@ class HelpCenterScreen extends StatelessWidget {
         child: Column(
           children: [
             for (int i = 0; i < g.items.length; i++) ...[
-              _FaqTile(item: g.items[i], color: g.color),
+              _FaqTile(
+                // New key when searching starts/stops so the tile re-applies
+                // its initial open/closed state.
+                key: ValueKey(
+                  '${g.title}|${g.items[i].question}|$_isSearching',
+                ),
+                item: g.items[i],
+                color: g.color,
+                initiallyExpanded: _isSearching,
+              ),
               if (i != g.items.length - 1)
                 Divider(
                   height: 1,
@@ -591,7 +720,7 @@ class HelpCenterScreen extends StatelessWidget {
           const SizedBox(height: 6),
           const Text(
             'Our team is happy to help. Send us a message and we\'ll get '
-                'back to you.',
+            'back to you.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: 'Nunito',
@@ -651,8 +780,14 @@ class HelpCenterScreen extends StatelessWidget {
 class _FaqTile extends StatelessWidget {
   final _FaqItem item;
   final Color color;
+  final bool initiallyExpanded;
 
-  const _FaqTile({required this.item, required this.color});
+  const _FaqTile({
+    super.key,
+    required this.item,
+    required this.color,
+    this.initiallyExpanded = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -660,6 +795,7 @@ class _FaqTile extends StatelessWidget {
       // Removes the default divider lines ExpansionTile draws.
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
+        initiallyExpanded: initiallyExpanded,
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         expandedCrossAxisAlignment: CrossAxisAlignment.start,

@@ -1,11 +1,11 @@
 import 'dart:typed_data';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'overall_summary_service.dart';
 
 /// Result of [AnalysisPdfService.build].
 class AnalysisPdfResult {
@@ -67,7 +67,7 @@ class AnalysisPdfService {
   /// Keep in sync with `cachedReportVersion` in CategoryReportScreen. Older
   /// saved reports (written before emotions and bands were removed) are
   /// skipped so they never end up in a PDF.
-  static const int _reportVersion = 3;
+  static const int _reportVersion = 6;
 
   static const _orange = PdfColor.fromInt(0xFFEC8A20);
   static const _teal = PdfColor.fromInt(0xFF54BDB8);
@@ -87,6 +87,8 @@ class AnalysisPdfService {
     required String childId,
     required String childName,
     required Map<String, String> subjects,
+    // true when the parent ticked "Overall Summary" on the download screen.
+    bool includeOverall = false,
     // false when the current nickname couldn't be read (e.g. offline): then
     // saved reports are not rejected for having a different name.
     bool nameVerified = true,
@@ -112,7 +114,21 @@ class AnalysisPdfService {
         .map((s) => s.name)
         .toList();
 
-    if (withReport.isEmpty) {
+    // The overall summary covers every category the child has played.
+    OverallSummary? overall;
+    if (includeOverall) {
+      try {
+        overall = await OverallSummaryService.load(
+          childId: childId,
+          fallbackName: childName,
+        );
+      } catch (e) {
+        print('Overall summary failed for PDF: $e');
+      }
+      if (overall == null) missing.add('Overall Summary');
+    }
+
+    if (withReport.isEmpty && overall == null) {
       return AnalysisPdfResult(bytes: null, missingSubjects: missing);
     }
 
@@ -121,6 +137,7 @@ class AnalysisPdfService {
       style: style,
       childName: childName,
       subjects: withReport,
+      overall: overall,
     );
     return AnalysisPdfResult(bytes: bytes, missingSubjects: missing);
   }
@@ -179,11 +196,24 @@ class AnalysisPdfService {
       int bestNumber = -1;
       for (var i = 0; i < slotDocs.length; i++) {
         final data = slotDocs[i].data();
-        if (data == null || data['cachedReportData'] == null) continue;
-        if (data['cachedReportVersion'] != _reportVersion) continue;
+        if (data == null || data['cachedReportData'] == null) {
+          print('[$categoryId] slot ${i + 1}: no cachedReportData');
+          continue;
+        }
+        if (data['cachedReportVersion'] != _reportVersion) {
+          print(
+            '[$categoryId] slot ${i + 1}: version '
+            '${data['cachedReportVersion']} != $_reportVersion',
+          );
+          continue;
+        }
 
         if (expectedChildName != null &&
-            data['cachedReportChildName'] != expectedChildName) {
+            _norm(data['cachedReportChildName']) != _norm(expectedChildName)) {
+          print(
+            '[$categoryId] name "${data['cachedReportChildName']}" != '
+            '"$expectedChildName"',
+          );
           continue;
         }
         final number = (data['playthroughNumber'] as num?)?.toInt() ?? (i + 1);
@@ -230,6 +260,7 @@ class AnalysisPdfService {
     required _PdfStyle style,
     required String childName,
     required List<_SubjectReport> subjects,
+    OverallSummary? overall,
   }) async {
     final doc = pw.Document(
       title: 'StarSight Progress Report - ${style.clean(childName)}',
@@ -239,6 +270,7 @@ class AnalysisPdfService {
 
     final widgets = <pw.Widget>[
       _titleBlock(style, childName),
+      if (overall != null) _overallBlock(style, overall),
       for (var i = 0; i < subjects.length; i++) ...[
         if (i > 0) pw.NewPage(),
         ..._subjectSection(style, subjects[i]),
@@ -301,6 +333,42 @@ class AnalysisPdfService {
             'Generated ${_formatDate(DateTime.now())}',
             style: const pw.TextStyle(fontSize: 9, color: _brown),
           ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _overallBlock(_PdfStyle s, OverallSummary o) {
+    final partial = o.categoriesIncluded < o.categoriesTotal;
+
+    return pw.Container(
+      width: double.infinity,
+      margin: const pw.EdgeInsets.only(top: 14),
+      padding: const pw.EdgeInsets.all(14),
+      decoration: pw.BoxDecoration(
+        borderRadius: pw.BorderRadius.circular(10),
+        border: pw.Border.all(color: _gold, width: 1.5),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'Overall Summary',
+            style: pw.TextStyle(font: s.bold, fontSize: 14, color: _orange),
+          ),
+          pw.SizedBox(height: 6),
+          pw.Text(
+            s.clean(o.text),
+            style: const pw.TextStyle(fontSize: 10.5, lineSpacing: 3),
+          ),
+          if (partial) ...[
+            pw.SizedBox(height: 6),
+            pw.Text(
+              'Based on ${o.categoriesIncluded} of ${o.categoriesTotal} '
+              'categories played so far.',
+              style: const pw.TextStyle(fontSize: 8.5, color: _brown),
+            ),
+          ],
         ],
       ),
     );
@@ -402,6 +470,9 @@ class AnalysisPdfService {
   }
 
   // ── Helpers ───────────────────────
+
+  /// Trim + lowercase, so "Mia " and "mia" count as the same name.
+  static String _norm(Object? v) => (v?.toString() ?? '').trim().toLowerCase();
 
   static String _playLabel(int n) {
     if (n % 100 >= 11 && n % 100 <= 13) return '${n}th Play';
