@@ -590,7 +590,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                       const SizedBox(height: 8),
                       for (final point in const [
                         'Reports are based on gameplay interactions, completion '
-                            'rates, and behavior (such as expressions, eye '
+                            'rates, and behavior (such as eye '
                             'direction, and tapping) seen during play.',
                         'They are a helpful guide, not a medical, '
                             'psychological, or formal educational assessment.',
@@ -598,9 +598,6 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
                             'short session does not mean something is wrong.',
                         'Results can vary with lighting, camera view, and how '
                             'much your child played.',
-                        'For any concerns about your child\'s development, '
-                            'please talk to a teacher or a qualified '
-                            'professional.',
                       ])
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 3),
@@ -1111,7 +1108,7 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'What We Observed',
+                'How We Observed',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: AppTextStyles.fredoka,
