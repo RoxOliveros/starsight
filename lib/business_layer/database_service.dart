@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../business_layer/pin_helper.dart';
 
 class DatabaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -17,11 +18,13 @@ class DatabaseService {
     required String childGender,
     required String parentPin,
   }) async {
-    // Save to Firestore
+    // Save to Firestore (PIN is stored as a salted hash, never in plain text)
+    final salt = PinHelper.generateSalt();
     await _db.collection('users').doc(uid).set({
       'email': email,
       'parentBirthYear': parentBirthYear,
-      'parentPin': parentPin,
+      'parentPinHash': PinHelper.hashPin(parentPin, salt),
+      'parentPinSalt': salt,
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -107,22 +110,43 @@ class DatabaseService {
     }
   }
 
-  Future<String?> getParentPin() async {
+  /// Checks the entered PIN against the stored hash. The real PIN never
+  /// leaves this class. Old accounts that still have a plain-text `parentPin`
+  /// are verified once, then upgraded to a hash and the plain-text field is
+  /// deleted.
+  Future<bool> verifyParentPin(String enteredPin) async {
     try {
-      User? currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        DocumentSnapshot doc = await _db
-            .collection('users')
-            .doc(currentUser.uid)
-            .get();
-        if (doc.exists && doc.data() != null) {
-          return doc.get('parentPin');
-        }
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+
+      final ref = _db.collection('users').doc(user.uid);
+      final data = (await ref.get()).data();
+      if (data == null) return false;
+
+      final hash = data['parentPinHash'] as String?;
+      final salt = data['parentPinSalt'] as String?;
+
+      // New format
+      if (hash != null && salt != null) {
+        return PinHelper.verify(enteredPin, salt, hash);
       }
+
+      // Legacy plain-text account: check once, then upgrade it
+      final legacy = data['parentPin'] as String?;
+      if (legacy != null && legacy == enteredPin) {
+        final newSalt = PinHelper.generateSalt();
+        await ref.set({
+          'parentPinHash': PinHelper.hashPin(enteredPin, newSalt),
+          'parentPinSalt': newSalt,
+          'parentPin': FieldValue.delete(),
+        }, SetOptions(merge: true));
+        return true;
+      }
+      return false;
     } catch (e) {
-      print("Error fetching PIN: $e");
+      print("Error verifying PIN: $e");
+      return false;
     }
-    return null;
   }
 
   Future<String?> updateParentPin(String newPin) async {
@@ -131,8 +155,11 @@ class DatabaseService {
       if (currentUser == null) {
         return "You're not signed in. Please sign in and try again.";
       }
+      final salt = PinHelper.generateSalt();
       await _db.collection('users').doc(currentUser.uid).set({
-        'parentPin': newPin,
+        'parentPinHash': PinHelper.hashPin(newPin, salt),
+        'parentPinSalt': salt,
+        'parentPin': FieldValue.delete(), // clear any legacy plain-text PIN
       }, SetOptions(merge: true));
       return null;
     } catch (e) {

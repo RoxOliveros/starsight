@@ -40,6 +40,7 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
   final List<String> _confirmPin = [];
   static const int _maxDigits = 4;
   bool _isConfirmStep = false;
+  bool _showPin = false; // eye toggle: show digits instead of dots
 
   void _onDigitTap(String digit) {
     final current = _isConfirmStep ? _confirmPin : _pin;
@@ -67,7 +68,10 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
         return;
       }
 
-      setState(() => _isConfirmStep = true);
+      setState(() {
+        _isConfirmStep = true;
+        _showPin = false;
+      });
     } else {
       if (_pin.join() == _confirmPin.join()) {
         Navigator.push(
@@ -114,14 +118,24 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
       height: 40,
       alignment: Alignment.center,
       child: filled
-          ? Container(
-              width: 12,
-              height: 12,
-              decoration: const BoxDecoration(
-                color: ColorTheme.warmBrown,
-                shape: BoxShape.circle,
-              ),
-            )
+          ? (_showPin
+                ? Text(
+                    current[index],
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontFamily: Fonts.fredoka,
+                      fontWeight: FontWeight.bold,
+                      color: ColorTheme.warmBrown,
+                    ),
+                  )
+                : Container(
+                    width: 12,
+                    height: 12,
+                    decoration: const BoxDecoration(
+                      color: ColorTheme.warmBrown,
+                      shape: BoxShape.circle,
+                    ),
+                  ))
           : Container(
               width: 28,
               decoration: const BoxDecoration(
@@ -322,11 +336,35 @@ class _ParentPinVerificationState extends State<ParentPinVerification> {
                               borderRadius: BorderRadius.circular(23),
                             ),
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: List.generate(
-                                _maxDigits,
-                                (i) => _buildDigitSlot(i),
-                              ),
+                              children: [
+                                Expanded(
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: List.generate(
+                                      _maxDigits,
+                                      (i) => _buildDigitSlot(i),
+                                    ),
+                                  ),
+                                ),
+                                GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () {
+                                    SfxHelper.instance.play(Sfx.keyTap);
+                                    setState(() => _showPin = !_showPin);
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: Icon(
+                                      _showPin
+                                          ? Icons.visibility_rounded
+                                          : Icons.visibility_off_rounded,
+                                      color: ColorTheme.warmBrown,
+                                      size: 24,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),

@@ -85,10 +85,12 @@ class _LockContentState extends State<_LockContent> {
       _error = null;
     });
 
-    final pin = await DatabaseService().getParentPin();
+    final isValid = await DatabaseService().verifyParentPin(
+      _pinController.text.trim(),
+    );
     if (!mounted) return;
 
-    if (pin != null && pin == _pinController.text.trim()) {
+    if (isValid) {
       await OrientationService.setLandscape();
       if (!mounted) return;
       await Future.delayed(const Duration(milliseconds: 300));
