@@ -15,7 +15,7 @@ import '../games_audio_helper.dart';
 import '../how_to_play_overlay.dart';
 import '../idle_hint_mixin.dart';
 import '../tryagain_prompt.dart';
-import 'catching_game.dart';
+import 'basket_taste_game.dart';
 import 'kiki_reaction.dart';
 import 'lagoon_game_ui.dart';
 
@@ -241,6 +241,13 @@ class _LunchboxGameUnhealthyEndingState
                 ),
               ),
 
+              Positioned(top: 25, left: 25, child: const LagoonXButton()),
+              Positioned(
+                top: 25,
+                right: 25,
+                child: LagoonLevelBadge(level: widget.level),
+              ),
+
               if (_showTryAgain)
                 Positioned.fill(
                   child: TryJobOverlay(
@@ -358,11 +365,18 @@ class _LunchboxGameHealthyEndingState extends State<LunchboxGameHealthyEnding>
                   ],
                 ),
               ),
+
+              Positioned(top: 25, left: 25, child: const LagoonXButton()),
+              Positioned(
+                top: 25,
+                right: 25,
+                child: LagoonLevelBadge(level: widget.level),
+              ),
+
               if (_showOverlay)
                 Positioned.fill(
                   child: GoodJobOverlay(
-                    characterImage:
-                        'assets/images/characters/cat_holding_fishbone.png',
+                    characterImage: 'assets/images/characters/cat_holding_fishbone.png',
                     characterSizeFactor: 0.9,
                     onNext: () {
                       if (context.mounted) {

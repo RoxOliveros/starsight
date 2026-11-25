@@ -58,7 +58,7 @@ class StarsightSetupTutorial {
     showGeneralDialog(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.7),
+      barrierColor: Colors.black.withValues(alpha: 0.7),
       transitionDuration: const Duration(milliseconds: 350),
       pageBuilder: (context, animation, secondaryAnimation) {
         return _StarsightSetupDialog(
@@ -280,7 +280,7 @@ class _StarsightSetupDialogState extends State<_StarsightSetupDialog>
                     height: 32,
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.55),
+                      color: Colors.black.withValues(alpha: 0.55),
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: const Color(0xFFFFD875),
@@ -423,19 +423,16 @@ class _StarsightSetupDialogState extends State<_StarsightSetupDialog>
                             ),
                           ),
 
-                          // BOTTOM TEXT
-                          if (currentPage == 2)
-                            // Step 3: no text, just a small spacer
-                            const SizedBox(height: 15)
-                          else
+                          // BOTTOM TEXT (pages 1 & 2 only)
+                          if (currentPage != 2)
                             Transform.translate(
                               offset: const Offset(0, -15),
                               child: Text(
                                 currentPage == 0
                                     ? 'Place your phone in landscape mode on a stable table or phone stand. '
-                                          '\nMake sure it stays steady and does not move or fall while your child is playing.'
+                                    '\nMake sure it stays steady and does not move or fall while your child is playing.'
                                     : 'Use a well-lit room with a clear background. '
-                                          '\nMake sure there are no objects blocking the camera\'s view.',
+                                    '\nMake sure there are no objects blocking the camera\'s view.',
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
                                   fontFamily: 'Fredoka',
@@ -444,6 +441,15 @@ class _StarsightSetupDialogState extends State<_StarsightSetupDialog>
                                 ),
                               ),
                             ),
+
+                          // DOTS / LETS PLAY (always directly below the text)
+                          Transform.translate(
+                            offset: Offset(0, currentPage == 2 ? 0 : -8),
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: _buildBottomIndicator(),
+                            ),
+                          ),
                         ],
                       );
                     },
@@ -501,79 +507,6 @@ class _StarsightSetupDialogState extends State<_StarsightSetupDialog>
                   ),
                 ),
 
-              // DOTS INDICATOR / LETS PLAY BUTTON
-              Positioned(
-                bottom:
-                    (screenSize.height - dialogHeight) / .6 +
-                    dialogHeight * 0.07,
-                left: 0,
-                right: 0,
-                child: (currentPage == 2 && _isCalibrationDone)
-                    ? Center(
-                        child: GestureDetector(
-                          onTap: widget.onFinish,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 22,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFD875),
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            child: const Text(
-                              ' LETS PLAY! ',
-                              style: TextStyle(
-                                fontFamily: 'Fredoka',
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                color: Color(0xFF6B4A2E),
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            margin: const EdgeInsets.symmetric(horizontal: 5),
-                            decoration: BoxDecoration(
-                              color: currentPage == 0
-                                  ? const Color(0xFFFFD875)
-                                  : const Color(0xFFD0D0D0),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          Container(
-                            width: 8,
-                            height: 8,
-                            margin: const EdgeInsets.symmetric(horizontal: 5),
-                            decoration: BoxDecoration(
-                              color: currentPage == 1
-                                  ? const Color(0xFFFFD875)
-                                  : const Color(0xFFD0D0D0),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          Container(
-                            width: 8,
-                            height: 8,
-                            margin: const EdgeInsets.symmetric(horizontal: 5),
-                            decoration: BoxDecoration(
-                              color: currentPage == 2
-                                  ? const Color(0xFFFFD875)
-                                  : const Color(0xFFD0D0D0),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-
               // SKIP button
               if (currentPage < 2)
                 Positioned(
@@ -623,6 +556,49 @@ class _StarsightSetupDialogState extends State<_StarsightSetupDialog>
           ),
         ),
       ),
+    );
+  }
+
+  /// Dots on pages 1-2, "LETS PLAY!" button once calibration is done.
+  Widget _buildBottomIndicator() {
+    if (currentPage == 2 && _isCalibrationDone) {
+      return GestureDetector(
+        onTap: widget.onFinish,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFD875),
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: const Text(
+            ' LETS PLAY! ',
+            style: TextStyle(
+              fontFamily: 'Fredoka',
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              color: Color(0xFF6B4A2E),
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (i) {
+        return Container(
+          width: 8,
+          height: 8,
+          margin: const EdgeInsets.symmetric(horizontal: 5),
+          decoration: BoxDecoration(
+            color: currentPage == i
+                ? const Color(0xFFFFD875)
+                : const Color(0xFFD0D0D0),
+            shape: BoxShape.circle,
+          ),
+        );
+      }),
     );
   }
 }

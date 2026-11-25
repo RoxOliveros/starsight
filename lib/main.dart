@@ -23,6 +23,7 @@ void main() async {
 
   await dotenv.load(fileName: ".env");
 
+
   await AudioSettings.instance.load();
 
   await SfxHelper.instance.init();
