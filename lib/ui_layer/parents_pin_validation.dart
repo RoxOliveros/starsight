@@ -34,6 +34,7 @@ class ParentPinValidationState extends State<ParentPinValidation> {
 
   bool _animationsReady = false;
   bool _isSubmitting = false;
+  bool _showPin = false; // eye toggle: show digits instead of dots
 
   void _onDigitTap(String digit) {
     if (_isSubmitting) return;
@@ -60,11 +61,11 @@ class ParentPinValidationState extends State<ParentPinValidation> {
 
     final enteredPin = _digits.join();
 
-    String? realPin = await DatabaseService().getParentPin();
+    final isValid = await DatabaseService().verifyParentPin(enteredPin);
 
     if (!mounted) return;
 
-    if (realPin != null && enteredPin == realPin) {
+    if (isValid) {
       // _isSubmitting stays true: screen is closing, avoids double pop
       Navigator.pop(context, true);
     } else {
@@ -103,15 +104,25 @@ class ParentPinValidationState extends State<ParentPinValidation> {
       width: slotWidth,
       child: Center(
         child: filled
-            // Hidden PIN: show a dot instead of the digit
-            ? Container(
-                width: slotWidth * 0.35,
-                height: slotWidth * 0.35,
-                decoration: const BoxDecoration(
-                  color: ColorTheme.warmBrown,
-                  shape: BoxShape.circle,
-                ),
-              )
+            // Hidden PIN: dot by default, the digit when the eye is toggled on
+            ? (_showPin
+                  ? Text(
+                      _digits[index],
+                      style: TextStyle(
+                        fontSize: slotWidth * 0.6,
+                        fontFamily: Fonts.fredoka,
+                        fontWeight: FontWeight.bold,
+                        color: ColorTheme.warmBrown,
+                      ),
+                    )
+                  : Container(
+                      width: slotWidth * 0.35,
+                      height: slotWidth * 0.35,
+                      decoration: const BoxDecoration(
+                        color: ColorTheme.warmBrown,
+                        shape: BoxShape.circle,
+                      ),
+                    ))
             : SizedBox(
                 width: slotWidth * 0.6,
                 height: slotWidth * 0.65,
@@ -285,10 +296,31 @@ class ParentPinValidationState extends State<ParentPinValidation> {
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
-                                children: List.generate(
-                                  _maxDigits,
-                                  (i) => _buildSlot(i, slotW),
-                                ),
+                                children: [
+                                  ...List.generate(
+                                    _maxDigits,
+                                    (i) => _buildSlot(i, slotW),
+                                  ),
+                                  GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () {
+                                      SfxHelper.instance.play(Sfx.keyTap);
+                                      setState(() => _showPin = !_showPin);
+                                    },
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        left: slotW * 0.2,
+                                      ),
+                                      child: Icon(
+                                        _showPin
+                                            ? Icons.visibility
+                                            : Icons.visibility_off,
+                                        color: ColorTheme.warmBrown,
+                                        size: (slotW * 0.5).clamp(20.0, 28.0),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             SizedBox(height: vGapSm),

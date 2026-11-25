@@ -684,9 +684,9 @@ class _ChangePinDialogState extends State<_ChangePinDialog> {
     setState(() => _loading = true);
 
     // The new PIN can't be the one already in use.
-    final currentPin = await _db.getParentPin();
+    final sameAsCurrent = await _db.verifyParentPin(_new.text);
     if (!mounted) return;
-    if (currentPin == _new.text) {
+    if (sameAsCurrent) {
       setState(() => _loading = false);
       AppDialog.showError(
         context,
@@ -773,9 +773,9 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
     setState(() => _loading = true);
 
     // 1. PIN
-    final savedPin = await _db.getParentPin();
+    final pinOk = await _db.verifyParentPin(_pin.text);
     if (!mounted) return;
-    if (savedPin == null || savedPin != _pin.text) {
+    if (!pinOk) {
       _fail("That PIN isn't right.");
       return;
     }
