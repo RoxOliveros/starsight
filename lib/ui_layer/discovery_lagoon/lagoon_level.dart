@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:StarSight/business_layer/global_star_counter.dart';
 import 'package:StarSight/business_layer/lagoon_progress_service.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/animal_lifecycle_game.dart';
-import 'package:StarSight/games_ui_layer/discovery_lagoon/catching_game.dart';
+import 'package:StarSight/games_ui_layer/discovery_lagoon/basket_taste_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/clothes_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/cold_hot_game.dart';
 import 'package:StarSight/games_ui_layer/discovery_lagoon/feed_the_animal.dart';

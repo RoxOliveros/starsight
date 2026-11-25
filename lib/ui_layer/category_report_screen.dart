@@ -1566,6 +1566,39 @@ class _CategoryReportScreenState extends State<CategoryReportScreen> {
               ),
             ),
 
+            // Note about how many plays are kept
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 1),
+                    child: Icon(
+                      Icons.info_outline_rounded,
+                      size: 14,
+                      color: ColorTheme.mutedGrey,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Only your child\'s $_maxStoredCycles most recent plays '
+                          'are saved. Starting a new play replaces the oldest one.',
+                      style: const TextStyle(
+                        fontFamily: 'Nunito',
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        fontStyle: FontStyle.italic,
+                        height: 1.3,
+                        color: ColorTheme.mutedGrey,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             // --- REPORT BODY ---
             Expanded(
               child: _isLoading
