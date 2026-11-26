@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - chore/STAR-472-Build-Apk-   # remove once merged and working
+      - chore/STAR-472-Build-Apk-Sprint-6  # remove once merged and working
 
 jobs:
   build:
@@ -23,6 +23,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.41.2'
           channel: 'stable'
           cache: true
 
