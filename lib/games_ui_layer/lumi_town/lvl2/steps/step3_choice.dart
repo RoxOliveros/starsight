@@ -44,9 +44,12 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
   late AnimationController _iconEntranceCtrl;
   late Animation<double> _iconFade;
 
-  static const String _step3QuestionAudio = 'assets/audio/lumi_town/level2/vo_step3_question.wav';
-  static const String _step1WrongAudio = 'assets/audio/lumi_town/level2/vo_step1_wrong.wav';
-  static const String _combStartAudio = 'assets/audio/lumi_town/level2/vo_comb_start.wav';
+  static const String _step3QuestionAudio =
+      'assets/audio/lumi_town/level2/vo_step3_question.wav';
+  static const String _step1WrongAudio =
+      'assets/audio/lumi_town/level2/vo_step1_wrong.wav';
+  static const String _combStartAudio =
+      'assets/audio/lumi_town/level2/vo_comb_start.wav';
 
   bool _hideLightingCard = false;
   bool _ready = false;
@@ -90,6 +93,7 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
   }
 
   Future<void> _onCorrect() async {
+    if (!_ready || _busy) return;
     setState(() => _busy = true);
     cancelIdleTimer();
     widget.tapTracker.recordCorrectTap();
@@ -110,7 +114,7 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
   }
 
   Future<void> _onWrong(GlobalKey<ShakeWidgetState> key) async {
-    setState(() => _busy = true);
+    if (!_ready || _busy) return;
     cancelIdleTimer();
     widget.tapTracker.recordMistake();
     key.currentState?.shake();
@@ -118,7 +122,6 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
     await playVoiceRestartingOnFaceLoss(_player, _step1WrongAudio);
     await waitForAudio(_player);
     if (!mounted) return;
-    setState(() => _busy = false);
     startIdleTimer();
   }
 
@@ -170,40 +173,43 @@ class _Step3ChoiceScreenState extends State<Step3ChoiceScreen>
               bottom: 16,
               left: 0,
               right: 0,
-              child: FadeTransition(
-                opacity: _iconFade,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Comb — CORRECT
-                    _ChoiceIcon(
-                      imagePath: 'assets/images/objects/lumi/comb.png',
-                      bgColor: const Color(0xFF5BAD72),
-                      onTap: _onCorrect,
-                    ),
-                    const SizedBox(width: 24),
-
-                    // Plant — WRONG
-                    ShakeWidget(
-                      key: _plantKey,
-                      child: _ChoiceIcon(
-                        imagePath: 'assets/images/objects/lumi/plant.png',
-                        bgColor: const Color(0xFFB88FD4),
-                        onTap: () => _onWrong(_plantKey),
+              child: IgnorePointer(
+                ignoring: !_ready || _busy,
+                child: FadeTransition(
+                  opacity: _iconFade,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Comb — CORRECT
+                      _ChoiceIcon(
+                        imagePath: 'assets/images/objects/lumi/comb.png',
+                        bgColor: const Color(0xFF5BAD72),
+                        onTap: _onCorrect,
                       ),
-                    ),
-                    const SizedBox(width: 24),
+                      const SizedBox(width: 24),
 
-                    // Apple — WRONG
-                    ShakeWidget(
-                      key: _appleKey,
-                      child: _ChoiceIcon(
-                        imagePath: 'assets/images/objects/lumi/apple.png',
-                        bgColor: const Color(0xFF5B9FD4),
-                        onTap: () => _onWrong(_appleKey),
+                      // Plant — WRONG
+                      ShakeWidget(
+                        key: _plantKey,
+                        child: _ChoiceIcon(
+                          imagePath: 'assets/images/objects/lumi/plant.png',
+                          bgColor: const Color(0xFFB88FD4),
+                          onTap: () => _onWrong(_plantKey),
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 24),
+
+                      // Apple — WRONG
+                      ShakeWidget(
+                        key: _appleKey,
+                        child: _ChoiceIcon(
+                          imagePath: 'assets/images/objects/lumi/apple.png',
+                          bgColor: const Color(0xFF5B9FD4),
+                          onTap: () => _onWrong(_appleKey),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
