@@ -36,7 +36,6 @@ class _Step1ChoiceScreenState extends State<Step1ChoiceScreen>
         AiCameraMixin<Step1ChoiceScreen>,
         AppAudioLifecycleMixin<Step1ChoiceScreen>,
         IdleHintMixin {
-
   final AudioPlayer _player = AudioPlayer();
 
   final GlobalKey<ShakeWidgetState> _duckKey = GlobalKey();
@@ -45,9 +44,12 @@ class _Step1ChoiceScreenState extends State<Step1ChoiceScreen>
   late AnimationController _iconEntranceCtrl;
   late Animation<double> _iconFade;
 
-  static const String _brushStartAudio = 'assets/audio/lumi_town/level2/vo_brush_start.wav';
-  static const String _step1QuestionAudio = 'assets/audio/lumi_town/level2/vo_step1_question.wav';
-  static const String _step1WrongAudio = 'assets/audio/lumi_town/level2/vo_step1_wrong.wav';
+  static const String _brushStartAudio =
+      'assets/audio/lumi_town/level2/vo_brush_start.wav';
+  static const String _step1QuestionAudio =
+      'assets/audio/lumi_town/level2/vo_step1_question.wav';
+  static const String _step1WrongAudio =
+      'assets/audio/lumi_town/level2/vo_step1_wrong.wav';
 
   bool _hideLightingCard = false;
   bool _ready = false;
@@ -90,6 +92,7 @@ class _Step1ChoiceScreenState extends State<Step1ChoiceScreen>
   }
 
   Future<void> _onCorrect() async {
+    if (!_ready || _busy) return;
     setState(() => _busy = true);
     cancelIdleTimer();
     widget.tapTracker.recordCorrectTap();
@@ -110,7 +113,7 @@ class _Step1ChoiceScreenState extends State<Step1ChoiceScreen>
   }
 
   Future<void> _onWrong(GlobalKey<ShakeWidgetState> key) async {
-    setState(() => _busy = true);
+    if (!_ready || _busy) return;
     cancelIdleTimer();
     widget.tapTracker.recordMistake();
     key.currentState?.shake();
@@ -118,7 +121,6 @@ class _Step1ChoiceScreenState extends State<Step1ChoiceScreen>
     await playVoiceRestartingOnFaceLoss(_player, _step1WrongAudio);
     await waitForAudio(_player);
     if (!mounted) return;
-    setState(() => _busy = false);
     startIdleTimer();
   }
 
@@ -173,40 +175,43 @@ class _Step1ChoiceScreenState extends State<Step1ChoiceScreen>
               bottom: 16,
               left: 0,
               right: 0,
-              child: FadeTransition(
-                opacity: _iconFade,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Toothbrush — CORRECT
-                    _ChoiceIcon(
-                      imagePath: 'assets/images/objects/lumi/toothbrush.png',
-                      bgColor: const Color(0xFFE8B84B),
-                      onTap: _onCorrect,
-                    ),
-                    const SizedBox(width: 24),
-
-                    // Duck — WRONG
-                    ShakeWidget(
-                      key: _duckKey,
-                      child: _ChoiceIcon(
-                        imagePath: 'assets/images/objects/lumi/duck.png',
-                        bgColor: const Color(0xFF5BAD72),
-                        onTap: () => _onWrong(_duckKey),
+              child: IgnorePointer(
+                ignoring: !_ready || _busy,
+                child: FadeTransition(
+                  opacity: _iconFade,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Toothbrush — CORRECT
+                      _ChoiceIcon(
+                        imagePath: 'assets/images/objects/lumi/toothbrush.png',
+                        bgColor: const Color(0xFFE8B84B),
+                        onTap: _onCorrect,
                       ),
-                    ),
-                    const SizedBox(width: 24),
+                      const SizedBox(width: 24),
 
-                    // Apple — WRONG
-                    ShakeWidget(
-                      key: _appleKey,
-                      child: _ChoiceIcon(
-                        imagePath: 'assets/images/objects/lumi/apple.png',
-                        bgColor: const Color(0xFF5B9FD4),
-                        onTap: () => _onWrong(_appleKey),
+                      // Duck — WRONG
+                      ShakeWidget(
+                        key: _duckKey,
+                        child: _ChoiceIcon(
+                          imagePath: 'assets/images/objects/lumi/duck.png',
+                          bgColor: const Color(0xFF5BAD72),
+                          onTap: () => _onWrong(_duckKey),
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 24),
+
+                      // Apple — WRONG
+                      ShakeWidget(
+                        key: _appleKey,
+                        child: _ChoiceIcon(
+                          imagePath: 'assets/images/objects/lumi/apple.png',
+                          bgColor: const Color(0xFF5B9FD4),
+                          onTap: () => _onWrong(_appleKey),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

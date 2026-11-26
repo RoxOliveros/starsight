@@ -44,9 +44,12 @@ class _Step2ChoiceScreenState extends State<Step2ChoiceScreen>
   late AnimationController _iconEntranceCtrl;
   late Animation<double> _iconFade;
 
-  static const String _washStartAudio = 'assets/audio/lumi_town/level2/vo_wash_start.wav';
-  static const String _step2QuestionAudio = 'assets/audio/lumi_town/level2/vo_step2_question.wav';
-  static const String _step2WrongAudio = 'assets/audio/lumi_town/level2/vo_step1_wrong.wav';
+  static const String _washStartAudio =
+      'assets/audio/lumi_town/level2/vo_wash_start.wav';
+  static const String _step2QuestionAudio =
+      'assets/audio/lumi_town/level2/vo_step2_question.wav';
+  static const String _step2WrongAudio =
+      'assets/audio/lumi_town/level2/vo_step1_wrong.wav';
 
   bool _hideLightingCard = false;
   bool _ready = false;
@@ -90,6 +93,7 @@ class _Step2ChoiceScreenState extends State<Step2ChoiceScreen>
   }
 
   Future<void> _onCorrect() async {
+    if (!_ready || _busy) return;
     setState(() => _busy = true);
     cancelIdleTimer();
     widget.tapTracker.recordCorrectTap();
@@ -110,7 +114,7 @@ class _Step2ChoiceScreenState extends State<Step2ChoiceScreen>
   }
 
   Future<void> _onWrong(GlobalKey<ShakeWidgetState> key) async {
-    setState(() => _busy = true);
+    if (!_ready || _busy) return;
     cancelIdleTimer();
     widget.tapTracker.recordMistake();
     key.currentState?.shake();
@@ -118,7 +122,6 @@ class _Step2ChoiceScreenState extends State<Step2ChoiceScreen>
     await playVoiceRestartingOnFaceLoss(_player, _step2WrongAudio);
     await waitForAudio(_player);
     if (!mounted) return;
-    setState(() => _busy = false);
     startIdleTimer();
   }
 
@@ -168,40 +171,44 @@ class _Step2ChoiceScreenState extends State<Step2ChoiceScreen>
               bottom: 16,
               left: 0,
               right: 0,
-              child: FadeTransition(
-                opacity: _iconFade,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Water splash — CORRECT
-                    _ChoiceIcon(
-                      imagePath: 'assets/images/objects/lumi/water_splash.png',
-                      bgColor: const Color(0xFF5B9FD4),
-                      onTap: _onCorrect,
-                    ),
-                    const SizedBox(width: 24),
-
-                    // Comb — WRONG
-                    ShakeWidget(
-                      key: _combKey,
-                      child: _ChoiceIcon(
-                        imagePath: 'assets/images/objects/lumi/chair.png',
-                        bgColor: const Color(0xFF5BAD72),
-                        onTap: () => _onWrong(_combKey),
+              child: IgnorePointer(
+                ignoring: !_ready || _busy,
+                child: FadeTransition(
+                  opacity: _iconFade,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Water splash — CORRECT
+                      _ChoiceIcon(
+                        imagePath:
+                            'assets/images/objects/lumi/water_splash.png',
+                        bgColor: const Color(0xFF5B9FD4),
+                        onTap: _onCorrect,
                       ),
-                    ),
-                    const SizedBox(width: 24),
+                      const SizedBox(width: 24),
 
-                    // Towel — WRONG (close but not yet)
-                    ShakeWidget(
-                      key: _towelKey,
-                      child: _ChoiceIcon(
-                        imagePath: 'assets/images/objects/lumi/rug.png',
-                        bgColor: const Color(0xFFD4785B),
-                        onTap: () => _onWrong(_towelKey),
+                      // Comb — WRONG
+                      ShakeWidget(
+                        key: _combKey,
+                        child: _ChoiceIcon(
+                          imagePath: 'assets/images/objects/lumi/chair.png',
+                          bgColor: const Color(0xFF5BAD72),
+                          onTap: () => _onWrong(_combKey),
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 24),
+
+                      // Towel — WRONG (close but not yet)
+                      ShakeWidget(
+                        key: _towelKey,
+                        child: _ChoiceIcon(
+                          imagePath: 'assets/images/objects/lumi/rug.png',
+                          bgColor: const Color(0xFFD4785B),
+                          onTap: () => _onWrong(_towelKey),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
